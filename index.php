@@ -67,8 +67,8 @@ function remove($file) {
 }
 
 /* ───────────────────────────── FUNCTION: icon ───────────────────────────── */
-function icon($icon) {
-    return '<i class="bi bi-' . $icon . ' mx-2"></i>';
+function icon($icon, $size = 1.5) {
+  return '<i class="bi bi-' . $icon . ' mx-2" style="font-size: ' . $size . 'em;"></i>';
 }
 
 /* ───────────────────────────────── Actions ──────────────────────────────── */
@@ -104,22 +104,34 @@ echo '
 <div class="audio-player-container">
   <div class="card">
       <div class="card-body">
-          <h4 id="songtitle" class="mt-2">No song selected</h4>
-          <audio controls style="width:100%">
+          <h3 id="songtitle" class="mt-2">No song selected</h3>
+          <audio style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
           Your browser does not support the audio element.
           </audio>
-          <div class="btn-group">
-            <button class="btn btn-pill btn-outline-secondary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').' Play Previous Song</button>
-            <button class="btn btn-pill btn-outline-primary playPauseBtn">'.icon("music-note-beamed").' Play</button>
-            <button class="btn btn-pill btn-outline-secondary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').' Play Next Song</button>
+            <div class="d-flex align-items-center">
+            <span class="audioCurrentTime">0:00</span>
+            <input type="range" class="form-range audioSlider mx-2" min="0" max="0" step="1" value="0" style="flex: 3;">
+            <span class="audioDuration">0:00</span>
+            </div>
+          <br>
+
+          <div class="btn-group align-items-center">
+            <label for="volumeSlider" class="form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
+            <!--<span class="audioVolume me-2">50%</span>-->
+            <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" style="flex: 1;">
           </div>
           <div class="btn-group">
-            <button class="btn btn-pill btn-outline-primary">'.icon('arrow-repeat').' Loop</button>
-            <button class="btn btn-pill btn-outline-primary">'.icon('shuffle').' Shuffle</button>
+            <button class="btn btn-sm btn-pill btn-outline-secondary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').' Play Previous Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary playPauseBtn" disabled>'.icon("music-note-beamed").' Play</button>
+            <button class="btn btn-sm btn-pill btn-outline-secondary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').' Play Next Song</button>
           </div>
           <div class="btn-group">
-            <button class="btn btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').' Loop</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').' Shuffle</button>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
           </div>
       </div>
   </div>
@@ -164,6 +176,10 @@ echo '</div></div>';
   var pauseIconHTML = '<?= icon('pause-fill') ?>';
   var playIconHTML  = '<?= icon('play-fill') ?>';
   var playing       = false;
+  var shuffle       = false;
+  var loop          = false;
+  var duration      = 0;
+  var currentTime   = 0;
 
 
   Dropzone.options.musicDropzone = {
@@ -213,15 +229,61 @@ echo '</div></div>';
     $("audio")[0].play();
   }
 
+  /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
+  function toggleLoop() {
+    loop = !loop;
+    var audioElement = $("audio")[0];
+    audioElement.loop = !audioElement.loop;
+    $(".toggleLoopBtn").toggleClass("active");
+  }
+
+  /* ───────────────────────── FUNCTION: toggleShuffle ──────────────────────── */
+  function toggleShuffle() {
+    shuffle = !shuffle;
+    console.log("Shuffle: " + shuffle);
+    $(".toggleShuffleBtn").toggleClass("active");
+  }
+
+  /* ────────────────────────── FUNCTION: formatTime ────────────────────────── */
+  function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return minutes + ":" + (secs < 10 ? "0" : "") + secs;
+  }
+
+  /* ────────────────────────── FUNCTION: updateTime ────────────────────────── */
+  function updateTime() {
+    currentTime = $("audio")[0].currentTime;
+    $(".audioCurrentTime").text(formatTime(currentTime));
+    $(".audioSlider").attr("max", duration);
+    $(".audioSlider").val(currentTime);
+  }
 
   $(document).ready(function() {
 
     var audioElement = $("audio")[0];
     audioElement.volume = 0.5;
 
+    // Set new interval for updating time
+    setInterval(updateTime, 1000);
+
     $(".musicitem").click(function() {
       playSong($(this).data("id"));
       return;
+    });
+
+    $(audioElement).on('canplay', function() {
+      duration = audioElement.duration;
+      $(".audioDuration").text(formatTime(duration));
+      $(".playPauseBtn").prop("disabled", false);
+    });
+    $(".audioSlider").on('input', function() {
+      currentTime = $(this).val();
+      audioElement.currentTime = $(this).val();
+    });
+    $("#volumeSlider").on('input', function() {
+      audioElement.volume = $(this).val();
+      $(".audioVolume").text(Math.round($(this).val() * 100) + "%");
     });
 
     $(audioElement).on('ended', function() {
@@ -241,6 +303,12 @@ echo '</div></div>';
         resumeSong();
       }
     });
+    $(".toggleLoopBtn").click(function() {
+      toggleLoop();
+    });
+    $(".toggleShuffleBtn").click(function() {
+      toggleShuffle();
+    });
 
     $(audioElement).on('play', function() {
       playing = true;
@@ -252,18 +320,6 @@ echo '</div></div>';
       $(".playPauseBtn").html(playIconHTML + "Play");
       document.title = pauseIcon + $("#songtitle").text();
     });
-    // $(audioElement).on('change', function() {
-    //   // playing = !audioElement.paused;
-    //   if (audioElement.paused) {
-    //     playing = false;
-    //     $(".playPauseBtn").html(playIconHTML + "Play");
-    //     document.title = pauseIcon + $("#songtitle").text();
-    //   } else {
-    //     playing = true;
-    //     $(".playPauseBtn").html(pauseIconHTML + "Pause");
-    //     document.title = playIcon + $("#songtitle").text();
-    //   }
-    // });
 
     if (window.history.replaceState) {
       const url = new URL(window.location);
