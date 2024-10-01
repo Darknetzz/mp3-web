@@ -15,10 +15,11 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Supports Windows media keys
 * Download from playlist
 * Delete from playlist
+* Shuffle playlist
+* Loop song
 
 ## TBA
 * Upload files directly from web UI
-* Loop / Shuffle playlist
 
 ## How to use
 * Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.

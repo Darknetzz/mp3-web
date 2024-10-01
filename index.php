@@ -112,7 +112,7 @@ echo '
 <div class="card m-3">
   <h2 class="card-header">Upload Music Files</h2>
   <div class="card-body">
-    <form action="upload.php" method="post" enctype="multipart/form-data" class="dropzone" id="music-dropzone">
+    <form action="?action=upload" method="post" enctype="multipart/form-data" class="dropzone" id="music-dropzone">
     <input type="file" name="files[]" accept=".mp3" multiple hidden>
     <div class="dz-message">Drag and drop MP3 files here or click to upload</div>
     </form>
