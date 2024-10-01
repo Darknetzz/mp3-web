@@ -3,3 +3,4 @@ old
 index_files
 @eaDir
 config.local.json
+.ht*

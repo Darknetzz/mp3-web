@@ -123,7 +123,7 @@ echo '
 echo '
 <div class="audio-player-container">
   <div class="card">
-      <h3 id="songtitle" class="card-header text-success">No song selected</h3>
+      <h3 id="songtitle" class="card-header text-success d-flex justify-content-center">No song selected</h3>
       <div class="card-body">
           <audio '.($config['use_legacy_player'] ? 'controls' : '').' style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
@@ -138,26 +138,26 @@ echo '
               <span class="audioDuration">0:00</span>
             </div>
             <br>
-            <div class="btn-group align-items-center mx-2">
+            <div class="btn-group mx-2">
               <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
               <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.$config['default_volume'].'" style="flex: 1;">
             </div>
             ';
           }
 echo '
-        <div class="btn-group mx-2">
-          <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').'</button>
-          <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" disabled>'.icon("music-note-beamed").'</button>
-          <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').'</button>
+          <div class="btn-group mx-2">
+            <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" disabled>'.icon("music-note-beamed").'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').'</button>
+          </div>
+          <div class="btn-group mx-2">
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').'</button>
+          </div>
+          <div class="btn-group mx-2">
+            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
+          </div>
         </div>
-        <div class="btn-group mx-2">
-          <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').'</button>
-          <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').'</button>
-        </div>
-        <div class="btn-group mx-2">
-          <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
-        </div>
-      </div>
   </div>
 </div>
 ';
