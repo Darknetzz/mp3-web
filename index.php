@@ -286,6 +286,7 @@ echo '</div></div>';
     loop = !loop;
     var audioElement = $("audio")[0];
     audioElement.loop = !audioElement.loop;
+    console.log("Loop: " + loop);
     $(".toggleLoopBtn").toggleClass("active");
   }
 
