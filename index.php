@@ -122,8 +122,8 @@ echo '
 
 echo '
 <div class="audio-player-container">
-  <div class="card">
-      <h3 id="songtitle" class="card-header text-success d-flex justify-content-center">No song selected</h3>
+  <div class="d-flex align-items-center card">
+      <h3 id="songtitle" class="card-header text-success">No song selected</h3>
       <div class="card-body">
           <audio '.($config['use_legacy_player'] ? 'controls' : '').' style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
@@ -138,9 +138,9 @@ echo '
               <span class="audioDuration">0:00</span>
             </div>
             <br>
-            <div class="btn-group mx-2">
+            <div class="btn-group mx-2 align-items-center">
               <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
-              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.$config['default_volume'].'" style="flex: 1;">
+              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.$config['default_volume'].'">
             </div>
             ';
           }
@@ -249,6 +249,9 @@ echo '</div></div>';
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index) {
     console.log("Playing song " + index + "/" + $(".musicitem").length);
+    if (window.currentIndex === index) {
+      return;
+    }
     if (index < 0) {
       index = $(".musicitem").length - 1; // Play the last song if we are at the first
     } else if (index >= $(".musicitem").length) {
@@ -270,15 +273,26 @@ echo '</div></div>';
   }
 
   /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
+  // REVIEW: Remove this in favor of toggleSong
   function pauseSong() {
     updateTitle(songName);
     $("audio")[0].pause();
   }
 
   /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
+  // REVIEW: Remove this in favor of toggleSong
   function resumeSong() {
     updateTitle(songName);
     $("audio")[0].play();
+  }
+
+  /* ────────────────────────── FUNCTION: toggleSong ────────────────────────── */
+  function toggleSong() {
+    if (playing) {
+      pauseSong();
+    } else {
+      resumeSong();
+    }
   }
 
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
@@ -321,9 +335,9 @@ echo '</div></div>';
     setInterval(updateTime, 1000);
 
     $(document).on("click", ".musicitem", function() {
-      currentIndex = $(this).data("index");
-      console.log("Clicked on music item " + currentIndex);
-      playSong(currentIndex);
+      nextIndex = $(this).data("index");
+      console.log("Clicked on music item " + nextIndex);
+      playSong(nextIndex);
     });
 
     $(audioElement).on('canplay', function() {
@@ -361,21 +375,17 @@ echo '</div></div>';
         playSong(randomIndex);
         return;
       }
-      currentIndex++;
-      var nextSongItem = $('.musicitem').parent().find('[data-index="' + currentIndex + '"]');
+      nextIndex = currentIndex + 1;
+      var nextSongItem = $('.musicitem').parent().find('[data-index="' + nextIndex + '"]');
       console.log("Playing next row: " + nextSongItem.text());
       if (!nextSongItem.length) {
-        currentIndex = 0;
+        nextIndex = 0;
       }
-      playSong(currentIndex);
+      playSong(nextIndex);
     });
 
     $(".playPauseBtn").click(function() {
-      if (playing) {
-        pauseSong();
-      } else {
-        resumeSong();
-      }
+      toggleSong();
     });
     $(".toggleLoopBtn").click(function() {
       toggleLoop();
@@ -423,11 +433,7 @@ echo '</div></div>';
     $(document).keydown(function(e) {
       if (e.code === 'Space') {
         e.preventDefault();
-        if (playing) {
-          pauseSong();
-        } else {
-          resumeSong();
-        }
+        toggleSong();
       }
     });
 });
