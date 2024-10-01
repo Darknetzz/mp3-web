@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.4/dist/bootstrap-table.min.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.4/dist/bootstrap-table.min.js"></script>
+
 <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
 <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
 
@@ -67,8 +70,8 @@ function remove($file) {
 }
 
 /* ───────────────────────────── FUNCTION: icon ───────────────────────────── */
-function icon($icon, $size = 1.5) {
-  return '<i class="bi bi-' . $icon . ' mx-2" style="font-size: ' . $size . 'em;"></i>';
+function icon($icon = "", $size = 1.5, $margin = 1) {
+  return '<i class="bi bi-' . $icon . ' m-' . $margin . '" style="font-size: ' . $size . 'em;"></i>';
 }
 
 /* ───────────────────────────────── Actions ──────────────────────────────── */
@@ -117,7 +120,7 @@ echo '
           <br>
 
           <div class="btn-group align-items-center">
-            <label for="volumeSlider" class="form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
+            <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
             <!--<span class="audioVolume me-2">50%</span>-->
             <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" style="flex: 1;">
           </div>
@@ -147,7 +150,15 @@ if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
     echo '<p>Upload some music files to the <code>music/</code> directory.</p>';
 }
-echo "<table class='table table-striped'>";
+echo "<table class='table table-striped' data-toggle='table' data-search='true'>
+<thead>
+  <tr class='table-success'>
+    <th data-field='name'>File Name</th>
+    <th>Download</th>
+    <th>Delete</th>
+  </tr>
+    <tbody>
+  ";
 $i = 0;
 foreach ($musicFiles as $file) {
     $filePath = $musicDir . $file;
@@ -156,13 +167,13 @@ foreach ($musicFiles as $file) {
     }
     echo '
     <tr>
-      <td><a href="javascript:void(0);" class="musicitem" id="musicitem-'.$i.'" data-id="'.$i.'">' . htmlspecialchars($file) . '</a></td>
-      <td><a href="?action=dl&file=' . urlencode($file) . '" class="link-success">'.icon('download').'</a></td>
-      <td><a href="?action=rm&file=' . urlencode($file) . '" class="link-danger">'.icon('trash-fill').'</a></td>
+      <td><a href="javascript:void(0);" class="musicitem link-secondary" id="musicitem-'.$i.'" data-id="'.$i.'">' . htmlspecialchars($file) . '</a></td>
+      <td><a href="?action=dl&file=' . urlencode($file) . '" class="link-success">'.icon('download', margin: 0).'</a></td>
+      <td><a href="?action=rm&file=' . urlencode($file) . '" class="link-danger">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
     $i++;
 }
-echo '</table>';
+echo '</tbody></table>';
 echo '</div></div>';
 ?>
 
@@ -267,7 +278,7 @@ echo '</div></div>';
     // Set new interval for updating time
     setInterval(updateTime, 1000);
 
-    $(".musicitem").click(function() {
+    $(document).on("click", ".musicitem", function() {
       playSong($(this).data("id"));
       return;
     });
@@ -283,7 +294,22 @@ echo '</div></div>';
     });
     $("#volumeSlider").on('input', function() {
       audioElement.volume = $(this).val();
+      if ($(this).val() == 0) {
+        $(".volumeIcon").html('<?= icon("volume-mute-fill", 2) ?>');
+      } else if ($(this).val() <= 0.5) {
+        $(".volumeIcon").html('<?= icon("volume-down-fill", 2) ?>');
+      } else {
+        $(".volumeIcon").html('<?= icon("volume-up-fill", 2) ?>');
+      }
       $(".audioVolume").text(Math.round($(this).val() * 100) + "%");
+    });
+    $(".volumeIcon").on('click', function() {
+      if ($("#volumeSlider").val() == 0) {
+        $("#volumeSlider").val(0.5);
+      } else {
+        $("#volumeSlider").val(0);
+      }
+      $("#volumeSlider").trigger('input');
     });
 
     $(audioElement).on('ended', function() {
@@ -345,5 +371,16 @@ echo '</div></div>';
         }
       });
     }
+
+    $(document).keydown(function(e) {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (playing) {
+          pauseSong();
+        } else {
+          resumeSong();
+        }
+      }
+    });
 });
 </script>
