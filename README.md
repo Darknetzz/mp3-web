@@ -21,6 +21,6 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Loop / Shuffle playlist
 
 ## How to use
-* Put `index.php` somewhere on your PHP webserver
-* Add music in the subfolder `music`
+* Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.
+* Add some music in the subfolder `music`
 * Open the page in a browser
