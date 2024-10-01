@@ -42,9 +42,11 @@
 <?php
 
 # Configuration (defaults)
-$config["allowed_types"]     = ["mp3"];
-$config["audio_path"]        = "music";
-$config["use_legacy_player"] = false;
+$config["allowed_types"]          = ["mp3"];
+$config["audio_path"]             = "music";
+$config["use_legacy_player"]      = false;
+$config["include_file_extension"] = true;
+$config["default_volume"]         = 0.5;
 
 # Configuration (JSON)
 if (file_exists('config.json')) {
@@ -138,8 +140,7 @@ echo '
             <br>
             <div class="btn-group align-items-center mx-2">
               <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
-              <!--<span class="audioVolume me-2">50%</span>-->
-              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" style="flex: 1;">
+              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.$config['default_volume'].'" style="flex: 1;">
             </div>
             ';
           }
@@ -185,9 +186,13 @@ foreach ($musicFiles as $file) {
     if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), $config['allowed_types'])) {
       continue;
     }
+    $audioName = $file;
+    if (!$config["include_file_extension"]) {
+      $audioName = pathinfo($file, PATHINFO_FILENAME);
+    }
     echo '
     <tr>
-      <td><a href="javascript:void(0);" class="musicitem link-secondary" id="musicitem-'.$i.'" data-id="'.$i.'">' . htmlspecialchars($file) . '</a></td>
+      <td><a href="javascript:void(0);" class="musicitem link-secondary" id="musicitem-'.$i.'" data-id="'.$i.'" data-filename="'.$file.'">' . htmlspecialchars($audioName) . '</a></td>
       <td><a href="?action=dl&file=' . urlencode($file) . '" class="link-success">'.icon('download', margin: 0).'</a></td>
       <td><a href="?action=rm&file=' . urlencode($file) . '" class="link-danger">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
@@ -247,7 +252,8 @@ echo '</div></div>';
     } else if (index >= $(".musicitem").length) {
       index = 0; // Play the first song if we are at the last
     }
-    songName = $(".musicitem").eq(index).text();
+    // songName = $(".musicitem").eq(index).text();
+    songName = $(".musicitem").eq(index).data("filename");
     if (songName.length === 0) {
       index = 0;
     }
@@ -306,7 +312,7 @@ echo '</div></div>';
   $(document).ready(function() {
 
     var audioElement = $("audio")[0];
-    audioElement.volume = 0.5;
+    audioElement.volume = <?= $config["default_volume"] ?>;
 
     // Set new interval for updating time
     setInterval(updateTime, 1000);

@@ -22,5 +22,5 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 
 ## How to use
 * Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.
-* Add some music in the subfolder `music`
-* Open the page in a browser
+* Add some music in the subfolder `music` (or whatever you choose in `config.json`)
+* Open the page in a browser and start listening!

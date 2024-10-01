@@ -1,5 +1,7 @@
 {
     "allowed_types": ["mp3"],
     "audio_path": "music",
-    "use_legacy_player": false
+    "use_legacy_player": false,
+    "include_file_extension": true,
+    "default_volume": 0.5
 }

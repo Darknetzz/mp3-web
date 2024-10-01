@@ -3,7 +3,7 @@
 * [x] Shuffle
 
 ## Options
-* [ ] Use legacy HTML audio player
-* [ ] Default volume
-* [ ] Include `.mp3` in filename
+* [x] Use legacy HTML audio player
+* [x] Default volume
+* [x] Include `.mp3` in filename
 * [ ] Classes for active / playing etc.
