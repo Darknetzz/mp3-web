@@ -191,12 +191,12 @@ foreach ($musicFiles as $file) {
       $audioName = pathinfo($file, PATHINFO_FILENAME);
     }
     echo '
-    <tr class="musicitem" data-filename="'.$file.'">
+    <tr class="cursor-pointer musicitem" data-filename="'.$file.'">
       <td>
-        <span class="cursor-pointer">'.htmlspecialchars($audioName).'</span>
+        '.htmlspecialchars($audioName).'
       </td>
-      <td><a href="?action=dl&file=' . urlencode($file) . '" class="link-success">'.icon('download', margin: 0).'</a></td>
-      <td><a href="?action=rm&file=' . urlencode($file) . '" class="link-danger">'.icon('trash-fill', margin: 0).'</a></td>
+      <td class="action"><a href="?action=dl&file=' . urlencode($file) . '" class="link-success">'.icon('download', margin: 0).'</a></td>
+      <td class="action"><a href="?action=rm&file=' . urlencode($file) . '" class="link-danger">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
     $i++;
 }
@@ -323,7 +323,6 @@ echo '</div></div>';
       currentIndex = $(this).data("index");
       console.log("Clicked on music item " + currentIndex);
       playSong(currentIndex);
-      return;
     });
 
     $(audioElement).on('canplay', function() {
@@ -362,7 +361,7 @@ echo '</div></div>';
         return;
       }
       currentIndex++;
-      var nextSongItem = $('.musicitem[data-index="' + currentIndex + '"]');
+      var nextSongItem = $('.musicitem').parent().find('[data-index="' + currentIndex + '"]');
       console.log("Playing next row: " + nextSongItem.text());
       if (!nextSongItem.length) {
         currentIndex = 0;
