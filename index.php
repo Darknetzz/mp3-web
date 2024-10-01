@@ -106,8 +106,8 @@ echo '
 echo '
 <div class="audio-player-container">
   <div class="card">
+      <h3 id="songtitle" class="card-header text-success">No song selected</h3>
       <div class="card-body">
-          <h3 id="songtitle" class="mt-2">No song selected</h3>
           <audio style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
           Your browser does not support the audio element.
@@ -205,6 +205,20 @@ echo '</div></div>';
     }
   };
 
+  /* ────────────────────────── FUNCTION: updateTitle ───────────────────────── */
+  function updateTitle(title) {
+    if (title.length === 0) {
+      title = "No song selected";
+    }
+    $("#songtitle").text(title);
+    if (playing) {
+      title = playIcon + title;
+    } else {
+      title = pauseIcon + title;
+    }
+    document.title = title;
+  }
+
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index) {
     console.log("Playing song " + index);
@@ -217,10 +231,9 @@ echo '</div></div>';
     if (songName.length === 0) {
       index = 0;
     }
-    document.title = playIcon + songName;
+    updateTitle(songName);
     var filePath = "music/" + songName;
     $("#audioSource").attr("src", filePath);
-    $("#songtitle").text(songName);
     $("audio")[0].load();
     $("audio")[0].play();
     $(".musicitem").removeClass("link-success");
@@ -230,13 +243,13 @@ echo '</div></div>';
 
   /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
   function pauseSong() {
-    document.title = pauseIcon + songName;
+    updateTitle(songName);
     $("audio")[0].pause();
   }
 
   /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
   function resumeSong() {
-    document.title = playIcon + songName;
+    updateTitle(songName);
     $("audio")[0].play();
   }
 
@@ -344,12 +357,12 @@ echo '</div></div>';
     $(audioElement).on('play', function() {
       playing = true;
       $(".playPauseBtn").html(pauseIconHTML + "Pause");
-      document.title = playIcon + $("#songtitle").text();
+      updateTitle(songName);
     });
     $(audioElement).on('pause', function() {
       playing = false;
       $(".playPauseBtn").html(playIconHTML + "Play");
-      document.title = pauseIcon + $("#songtitle").text();
+      updateTitle(songName);
     });
 
     if (window.history.replaceState) {
