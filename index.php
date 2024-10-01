@@ -104,18 +104,22 @@ echo '
 <div class="audio-player-container">
   <div class="card">
       <div class="card-body">
+          <h4 id="songtitle" class="mt-2">No song selected</h4>
           <audio controls style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
           Your browser does not support the audio element.
           </audio>
           <div class="btn-group">
-            <button class="btn btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
             <button class="btn btn-pill btn-outline-secondary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').' Play Previous Song</button>
+            <button class="btn btn-pill btn-outline-primary playPauseBtn">'.icon("music-note-beamed").' Play</button>
             <button class="btn btn-pill btn-outline-secondary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').' Play Next Song</button>
           </div>
           <div class="btn-group">
             <button class="btn btn-pill btn-outline-primary">'.icon('arrow-repeat').' Loop</button>
             <button class="btn btn-pill btn-outline-primary">'.icon('shuffle').' Shuffle</button>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
           </div>
       </div>
   </div>
@@ -155,75 +159,135 @@ echo '</div></div>';
 </body></html>
 
 <script>
-Dropzone.options.musicDropzone = {
-  paramName: "files",
-  maxFilesize: 10,
-  acceptedFiles: ".mp3",
-  dictDefaultMessage: "Drag and drop MP3 files here or click to upload",
-  init: function() {
-    this.on("success", function(file, response) {
-      location.reload();
-    });
-  }
-};
+  var pauseIcon     = "⏸ ";
+  var playIcon      = "⏵ ";
+  var pauseIconHTML = '<?= icon('pause-fill') ?>';
+  var playIconHTML  = '<?= icon('play-fill') ?>';
+  var playing       = false;
 
-/* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
-function playSong(index) {
-  songName = $(".musicitem").eq(index).text();
-  document.title = "▶️ " + songName;
-  console.log("Playing song " + index + ":" + songName);
-  var filePath = "music/" + songName;
-  $("#audioSource").attr("src", filePath);
-  $("#songtitle").text(songName);
-  $("audio")[0].load();
-  $("audio")[0].play();
-  $(".musicitem").removeClass("link-success");
-  $(".musicitem").eq(index).addClass("link-success");
-  window.currentIndex = index;
-}
 
-$(".musicitem").click(function() {
-  playSong($(this).data("id"));
-  return;
-});
-
-$(document).ready(function() {
-  var audioElement = $("audio")[0];
-  audioElement.volume = 0.5;
-
-  $(audioElement).on('ended', function() {
-    currentIndex++;
-    var nextSongItem = $('#musicitem-' + currentIndex);
-    console.log("Playing next row: " + nextSongItem.text());
-    if (!nextSongItem.length) {
-      currentIndex = 0;
+  Dropzone.options.musicDropzone = {
+    paramName: "files",
+    maxFilesize: 10,
+    acceptedFiles: ".mp3",
+    dictDefaultMessage: "Drag and drop MP3 files here or click to upload",
+    init: function() {
+      this.on("success", function(file, response) {
+        location.reload();
+      });
     }
-    playSong(currentIndex);
-  });
+  };
 
-  if (window.history.replaceState) {
-    const url = new URL(window.location);
-    url.search = '';
-    window.history.replaceState({ path: url.href }, '', url.href);
+  /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
+  function playSong(index) {
+    console.log("Playing song " + index);
+    if (index < 0) {
+      index = $(".musicitem").length - 1; // Play the last song if we are at the first
+    } else if (index >= $(".musicitem").length) {
+      index = 0; // Play the first song if we are at the last
+    }
+    songName = $(".musicitem").eq(index).text();
+    if (songName.length === 0) {
+      index = 0;
+    }
+    document.title = playIcon + songName;
+    var filePath = "music/" + songName;
+    $("#audioSource").attr("src", filePath);
+    $("#songtitle").text(songName);
+    $("audio")[0].load();
+    $("audio")[0].play();
+    $(".musicitem").removeClass("link-success");
+    $(".musicitem").eq(index).addClass("link-success");
+    window.currentIndex = index;
   }
 
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.setActionHandler('play', function() {
-      $("audio")[0].play();
-    });
-    navigator.mediaSession.setActionHandler('pause', function() {
-      $("audio")[0].pause();
-    });
-    navigator.mediaSession.setActionHandler('previoustrack', function() {
-      if (window.currentIndex > 0) {
-        playSong(window.currentIndex - 1);
-      }
-    });
-    navigator.mediaSession.setActionHandler('nexttrack', function() {
-      if (window.currentIndex < $(".musicitem").length - 1) {
-        playSong(window.currentIndex + 1);
-      }
-    });
+  /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
+  function pauseSong() {
+    document.title = pauseIcon + songName;
+    $("audio")[0].pause();
   }
+
+  /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
+  function resumeSong() {
+    document.title = playIcon + songName;
+    $("audio")[0].play();
+  }
+
+
+  $(document).ready(function() {
+
+    var audioElement = $("audio")[0];
+    audioElement.volume = 0.5;
+
+    $(".musicitem").click(function() {
+      playSong($(this).data("id"));
+      return;
+    });
+
+    $(audioElement).on('ended', function() {
+      currentIndex++;
+      var nextSongItem = $('#musicitem-' + currentIndex);
+      console.log("Playing next row: " + nextSongItem.text());
+      if (!nextSongItem.length) {
+        currentIndex = 0;
+      }
+      playSong(currentIndex);
+    });
+
+    $(".playPauseBtn").click(function() {
+      if (playing) {
+        pauseSong();
+      } else {
+        resumeSong();
+      }
+    });
+
+    $(audioElement).on('play', function() {
+      playing = true;
+      $(".playPauseBtn").html(pauseIconHTML + "Pause");
+      document.title = playIcon + $("#songtitle").text();
+    });
+    $(audioElement).on('pause', function() {
+      playing = false;
+      $(".playPauseBtn").html(playIconHTML + "Play");
+      document.title = pauseIcon + $("#songtitle").text();
+    });
+    // $(audioElement).on('change', function() {
+    //   // playing = !audioElement.paused;
+    //   if (audioElement.paused) {
+    //     playing = false;
+    //     $(".playPauseBtn").html(playIconHTML + "Play");
+    //     document.title = pauseIcon + $("#songtitle").text();
+    //   } else {
+    //     playing = true;
+    //     $(".playPauseBtn").html(pauseIconHTML + "Pause");
+    //     document.title = playIcon + $("#songtitle").text();
+    //   }
+    // });
+
+    if (window.history.replaceState) {
+      const url = new URL(window.location);
+      url.search = '';
+      window.history.replaceState({ path: url.href }, '', url.href);
+    }
+
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', function() {
+        resumeSong();
+      });
+      navigator.mediaSession.setActionHandler('pause', function() {
+        pauseSong();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', function() {
+        if (window.currentIndex > 0) {
+          playSong(window.currentIndex - 1);
+        }
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', function() {
+        if (window.currentIndex < $(".musicitem").length - 1) {
+          playSong(window.currentIndex + 1);
+        }
+      });
+    }
 });
 </script>
