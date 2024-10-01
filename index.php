@@ -125,13 +125,13 @@ echo '
             <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" style="flex: 1;">
           </div>
           <div class="btn-group">
-            <button class="btn btn-sm btn-pill btn-outline-secondary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').' Play Previous Song</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary playPauseBtn" disabled>'.icon("music-note-beamed").' Play</button>
-            <button class="btn btn-sm btn-pill btn-outline-secondary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').' Play Next Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" disabled>'.icon("music-note-beamed").'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').'</button>
           </div>
           <div class="btn-group">
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').' Loop</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').' Shuffle</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').'</button>
           </div>
           <div class="btn-group">
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
@@ -356,12 +356,12 @@ echo '</div></div>';
 
     $(audioElement).on('play', function() {
       playing = true;
-      $(".playPauseBtn").html(pauseIconHTML + "Pause");
+      $(".playPauseBtn").html(pauseIconHTML);
       updateTitle(songName);
     });
     $(audioElement).on('pause', function() {
       playing = false;
-      $(".playPauseBtn").html(playIconHTML + "Play");
+      $(".playPauseBtn").html(playIconHTML);
       updateTitle(songName);
     });
 
