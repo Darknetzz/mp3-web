@@ -313,6 +313,11 @@ echo '</div></div>';
     });
 
     $(audioElement).on('ended', function() {
+      if (shuffle) {
+        var randomIndex = Math.floor(Math.random() * $(".musicitem").length);
+        playSong(randomIndex);
+        return;
+      }
       currentIndex++;
       var nextSongItem = $('#musicitem-' + currentIndex);
       console.log("Playing next row: " + nextSongItem.text());
