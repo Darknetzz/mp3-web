@@ -41,9 +41,25 @@
 </style>
 <?php
 
+# Configuration (defaults)
+$config["allowed_types"]     = ["mp3"];
+$config["audio_path"]        = "music";
+$config["use_legacy_player"] = false;
+
+# Configuration (JSON)
+if (file_exists('config.json')) {
+    $config = array_merge($config, json_decode(file_get_contents('config.json'), true));
+}
+
+# Configuration (JSON Local)
+if (file_exists('config.local.json')) {
+    $config = array_merge($config, json_decode(file_get_contents('config.local.json'), true));
+}
+
+
 /* ───────────────────────────── FUNCTION: download ─────────────────────────── */
 function download($file) {
-    $filePath = 'music/' . $file;
+    $filePath = $config["audio_path"] . '/' . $file;
     if (file_exists($filePath)) {
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
@@ -59,7 +75,7 @@ function download($file) {
 
 /* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
 function remove($file) {
-    $filePath = 'music/' . $file;
+    $filePath = $config["audio_path"] . '/' . $file;
     $deletedDir = 'deleted/';
     if (!is_dir($deletedDir)) {
       mkdir($deletedDir, 0777, true);
@@ -83,8 +99,7 @@ if (isset($_GET['action'])) {
     }
 }
 
-$musicDir = 'music/';
-$musicFiles = array_diff(scandir($musicDir), array('..', '.'));
+$musicFiles = array_diff(scandir($config["audio_path"]), array('..', '.'));
 
 echo '
 <html>
@@ -108,34 +123,39 @@ echo '
   <div class="card">
       <h3 id="songtitle" class="card-header text-success">No song selected</h3>
       <div class="card-body">
-          <audio style="width:100%">
+          <audio '.($config['use_legacy_player'] ? 'controls' : '').' style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
           Your browser does not support the audio element.
-          </audio>
-            <div class="d-flex align-items-center">
-            <span class="audioCurrentTime">0:00</span>
-            <input type="range" class="form-range audioSlider mx-2" min="0" max="0" step="1" value="0" style="flex: 3;">
-            <span class="audioDuration">0:00</span>
-            </div>
-          <br>
+          </audio>';
 
-          <div class="btn-group align-items-center">
-            <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
-            <!--<span class="audioVolume me-2">50%</span>-->
-            <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" style="flex: 1;">
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" disabled>'.icon("music-note-beamed").'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').'</button>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').'</button>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
-          </div>
+          if (!$config['use_legacy_player']) {
+            echo '
+            <div class="d-flex align-items-center">
+              <span class="audioCurrentTime">0:00</span>
+              <input type="range" class="form-range audioSlider mx-2" min="0" max="0" step="1" value="0" style="flex: 3;">
+              <span class="audioDuration">0:00</span>
+            </div>
+            <br>
+            <div class="btn-group align-items-center mx-2">
+              <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
+              <!--<span class="audioVolume me-2">50%</span>-->
+              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" style="flex: 1;">
+            </div>
+            ';
+          }
+echo '
+        <div class="btn-group mx-2">
+          <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').'</button>
+          <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" disabled>'.icon("music-note-beamed").'</button>
+          <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').'</button>
+        </div>
+        <div class="btn-group mx-2">
+          <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').'</button>
+          <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').'</button>
+        </div>
+        <div class="btn-group mx-2">
+          <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
+        </div>
       </div>
   </div>
 </div>
@@ -148,7 +168,7 @@ echo '
 
 if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
-    echo '<p>Upload some music files to the <code>music/</code> directory.</p>';
+    echo '<p>Upload some music files to the <code>'.$config["audio_path"].'/</code> directory.</p>';
 }
 echo "<table class='table table-striped' data-toggle='table' data-search='true'>
 <thead>
@@ -161,9 +181,9 @@ echo "<table class='table table-striped' data-toggle='table' data-search='true'>
   ";
 $i = 0;
 foreach ($musicFiles as $file) {
-    $filePath = $musicDir . $file;
-    if (pathinfo($filePath, PATHINFO_EXTENSION) !== 'mp3') {
-        continue;
+    $filePath = $config["audio_path"] . "/" . $file;
+    if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), $config['allowed_types'])) {
+      continue;
     }
     echo '
     <tr>
@@ -232,7 +252,7 @@ echo '</div></div>';
       index = 0;
     }
     updateTitle(songName);
-    var filePath = "music/" + songName;
+    var filePath = "<?= $config["audio_path"] ?>/" + songName;
     $("#audioSource").attr("src", filePath);
     $("audio")[0].load();
     $("audio")[0].play();

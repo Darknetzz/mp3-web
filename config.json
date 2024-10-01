@@ -1,0 +1,5 @@
+{
+    "allowed_types": ["mp3"],
+    "audio_path": "music",
+    "use_legacy_player": false
+}

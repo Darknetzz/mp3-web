@@ -1,4 +1,6 @@
 music/*
+music_*
 old
 index_files
 @eaDir
+config.local.json
