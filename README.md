@@ -1,6 +1,9 @@
 # mp3-web
 A super simple music player made in PHP/jQuery.
 
+It can be useful if you have local music files you want to play, 
+especially if you want to cast it to your Google speakers as Spotify does not allow this for local files.
+
 ![image](https://github.com/user-attachments/assets/b77ba9c0-83e4-41bd-819c-58817e12231c)
 
 ## Features
