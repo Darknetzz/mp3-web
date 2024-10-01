@@ -191,8 +191,10 @@ foreach ($musicFiles as $file) {
       $audioName = pathinfo($file, PATHINFO_FILENAME);
     }
     echo '
-    <tr>
-      <td><a href="javascript:void(0);" class="musicitem link-secondary" id="musicitem-'.$i.'" data-id="'.$i.'" data-filename="'.$file.'">' . htmlspecialchars($audioName) . '</a></td>
+    <tr class="musicitem" data-filename="'.$file.'">
+      <td>
+        <span class="cursor-pointer">'.htmlspecialchars($audioName).'</span>
+      </td>
       <td><a href="?action=dl&file=' . urlencode($file) . '" class="link-success">'.icon('download', margin: 0).'</a></td>
       <td><a href="?action=rm&file=' . urlencode($file) . '" class="link-danger">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
@@ -246,7 +248,7 @@ echo '</div></div>';
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index) {
-    console.log("Playing song " + index);
+    console.log("Playing song " + index + "/" + $(".musicitem").length);
     if (index < 0) {
       index = $(".musicitem").length - 1; // Play the last song if we are at the first
     } else if (index >= $(".musicitem").length) {
@@ -262,8 +264,8 @@ echo '</div></div>';
     $("#audioSource").attr("src", filePath);
     $("audio")[0].load();
     $("audio")[0].play();
-    $(".musicitem").removeClass("link-success");
-    $(".musicitem").eq(index).addClass("link-success");
+    $(".musicitem").removeClass("table-success");
+    $(".musicitem").eq(index).addClass("table-success");
     window.currentIndex = index;
   }
 
@@ -318,7 +320,9 @@ echo '</div></div>';
     setInterval(updateTime, 1000);
 
     $(document).on("click", ".musicitem", function() {
-      playSong($(this).data("id"));
+      currentIndex = $(this).data("index");
+      console.log("Clicked on music item " + currentIndex);
+      playSong(currentIndex);
       return;
     });
 
@@ -358,7 +362,7 @@ echo '</div></div>';
         return;
       }
       currentIndex++;
-      var nextSongItem = $('#musicitem-' + currentIndex);
+      var nextSongItem = $('.musicitem[data-index="' + currentIndex + '"]');
       console.log("Playing next row: " + nextSongItem.text());
       if (!nextSongItem.length) {
         currentIndex = 0;
