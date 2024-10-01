@@ -1,6 +1,8 @@
 # mp3-web
 A super simple music player made in PHP/jQuery.
 
+![image](https://github.com/user-attachments/assets/b77ba9c0-83e4-41bd-819c-58817e12231c)
+
 ## Features
 * Supports Windows media keys
 * Download from playlist
