@@ -47,6 +47,7 @@ $config["audio_path"]             = "music";
 $config["use_legacy_player"]      = false;
 $config["include_file_extension"] = true;
 $config["default_volume"]         = 0.5;
+$config["no_song_text"]           = "No song selected";
 
 # Configuration (JSON)
 if (file_exists('config.json')) {
@@ -123,7 +124,7 @@ echo '
 echo '
 <div class="audio-player-container">
   <div class="d-flex align-items-center card">
-      <h3 id="songtitle" class="card-header text-success">No song selected</h3>
+      <h3 id="songtitle" class="card-header text-success">'.$config["no_song_text"].'</h3>
       <div class="card-body">
           <audio '.($config['use_legacy_player'] ? 'controls' : '').' style="width:100%">
           <source id="audioSource" src="' . htmlspecialchars($filePath) . '" type="audio/mpeg">
@@ -137,7 +138,7 @@ echo '
               <input type="range" class="form-range audioSlider mx-2" min="0" max="0" step="1" value="0" style="flex: 3;">
               <span class="audioDuration">0:00</span>
             </div>
-            <br>
+            
             <div class="btn-group mx-2 align-items-center">
               <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
               <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.$config['default_volume'].'">
@@ -146,13 +147,16 @@ echo '
           }
 echo '
           <div class="btn-group mx-2">
+            <button class="btn btn-sm btn-pill btn-outline-danger stopBtn" onclick="stopSong()">'.icon('stop-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" onclick="toggleSong()" disabled>'.icon("play").'</button>
+          </div>
+          <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex - 1)">'.icon('skip-backward-fill').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-success playPauseBtn" disabled>'.icon("music-note-beamed").'</button>
             <button class="btn btn-sm btn-pill btn-outline-primary" onclick="playSong(currentIndex + 1)">'.icon('skip-forward-fill').'</button>
           </div>
           <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn">'.icon('arrow-repeat').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn">'.icon('shuffle').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('arrow-repeat').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn" onclick="toggleShuffle()">'.icon('shuffle').'</button>
           </div>
           <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
@@ -220,20 +224,23 @@ echo '</div></div>';
   var currentTime   = 0;
 
 
-  Dropzone.options.musicDropzone = {
-    paramName: "files",
-    maxFilesize: 10,
-    acceptedFiles: ".mp3",
-    dictDefaultMessage: "Drag and drop MP3 files here or click to upload",
-    init: function() {
-      this.on("success", function(file, response) {
-        location.reload();
-      });
-    }
-  };
+  // Dropzone.options.musicDropzone = {
+  //   paramName: "files",
+  //   maxFilesize: 10,
+  //   acceptedFiles: ".mp3",
+  //   dictDefaultMessage: "Drag and drop MP3 files here or click to upload",
+  //   init: function() {
+  //     this.on("success", function(file, response) {
+  //       location.reload();
+  //     });
+  //   }
+  // };
 
   /* ────────────────────────── FUNCTION: updateTitle ───────────────────────── */
   function updateTitle(title) {
+    if (typeof title === "undefined") {
+      title = "Music Player";
+    }
     if (title.length === 0) {
       title = "No song selected";
     }
@@ -273,14 +280,12 @@ echo '</div></div>';
   }
 
   /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
-  // REVIEW: Remove this in favor of toggleSong
   function pauseSong() {
     updateTitle(songName);
     $("audio")[0].pause();
   }
 
   /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
-  // REVIEW: Remove this in favor of toggleSong
   function resumeSong() {
     updateTitle(songName);
     $("audio")[0].play();
@@ -293,6 +298,17 @@ echo '</div></div>';
     } else {
       resumeSong();
     }
+  }
+
+  /* ─────────────────────────── FUNCTION: stopSong ─────────────────────────── */
+  function stopSong() {
+    pauseSong();
+    window.currentIndex = undefined;
+    playing = false;
+    $(".musicitem").removeClass("table-success");
+    $("#audioSource").attr("src", "");
+    $("audio")[0].currentTime = 0;
+    updateTitle();
   }
 
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
@@ -326,6 +342,7 @@ echo '</div></div>';
     $(".audioSlider").val(currentTime);
   }
 
+  /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
 
     var audioElement = $("audio")[0];
@@ -382,16 +399,6 @@ echo '</div></div>';
         nextIndex = 0;
       }
       playSong(nextIndex);
-    });
-
-    $(".playPauseBtn").click(function() {
-      toggleSong();
-    });
-    $(".toggleLoopBtn").click(function() {
-      toggleLoop();
-    });
-    $(".toggleShuffleBtn").click(function() {
-      toggleShuffle();
     });
 
     $(audioElement).on('play', function() {
