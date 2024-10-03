@@ -161,8 +161,8 @@ if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
     echo '<p>Upload some music files to the <code>'.$config["audio_path"].'/</code> directory.</p>';
 }
-echo "<table class='table table-striped' data-toggle='table' data-search='true'>
-<thead>
+echo "<table id='playlistTable' class='table table-striped' data-toggle='table' data-search='true'>
+<thead id='playlistHead'>
   <tr class='table-success'>
     <th data-field='id'>#</th>
     <th data-field='name'>File Name</th>
@@ -170,7 +170,7 @@ echo "<table class='table table-striped' data-toggle='table' data-search='true'>
     <th>Download</th>
     <th>Delete</th>
   </tr>
-    <tbody>
+    <tbody id='playlistBody'>
   ";
 $i = 0;
 foreach ($musicFiles as $file) {
@@ -366,33 +366,8 @@ echo '</div></div>';
     $(".audioSlider").val(currentTime);
   }
 
-  // /* ────────────────────────── FUNCTION: getDuration ───────────────────────── */
-  // function getDuration(index) {
-  //   var songName = $("tr.songrow[data-songid="+index+"]").data("filename");
-  //   var pathName = window.location.pathname;
-  //   var filePath = window.location.origin +  pathName + "<?= $config["audio_path"] ?>/" + songName;
-  //   window.jsmediatags.read(filePath, {
-  //     onSuccess: function(tag) {
-  //       console.log(tag);
-  //       var duration = tag.tags.TLEN;
-  //       $("tr.songrow[data-songid="+index+"] .durationCol").text(formatTime(duration / 1000));
-  //     },
-  //     onError: function(error) {
-  //       console.log(':(', error.type, error.info, filePath);
-  //     }
-  //   });
-  // }
-
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
-
-    // var jsmediatags = window.jsmediatags;
-    // // Iterate through the table and find duration of each song
-    // $("tr.songrow").each(function(index) {
-    //   // var songId = $(this).data("songid");
-    //   // var filePath = "<?= $config["audio_path"] ?>/" + songName;
-    //   // getDuration(index);
-    // });
 
     $("#musicDropzone").dropzone({
       url: "api.php",
@@ -414,6 +389,14 @@ echo '</div></div>';
               $("#resdiv-" + uniqueId).addClass("alert alert-" + (res.error ? "danger" : "success"));
               if (res.success) {
                 $("#resdiv-"+uniqueId).html(res.success);
+                // REVIEW: This isn't working
+                $("#playlistTable").bootstrapTable('prepend', {
+                  id: $("#playlistTable").bootstrapTable('getData').length + 1,
+                  name: res.file,
+                  duration: "0:00",
+                  action: '<a href="javascript:void(0);" data-filename="' + res.file + '" class="link-success downloadBtn"><?= icon('download', 0) ?></a>',
+                  action: '<a href="javascript:void(0);" data-filename="' + res.file + '" class="link-danger deleteBtn"><?= icon('trash-fill', 0) ?></a>'
+                });
               } else {
                 $("#resdiv-"+uniqueId).html((res.error || 'An unknown error occurred.'));
               }
