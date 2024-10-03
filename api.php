@@ -87,7 +87,7 @@ function uploadFile(
         return ["error" => "There was an error moving the temporary file to it's destination."];
     }
 
-    return ["success" => "The file ". basename($targetFile). " has been uploaded."];
+    return ["success" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", "file" => basename($targetFile)];
 }
 
 do {

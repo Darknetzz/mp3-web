@@ -389,14 +389,6 @@ echo '</div></div>';
               $("#resdiv-" + uniqueId).addClass("alert alert-" + (res.error ? "danger" : "success"));
               if (res.success) {
                 $("#resdiv-"+uniqueId).html(res.success);
-                // REVIEW: This isn't working
-                $("#playlistTable").bootstrapTable('prepend', {
-                  id: $("#playlistTable").bootstrapTable('getData').length + 1,
-                  name: res.file,
-                  duration: "0:00",
-                  action: '<a href="javascript:void(0);" data-filename="' + res.file + '" class="link-success downloadBtn"><?= icon('download', 0) ?></a>',
-                  action: '<a href="javascript:void(0);" data-filename="' + res.file + '" class="link-danger deleteBtn"><?= icon('trash-fill', 0) ?></a>'
-                });
               } else {
                 $("#resdiv-"+uniqueId).html((res.error || 'An unknown error occurred.'));
               }
