@@ -4,3 +4,5 @@ index_files
 @eaDir
 config.local.php
 .ht*
+vendor
+composer.lock

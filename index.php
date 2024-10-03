@@ -10,6 +10,13 @@ if (file_exists('config.local.php')) {
   include_once('config.local.php');
 }
 
+/* ───────────────────────────────── Composer ──────────────────────────────── */
+$composer = False;
+if (file_exists('vendor/autoload.php')) {
+  $composer = True;
+  require __DIR__ . '/vendor/autoload.php';
+}
+
 $musicFiles = array_diff(scandir($config["audio_path"]), array('..', '.'));
 
 /* ───────────────────────────── FUNCTION: icon ───────────────────────────── */
@@ -17,6 +24,22 @@ function icon($icon = "", $size = 1.5, $margin = 1) {
   return '<i class="bi bi-' . $icon . ' m-' . $margin . '" style="font-size: ' . $size . 'em;"></i>';
 }
 
+/* ──────────────────────────── FUNCTION: mp3info ─────────────────────────── */
+function getDuration($file) {
+  global $config;
+  global $composer;
+  if (!$composer || !class_exists('wapmorgan\Mp3Info\Mp3Info')) {
+    return "0:00";
+  }
+  if (!file_exists($file)) {
+    return "File <code>$file</code> not found.";
+  }
+  $mp3info  = new wapmorgan\Mp3Info\Mp3Info($file);
+  $duration = $mp3info->duration;
+  $minutes = floor($duration / 60);
+  $seconds = $duration % 60;
+  return sprintf("%d:%02d", $minutes, $seconds);
+}
 
 ?>
 
@@ -34,6 +57,8 @@ function icon($icon = "", $size = 1.5, $margin = 1) {
 
 <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
 <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js" integrity="sha512-YsR46MmyChktsyMMou+Bs74oCa/CDdwft7rJ5wlnmDzMj1mzqncsfJamEEf99Nk7IB0JpTMo5hS8rxB49FUktQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <style>
   body {
@@ -67,6 +92,10 @@ echo '
 <html>
 <body class="theme-dark">
 <div class="container">';
+
+if (!$composer) {
+  echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
+}
 
 echo '
 <div class="audio-player-container">
@@ -139,6 +168,7 @@ echo "<table class='table table-striped' data-toggle='table' data-search='true'>
   <tr class='table-success'>
     <th data-field='id'>#</th>
     <th data-field='name'>File Name</th>
+    <th data-field='duration'>Duration</th>
     <th>Download</th>
     <th>Delete</th>
   </tr>
@@ -163,6 +193,7 @@ foreach ($musicFiles as $file) {
       <td data-class="cursor-pointer musicitem">
         '.htmlspecialchars($audioName).'
       </td>
+      <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
@@ -187,6 +218,11 @@ echo '</div></div>';
   var duration      = 0;
   var currentTime   = 0;
   var currentIndex  = 0;
+
+  /* ──────────────────────── FUNCTION: getSongByIndex ──────────────────────── */
+  function getSongByIndex(index) {
+    return $("tr.songrow[data-songid="+index+"]");
+  }
 
   /* ────────────────────────── FUNCTION: updateTitle ───────────────────────── */
   function updateTitle(title) {
@@ -332,8 +368,33 @@ echo '</div></div>';
     $(".audioSlider").val(currentTime);
   }
 
+  // /* ────────────────────────── FUNCTION: getDuration ───────────────────────── */
+  // function getDuration(index) {
+  //   var songName = $("tr.songrow[data-songid="+index+"]").data("filename");
+  //   var pathName = window.location.pathname;
+  //   var filePath = window.location.origin +  pathName + "<?= $config["audio_path"] ?>/" + songName;
+  //   window.jsmediatags.read(filePath, {
+  //     onSuccess: function(tag) {
+  //       console.log(tag);
+  //       var duration = tag.tags.TLEN;
+  //       $("tr.songrow[data-songid="+index+"] .durationCol").text(formatTime(duration / 1000));
+  //     },
+  //     onError: function(error) {
+  //       console.log(':(', error.type, error.info, filePath);
+  //     }
+  //   });
+  // }
+
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
+
+    // var jsmediatags = window.jsmediatags;
+    // // Iterate through the table and find duration of each song
+    // $("tr.songrow").each(function(index) {
+    //   // var songId = $(this).data("songid");
+    //   // var filePath = "<?= $config["audio_path"] ?>/" + songName;
+    //   // getDuration(index);
+    // });
 
     $("#musicDropzone").dropzone({
       url: "api.php",
@@ -444,6 +505,9 @@ echo '</div></div>';
       $("#volumeSlider").trigger('input');
     });
 
+    /* ────────────────────────────────────────────────────────────────────────── */
+    /*                                Audio Element                               */
+    /* ────────────────────────────────────────────────────────────────────────── */
     /* ─────────────────────────────── NOTE: Ended ────────────────────────────── */
     $(audioElement).on('ended', function() {
       nextSong();
