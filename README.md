@@ -22,19 +22,15 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 ## How to use
 
 ### Dockerfile
-You could build a docker container running `mp3-web` with the following dockerfile:
-```dockerfile
-FROM debian
-RUN apt-get -y update && apt-get -y install apache2 libapache2-mod-php php git
-RUN rm -rf /var/www/html
-RUN git clone https://github.com/Darknetzz/mp3-web.git /var/www/html
-EXPOSE 80 443
-CMD ["apachectl", "-D", "FOREGROUND"]
-```
-
-To build a docker container with this image, simply run the following commands in the same folder as the dockerfile:
+You could build a docker container running `mp3-web` using the [dockerfile](https://raw.githubusercontent.com/Darknetzz/mp3-web/refs/heads/main/Dockerfile).
 ```bash
+# Get the Dockerfile
+curl -O https://raw.githubusercontent.com/Darknetzz/mp3-web/refs/heads/main/Dockerfile
+
+# Build the container
 docker build -t mp3-web:main .
+
+# Run the container
 docker run -d -p 9096:80 mp3-web:main
 ```
 
