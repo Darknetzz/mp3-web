@@ -19,6 +19,12 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Loop song
 * Upload files directly from web UI
 
+## Roadmap
+* Favorites
+* Support multiple playlists
+* Browser refresh persistency
+* Session sharing
+
 ## How to use
 
 ### Dockerfile
