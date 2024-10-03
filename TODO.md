@@ -1,5 +1,5 @@
 ## General functionality
-* [ ] Upload files
+* [x] Upload files
 * [x] Shuffle
 * [ ] See if there is any way to start sessions (so you can share music with someone)
 
