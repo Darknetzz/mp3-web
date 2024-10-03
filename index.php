@@ -98,8 +98,8 @@ echo '
             <button class="btn btn-sm btn-pill btn-outline-danger ctrlBtn stopBtn" onclick="stopSong()" disabled>'.icon('stop-fill').'</button>
           </div>
           <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="playSong(currentIndex - 1)" disabled>'.icon('skip-backward-fill').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="playSong(currentIndex + 1)" disabled>'.icon('skip-forward-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="prevSong()" disabled>'.icon('skip-backward-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled>'.icon('skip-forward-fill').'</button>
           </div>
           <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('arrow-repeat').'</button>
@@ -107,6 +107,7 @@ echo '
           </div>
           <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong()">'.icon('dice-'.mt_rand(1,6)).' Random Song</button>
           </div>
         </div>
   </div>
@@ -252,6 +253,13 @@ echo '</div></div>';
     resumeSong();
   }
 
+  /* ────────────────────────── FUNCTION: randomSong ────────────────────────── */
+  function randomSong() {
+    var randomIndex = Math.floor(Math.random() * $("tr.songrow").length);
+    console.log("Playing random row: " + randomIndex);
+    playSong(randomIndex);
+  }
+
   /* ─────────────────────────── FUNCTION: stopSong ─────────────────────────── */
   function stopSong() {
     pauseSong();
@@ -261,6 +269,36 @@ echo '</div></div>';
     $("#audioSource").attr("src", "");
     $("audio")[0].currentTime = 0;
     updateTitle();
+  }
+
+  /* ───────────────────────── FUNCTION: prevSong ───────────────────────── */
+  function prevSong() {
+    var prevIndex = currentIndex - 1;
+    if (shuffle) {
+      randomSong();
+      return;
+    }
+    var prevSongItem = $('tr.songrow[data-songid="' + prevIndex + '"]');
+    console.log("Playing previous row: " + prevSongItem.data("songid"));
+    if (!prevSongItem.length) {
+      prevIndex = $("tr.songrow").last().data("songid");
+    }
+    playSong(prevIndex);
+  }
+
+  /* ─────────────────────────── FUNCTION: nextSong ─────────────────────────── */
+  function nextSong() {
+    var nextIndex = currentIndex + 1;
+    if (shuffle) {
+      randomSong();
+      return;
+    }
+    var nextSongItem = $('tr.songrow[data-songid="' + nextIndex + '"]');
+    console.log("Playing next row: " + nextSongItem.data("songid"));
+    if (!nextSongItem.length) {
+      nextIndex = 0;
+    }
+    playSong(nextIndex);
   }
 
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
@@ -408,19 +446,7 @@ echo '</div></div>';
 
     /* ─────────────────────────────── NOTE: Ended ────────────────────────────── */
     $(audioElement).on('ended', function() {
-      var nextIndex = currentIndex + 1;
-      if (shuffle) {
-        var randomIndex = Math.floor(Math.random() * $("tr.songrow").length);
-        console.log("Shuffling..." + randomIndex);
-        playSong(randomIndex);
-        return;
-      }
-      var nextSongItem = $('tr.songrow[data-songid="' + nextIndex + '"]');
-      console.log("Playing next row: " + nextSongItem.data("songid"));
-      if (!nextSongItem.length) {
-        nextIndex = 0;
-      }
-      playSong(nextIndex);
+      nextSong();
     });
 
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
@@ -451,14 +477,10 @@ echo '</div></div>';
         pauseSong();
       });
       navigator.mediaSession.setActionHandler('previoustrack', function() {
-        if (window.currentIndex > 0) {
-          playSong(window.currentIndex - 1);
-        }
+        prevSong();
       });
       navigator.mediaSession.setActionHandler('nexttrack', function() {
-        if (window.currentIndex < $(".musicitem").length - 1) {
-          playSong(window.currentIndex + 1);
-        }
+        nextSong();
       });
     }
 
