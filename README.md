@@ -45,3 +45,12 @@ docker run -d -p 9096:80 mp3-web:main
 * Run `composer install` from the directory
 * Add some music in the subfolder `music` (or whatever you choose in `config.json`)
 * Open the page in a browser and start listening!
+
+### Troubleshooting
+
+#### The directory `PATH` is not writable.
+Run the following commands, replacing `<PATH>` with the music directory:
+```bash
+chown -R www-data:www-data <PATH>
+chmod -R 775 <PATH>
+```
