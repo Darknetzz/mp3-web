@@ -241,6 +241,10 @@ echo '</div></div>';
 
   /* ────────────────────── FUNCTION: scrollToActiveSong ────────────────────── */
   function scrollToActiveSong() {
+    var autoScroll = <?= json_encode($config["auto_scroll"]) ?>;
+    if (!autoScroll) {
+        return;
+    }
     var activeSong = getSongByIndex(currentIndex);
     if (activeSong.length) {
       activeSong[0].scrollIntoView({ behavior: "smooth", block: "center" });

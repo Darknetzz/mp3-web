@@ -26,4 +26,7 @@ $config["default_volume"]         = 0.5;
 # Text to display when no song is selected
 $config["no_song_text"]           = "No song selected"; 
 
+# Auto scroll to the currently playing song
+$config["auto_scroll"]            = true;
+
 ?>
