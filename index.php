@@ -239,6 +239,14 @@ echo '</div></div>';
     document.title = title;
   }
 
+  /* ────────────────────── FUNCTION: scrollToActiveSong ────────────────────── */
+  function scrollToActiveSong() {
+    var activeSong = getSongByIndex(currentIndex);
+    if (activeSong.length) {
+      activeSong[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index) {
     console.log("Playing song at index: " + index);
@@ -264,6 +272,7 @@ echo '</div></div>';
     $("audio")[0].play();
     playingRow.addClass("table-success");
     window.currentIndex = index;
+    scrollToActiveSong();
   }
 
   /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
