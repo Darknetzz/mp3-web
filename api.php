@@ -12,6 +12,7 @@ if (empty($config["audio_path"])) {
 /* ───────────────────────────── FUNCTION: download ─────────────────────────── */
 function download($file) {
     global $config;
+    $file     = urldecode($file);
     $filePath = $config["audio_path"] . '/' . $file;
     if (empty($filePath) || !file_exists($filePath)) {
         apiError("The file does not exist.");
@@ -26,6 +27,7 @@ function download($file) {
 /* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
 function remove($file) {
     global $config;
+    $file       = urldecode($file);
     $filePath   = $config["audio_path"] . '/' . $file;
     $deletedDir = 'deleted';
     if (!is_dir($deletedDir)) {
@@ -114,6 +116,16 @@ function uploadFile(
     return ["success" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", "file" => basename($targetFile)];
 }
 
+/* ──────────────────────────── FUNCTION: base64 ──────────────────────────── */
+function b64_encode($fileName) {
+    return ["success" => base64_encode($fileName)];
+}
+
+/* ──────────────────────────── FUNCTION: base64 ──────────────────────────── */
+function b64_decode($fileName) {
+    return ["success" => base64_decode($fileName)];
+}
+
 do {
 
     if (isset($_GET["action"]) && $_GET["action"] === "dl") {
@@ -149,6 +161,16 @@ do {
             }
         }
         $res = $result;
+    }
+
+    if (isset($_GET["action"]) && $_GET["action"] === "b64") {
+        $res = b64_encode($_GET["file"]);
+        break;
+    }
+
+    if (isset($_GET["action"]) && $_GET["action"] === "b64d") {
+        $res = b64_decode($_GET["file"]);
+        break;
     }
 
 } while (false);

@@ -6,3 +6,4 @@ config.local.php
 .ht*
 vendor
 composer.lock
+deleted

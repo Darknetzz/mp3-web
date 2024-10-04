@@ -14,8 +14,8 @@ $musicFiles = array_diff(scandir($config["audio_path"]), array('..', '.'));
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.4/dist/bootstrap-table.min.css">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.4/dist/bootstrap-table.min.js"></script>
+<script src=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.js "></script>
+<link href=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.css " rel="stylesheet">
 
 <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
 <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
@@ -141,35 +141,43 @@ echo '
   data-show-columns="true"
   data-show-columns-toggle-all="true"
   data-show-export="true"
+  data-unique-id="id"
+  data-escape="false"
 >
   <thead id="playlistHead">
   <tr class="table-success">
     <th data-field="id">#</th>
-    <th data-field="name">File Name</th>
+    <th data-field="name">Name</th>
+    <th data-field="filename" data-visible="false">Filename</th>
     <th data-field="duration">Duration</th>
     <th data-field="download">Download</th>
     <th data-field="delete">Delete</th>
   </tr>
   <tbody id="playlistBody">
   ';
-$i = 0;
+$i = 1;
 foreach ($musicFiles as $file) {
     $filePath    = $config["audio_path"] . "/" . $file;
-    $urlFilename = urlencode($file);
     if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), $config['allowed_types'])) {
       continue;
     }
-    $audioName = $file;
+
     if (!$config["include_file_extension"]) {
       $audioName = pathinfo($file, PATHINFO_FILENAME);
+    } else {
+      $audioName = pathinfo($file, PATHINFO_FILENAME) . "." . pathinfo($file, PATHINFO_EXTENSION);
     }
+    # TODO: Fix `data-value` attribute
     echo '
-    <tr class="songrow" data-songid="'.$i.'" data-filename="'.$file.'">
-      <td data-class="musicitem">
-        <span class="text-muted">'.($i + 1).'</span>
+    <tr class="songrow" data-filename="'.$audioName.'">
+      <td class="text-muted">
+        '.($i).'
       </td>
-      <td data-class="musicitem">
-        <span class="cursor-pointer">'.htmlspecialchars($audioName).'</span>
+      <td>
+        '.htmlspecialchars($audioName).'
+      </td>
+      <td>
+        '.urlencode($file).'
       </td>
       <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
@@ -185,7 +193,13 @@ echo '</div></div>';
 </div>
 </body></html>
 
+<!--
+/* ────────────────────────────────────────────────────────────────────────── */
+/*                                 JAVASCRIPT                                 */
+/* ────────────────────────────────────────────────────────────────────────── */
+-->
 <script>
+  var playlistTable = $('#playlistTable');
   var pauseIcon     = "⏸ ";
   var playIcon      = "⏵ ";
   var pauseIconHTML = '<?= icon('pause-fill') ?>';
@@ -197,9 +211,23 @@ echo '</div></div>';
   var currentTime   = 0;
   var currentIndex  = 0;
 
+  /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
+  function urldecode(str) {
+    return decodeURIComponent((str + '').replace(/\+/g, '%20'));
+  }
+
+  /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
+  function getSongNameByIndex(index) {
+    var songName_decoded = urldecode(playlistTable.bootstrapTable('getRowByUniqueId', index).filename);
+    console.log("getSongNameByIndex: " + index + " => " + songName_decoded);
+    return songName_decoded;
+  }
+
   /* ──────────────────────── FUNCTION: getSongByIndex ──────────────────────── */
   function getSongByIndex(index) {
-    return $("tr.songrow[data-songid="+index+"]");
+    var row = playlistTable.bootstrapTable('getRowByUniqueId', index);
+    console.log("getSongByIndex: " + index + " => " + row.name);
+    return row;
   }
 
   /* ────────────────────────── FUNCTION: updateTitle ───────────────────────── */
@@ -227,7 +255,7 @@ echo '</div></div>';
     }
     var activeSong = getSongByIndex(currentIndex);
     if (activeSong.length) {
-      activeSong[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      $(activeSong)[0].scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
 
@@ -235,26 +263,34 @@ echo '</div></div>';
   function playSong(index) {
     console.log("Playing song at index: " + index);
     $("tr.songrow").removeClass("table-success");
-    firstIndex = $("tr.songrow").first().data("songid");
-    lastIndex  = $("tr.songrow").last().data("songid");
+    var tableData  = playlistTable.bootstrapTable('getData');
+    var firstIndex = tableData[0].id;
+    var lastIndex  = tableData.slice(-1)[0].id;
     console.log("firstIndex: " + firstIndex + ", lastIndex: " + lastIndex);
-    if (index < firstIndex) {
+    if (+index < +firstIndex) {
+      console.log("(" + index + "<" + firstIndex + ") Playing last row: " + lastIndex);
       index = lastIndex; // Play the last song if we are at the first
-    } else if (index > lastIndex) {
+    } else if (+index > +lastIndex) {
+      console.log("(" + index + ">" + lastIndex + ") Playing first row: " + firstIndex);
       index = firstIndex; // Play the first song if we are at the last
     }
-    playingRow = $("tr.songrow[data-songid="+index+"]");
-    songName = playingRow.data("filename");
-    if (songName.length === 0) {
-      console.log("Invalid index: " + index);
-      index = 0;
+    var playingRow = playlistTable.bootstrapTable('getRowByUniqueId', index);
+    if (!playingRow) {
+      showToast("Invalid row: " + index, "danger");
+      return;
+    }
+
+    window.songName = getSongNameByIndex(index);
+    if (!songName || songName.length === 0) {
+      showToast("Invalid songname: " + songName, "danger");
+      return;
     }
     updateTitle(songName);
     var filePath = "<?= $config["audio_path"] ?>/" + songName;
     $("#audioSource").attr("src", filePath);
     $("audio")[0].load();
     $("audio")[0].play();
-    playingRow.addClass("table-success");
+    $("tr.songrow[data-uniqueid='" + index + "']").addClass("table-success");
     window.currentIndex = index;
     scrollToActiveSong();
   }
@@ -282,7 +318,8 @@ echo '</div></div>';
 
   /* ────────────────────────── FUNCTION: randomSong ────────────────────────── */
   function randomSong() {
-    var randomIndex = Math.floor(Math.random() * $("tr.songrow").length);
+    var rowCount = playlistTable.bootstrapTable('getData').length;
+    var randomIndex = Math.floor(Math.random() * rowCount);
     console.log("Playing random row: " + randomIndex);
     playSong(randomIndex);
   }
@@ -292,7 +329,6 @@ echo '</div></div>';
     pauseSong();
     window.currentIndex = undefined;
     playing = false;
-    $(".musicitem").removeClass("table-success");
     $("#audioSource").attr("src", "");
     $("audio")[0].currentTime = 0;
     updateTitle();
@@ -305,10 +341,10 @@ echo '</div></div>';
       randomSong();
       return;
     }
-    var prevSongItem = $('tr.songrow[data-songid="' + prevIndex + '"]');
-    console.log("Playing previous row: " + prevSongItem.data("songid"));
-    if (!prevSongItem.length) {
-      prevIndex = $("tr.songrow").last().data("songid");
+    var prevSongItem = playlistTable.bootstrapTable('getData')[prevIndex];
+    console.log("Playing previous row: " + prevIndex);
+    if (!prevSongItem) {
+      prevIndex = playlistTable.bootstrapTable('getData').length - 1;
     }
     playSong(prevIndex);
   }
@@ -320,9 +356,9 @@ echo '</div></div>';
       randomSong();
       return;
     }
-    var nextSongItem = $('tr.songrow[data-songid="' + nextIndex + '"]');
-    console.log("Playing next row: " + nextSongItem.data("songid"));
-    if (!nextSongItem.length) {
+    var nextSongItem = playlistTable.bootstrapTable('getData')[nextIndex];
+    console.log("Playing next row: " + nextIndex);
+    if (!nextSongItem) {
       nextIndex = 0;
     }
     playSong(nextIndex);
@@ -419,55 +455,46 @@ echo '</div></div>';
     audioElement.volume = <?= $config["default_volume"] ?>;
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
-    $('#playlistTable').on('post-body.bs.table', function () {
-      $('#playlistTable td[data-field="name"]').addClass('cursor-pointer');
+    playlistTable.on('post-body.bs.table', function () {
+      playlistTable.find('td[data-field="name"]').addClass('cursor-pointer');
     });
 
     /* ───────────────────────────── NOTE: Interval ───────────────────────────── */
     setInterval(updateTime, 1000);
 
-    /* ──────────────────────── NOTE: click-row.bs.table ──────────────────────── */
-    $(document).on("click-row.bs.table", function(e, row, element, field) {
-      console.log("Clicked on field: " + field);
-      if (field != "download" && field != "delete") {
-        currentIndex = element.data("index");
-        console.log("Clicked on music item " + currentIndex);
+    /* ──────────────────────── NOTE: table event listeners ──────────────────────── */
+    playlistTable.on('click-cell.bs.table', function (e, field, value, row, $element) {
+      // e: Event object
+      // field: The field name of the clicked cell
+      // value: The value of the clicked cell
+      // row: The entire row data object
+      // $element: The jQuery object of the clicked cell element
+
+      if (field === 'delete') {
+        var file = row.name;
+        $.ajax({
+          url: 'api.php',
+          type: 'POST',
+          data: { action: 'rm', file: file },
+          success: function(response) {
+            if (response.success) {
+              showToast(response.success, "success");
+              $("tr.songrow[data-filename='"+file+"']").remove();
+            } else {
+              showToast("Error deleting file: " + response.error, "danger");
+            }
+          },
+          error: function(error) {
+            showToast("An error occurred while deleting the file: "+error, "danger");
+          }
+        });
+      } else if (field === 'download') {
+        var file = row.filename;
+        window.open('<?= $config["audio_path"] ?>/' + file, '_blank');
+      } else {
+        currentIndex = row.id;
         playSong(currentIndex);
       }
-    });
-
-    /* ───────────────────────────── NOTE: deleteBtn ──────────────────────────── */
-    $(".deleteBtn").on('click', function() {
-      var file = $(this).data("filename");
-      $.ajax({
-        url: 'api.php',
-        type: 'POST',
-        data: { action: 'rm', file: file },
-        success: function(response) {
-          if (response.success) {
-            showToast(response.success, "success");
-            $("tr.songrow[data-filename='"+file+"']").remove();
-          } else {
-            showToast("Error deleting file: " + response.error, "danger");
-          }
-        },
-        error: function(error) {
-          showToast("An error occurred while deleting the file: "+error, "danger");
-        }
-      });
-    });
-
-    /* ──────────────────────────── NOTE: downloadBtn ─────────────────────────── */
-    $(".downloadBtn").on('click', function() {
-      var file = $(this).data("filename");
-      window.open('<?= $config["audio_path"] ?>/' + file, '_blank');
-    });
-
-    /* ────────────────────────────── NOTE: canplay ───────────────────────────── */
-    $(audioElement).on('canplay', function() {
-      duration = audioElement.duration;
-      $(".audioDuration").text(formatTime(duration));
-      $(".ctrlBtn").prop("disabled", false);
     });
 
     /* ────────────────────────────── NOTE: audioSlider ───────────────────────── */
@@ -502,6 +529,13 @@ echo '</div></div>';
     /* ────────────────────────────────────────────────────────────────────────── */
     /*                                Audio Element                               */
     /* ────────────────────────────────────────────────────────────────────────── */
+    /* ────────────────────────────── NOTE: canplay ───────────────────────────── */
+    $(audioElement).on('canplay', function() {
+      duration = audioElement.duration;
+      $(".audioDuration").text(formatTime(duration));
+      $(".ctrlBtn").prop("disabled", false);
+    });
+
     /* ─────────────────────────────── NOTE: Ended ────────────────────────────── */
     $(audioElement).on('ended', function() {
       nextSong();
@@ -511,14 +545,12 @@ echo '</div></div>';
     $(audioElement).on('play', function() {
       playing = true;
       $(".playPauseBtn").html(pauseIconHTML);
-      updateTitle(songName);
     });
 
     /* ────────────────────────────── NOTE: Pause ─────────────────────────────── */
     $(audioElement).on('pause', function() {
       playing = false;
       $(".playPauseBtn").html(playIconHTML);
-      updateTitle(songName);
     });
 
     if (window.history.replaceState) {
