@@ -54,3 +54,5 @@ Run the following commands, replacing `<PATH>` with the music directory:
 chown -R www-data:www-data <PATH>
 chmod -R 775 <PATH>
 ```
+
+If your music folder is in a remote directory and the ownership can't be changed, you might have to replace `775` with `777`.
