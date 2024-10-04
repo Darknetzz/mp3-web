@@ -1,50 +1,12 @@
 <?php 
-
-# Configuration (JSON)
-if (file_exists('config.php')) {
-  include_once('config.php');
-}
-
-# Configuration (Local)
-if (file_exists('config.local.php')) {
-  include_once('config.local.php');
-}
-
-/* ───────────────────────────────── Composer ──────────────────────────────── */
-$composer = False;
-if (file_exists('vendor/autoload.php')) {
-  $composer = True;
-  require __DIR__ . '/vendor/autoload.php';
-}
+require_once('_includes.php');
 
 $musicFiles = array_diff(scandir($config["audio_path"]), array('..', '.'));
-
-/* ───────────────────────────── FUNCTION: icon ───────────────────────────── */
-function icon($icon = "", $size = 1.5, $margin = 1) {
-  return '<i class="bi bi-' . $icon . ' m-' . $margin . '" style="font-size: ' . $size . 'em;"></i>';
-}
-
-/* ──────────────────────────── FUNCTION: mp3info ─────────────────────────── */
-function getDuration($file) {
-  global $config;
-  global $composer;
-  if (!$composer || !class_exists('wapmorgan\Mp3Info\Mp3Info')) {
-    return "0:00";
-  }
-  if (!file_exists($file)) {
-    return "File <code>$file</code> not found.";
-  }
-  $mp3info  = new wapmorgan\Mp3Info\Mp3Info($file);
-  $duration = $mp3info->duration;
-  $minutes = floor($duration / 60);
-  $seconds = $duration % 60;
-  return sprintf("%d:%02d", $minutes, $seconds);
-}
-
 ?>
 
 <!DOCTYPE html>
 <meta charset="utf-8">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
 <title>Music Player</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
@@ -94,6 +56,13 @@ echo '
 if (!$composer) {
   echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
 }
+
+/* ─────────────────────────────── apiResponse ────────────────────────────── */
+echo '
+  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3">
+    <!-- Response from API will be displayed here -->
+  </div>
+';
 
 echo '
 <div class="audio-player-container">
@@ -161,17 +130,28 @@ if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
     echo '<p>Upload some music files to the <code>'.$config["audio_path"].'/</code> directory.</p>';
 }
-echo "<table id='playlistTable' class='table table-striped' data-toggle='table' data-search='true'>
-<thead id='playlistHead'>
-  <tr class='table-success'>
-    <th data-field='id'>#</th>
-    <th data-field='name'>File Name</th>
-    <th data-field='duration'>Duration</th>
-    <th>Download</th>
-    <th>Delete</th>
+echo '
+<div id="toolbar"></div>
+<table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
+  data-toggle="table" 
+  data-search="true" 
+  data-sort="true" 
+  data-show-refresh="true"
+  data-show-toggle="true"
+  data-show-columns="true"
+  data-show-columns-toggle-all="true"
+  data-show-export="true"
+>
+  <thead id="playlistHead">
+  <tr class="table-success">
+    <th data-field="id">#</th>
+    <th data-field="name">File Name</th>
+    <th data-field="duration">Duration</th>
+    <th data-field="download">Download</th>
+    <th data-field="delete">Delete</th>
   </tr>
-    <tbody id='playlistBody'>
-  ";
+  <tbody id="playlistBody">
+  ';
 $i = 0;
 foreach ($musicFiles as $file) {
     $filePath    = $config["audio_path"] . "/" . $file;
@@ -185,11 +165,11 @@ foreach ($musicFiles as $file) {
     }
     echo '
     <tr class="songrow" data-songid="'.$i.'" data-filename="'.$file.'">
-      <td data-class="cursor-pointer musicitem">
+      <td data-class="musicitem">
         <span class="text-muted">'.($i + 1).'</span>
       </td>
-      <td data-class="cursor-pointer musicitem">
-        '.htmlspecialchars($audioName).'
+      <td data-class="musicitem">
+        <span class="cursor-pointer">'.htmlspecialchars($audioName).'</span>
       </td>
       <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
@@ -379,8 +359,26 @@ echo '</div></div>';
     $(".audioSlider").val(currentTime);
   }
 
+  /* ─────────────────────────── FUNCTION: showToast ────────────────────────── */
+  function showToast(message, type = "info") {
+    $("#apiResponse").append(`
+      <div class='toast align-items-center text-bg-`+type+` border-0' role='alert' aria-live='assertive' aria-atomic='true'>
+        <div class='d-flex'>
+          <div class='toast-body'>
+            `+message+`
+          </div>
+          <button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast' aria-label='Close'></button>
+        </div>
+      </div>
+    `);
+    var toast = new bootstrap.Toast($("#apiResponse .toast").last()[0]);
+    toast.show();
+  }
+
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
+
+    showToast("Welcome to the Music Player!", "success");
 
     $("#musicDropzone").dropzone({
       url: "api.php",
@@ -397,35 +395,45 @@ echo '</div></div>';
           var response = file.xhr ? JSON.parse(file.xhr.responseText) : {};
           if (Array.isArray(response)) {
             response.forEach(function(res, index) {
-              var uniqueId = Math.random().toString(16).substr(2, 8);
-              resdiv = $("#dropzoneResponse").append("<div id='resdiv-" + uniqueId + "'>");
-              $("#resdiv-" + uniqueId).addClass("alert alert-" + (res.error ? "danger" : "success"));
-              if (res.success) {
-                $("#resdiv-"+uniqueId).html(res.success);
-              } else {
-                $("#resdiv-"+uniqueId).html((res.error || 'An unknown error occurred.'));
-              }
-              setTimeout(function() {
-                $("#resdiv-" + uniqueId).fadeOut();
-              }, 5000);
+              // var uniqueId = Math.random().toString(16).substr(2, 8);
+              // resdiv = $("#dropzoneResponse").append("<div id='resdiv-" + uniqueId + "'>");
+              // $("#resdiv-" + uniqueId).addClass("alert alert-" + (res.error ? "danger" : "success"));
+                showToast(res.error || res.success, res.error ? "danger" : "success");
+              // if (res.success) {
+              //   $("#resdiv-"+uniqueId).html(res.success);
+              // } else {
+              //   $("#resdiv-"+uniqueId).html((res.error || 'An unknown error occurred.'));
+              // }
+              // setTimeout(function() {
+              //   $("#resdiv-" + uniqueId).fadeOut();
+              // }, 5000);
             });
+          } else {
+            showToast(response.error || response.success, response.error ? "danger" : "success");
           }
         });
       }
     });
 
-
     var audioElement = $("audio")[0];
     audioElement.volume = <?= $config["default_volume"] ?>;
+
+    /* ───────────────────────────── Cursor pointer ───────────────────────────── */
+    $('#playlistTable').on('post-body.bs.table', function () {
+      $('#playlistTable td[data-field="name"]').addClass('cursor-pointer');
+    });
 
     /* ───────────────────────────── NOTE: Interval ───────────────────────────── */
     setInterval(updateTime, 1000);
 
     /* ──────────────────────── NOTE: click-row.bs.table ──────────────────────── */
-    $(document).on("click-row.bs.table", function(e, row, element) {
-      currentIndex = element.data("index");
-      console.log("Clicked on music item " + currentIndex);
-      playSong(currentIndex);
+    $(document).on("click-row.bs.table", function(e, row, element, field) {
+      console.log("Clicked on field: " + field);
+      if (field != "download" && field != "delete") {
+        currentIndex = element.data("index");
+        console.log("Clicked on music item " + currentIndex);
+        playSong(currentIndex);
+      }
     });
 
     /* ───────────────────────────── NOTE: deleteBtn ──────────────────────────── */
@@ -437,14 +445,14 @@ echo '</div></div>';
         data: { action: 'rm', file: file },
         success: function(response) {
           if (response.success) {
-            alert("File deleted successfully.");
-            location.reload();
+            showToast(response.success, "success");
+            $("tr.songrow[data-filename='"+file+"']").remove();
           } else {
-            alert("Error deleting file: " + response.error);
+            showToast("Error deleting file: " + response.error, "danger");
           }
         },
-        error: function() {
-          alert("An error occurred while trying to delete the file.");
+        error: function(error) {
+          showToast("An error occurred while deleting the file: "+error, "danger");
         }
       });
     });
@@ -452,7 +460,7 @@ echo '</div></div>';
     /* ──────────────────────────── NOTE: downloadBtn ─────────────────────────── */
     $(".downloadBtn").on('click', function() {
       var file = $(this).data("filename");
-      window.location.href = 'api.php?action=dl&file=' + file;
+      window.open('<?= $config["audio_path"] ?>/' + file, '_blank');
     });
 
     /* ────────────────────────────── NOTE: canplay ───────────────────────────── */

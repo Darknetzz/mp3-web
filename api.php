@@ -1,45 +1,69 @@
 <?php
+require_once('_includes.php');
 
-# Configuration
-if (file_exists('config.local.php')) {
-    include_once('config.local.php');
-} elseif (file_exists('config.php')) {
-    include_once('config.php');
-} else {
-    die(json_encode(["error" => "The configuration file is missing."]));
-}
-
+# The API should always return JSON, no matter what.
+# You want to return something else? You're in the wrong place.
+header('Content-Type: application/json');
 
 if (empty($config["audio_path"])) {
-    die(json_encode(["error" => "The audio path is not set."]));
+    apiError("The audio path is not set.");
 }
 
 /* ───────────────────────────── FUNCTION: download ─────────────────────────── */
 function download($file) {
+    global $config;
     $filePath = $config["audio_path"] . '/' . $file;
-    if (file_exists($filePath)) {
-        header('Content-Description: File Transfer');
-        header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
-        header('Expires: 0');
-        header('Cache-Control: must-revalidate');
-        header('Pragma: public');
-        header('Content-Length: ' . filesize($filePath));
-        readfile($filePath);
-        exit;
+    if (empty($filePath) || !file_exists($filePath)) {
+        apiError("The file does not exist.");
     }
+    return [
+        "message" => "The file ". basename($filePath). " has been downloaded.",
+        "file"    => basename($filePath),
+        "path"    => $filePath
+    ];
 }
 
 /* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
 function remove($file) {
-    $filePath = $config["audio_path"] . '/' . $file;
-    $deletedDir = 'deleted/';
+    global $config;
+    $filePath   = $config["audio_path"] . '/' . $file;
+    $deletedDir = 'deleted';
     if (!is_dir($deletedDir)) {
         mkdir($deletedDir, 0777, true);
     }
-    if (file_exists($filePath)) {
-        rename($filePath, $deletedDir . $file);
+    if (!is_dir($deletedDir) || !is_writable($deletedDir)) {
+        apiError("The directory <code>".$config["audio_path"]."</code> is not writable.");
     }
+    if (!file_exists($filePath)) {
+        apiError("The file <code>$filePath</code> does not exist.");
+    }
+    if (!is_file($filePath)) {
+        apiError("The file <code>$filePath</code> is not a regular file.");
+    }
+    rename($filePath, $deletedDir . "/" . $file);
+    return ["success" => "The file ". basename($filePath). " has been removed."];
+}
+
+/* ─────────────────────────── FUNCTION: listSongs ────────────────────────── */
+function listSongs() {
+    global $config;
+    $audioPath = $config["audio_path"];
+    if (!is_dir($audioPath) || !is_readable($audioPath)) {
+        apiError("The audio path is not readable.");
+    }
+    $files = array_diff(scandir($audioPath), array('..', '.'));
+    $songs = [];
+    foreach ($files as $file) {
+        $filePath = $audioPath . '/' . $file;
+        if (is_file($filePath)) {
+            $songs[] = [
+                "name" => $file,
+                "size" => filesize($filePath),
+                "date" => date("Y-m-d H:i:s", filemtime($filePath))
+            ];
+        }
+    }
+    return $songs;
 }
 
 /* ───────────────────────────── FUNCTION: upload ─────────────────────────── */
@@ -55,36 +79,36 @@ function uploadFile(
     global $config;
 
     if (!is_array($file) || empty($file) || $file === []) {
-        return ["error" => "Invalid or empty file."];
+        apiError("Invalid or empty file.");
     }
 
     if (empty($file["name"])) {
-        return ["error" => "The file name is empty."];
+        apiError("The file name is empty.");
     }
 
     if (!isset($config["allowed_types"]) || !is_array($config["allowed_types"])) {
-        return ["error" => "The allowed types are not set or invalid."];
+        apiError("The allowed types are not set or invalid.");
     }
 
     if (!isset($config["audio_path"]) || empty($config["audio_path"]) || !is_dir($config["audio_path"])) {
-        return ["error" => "The audio path is not set."];
+        apiError("The audio path is not set.");
     }
 
     $targetDir  = rtrim($config['audio_path'], DIRECTORY_SEPARATOR);
     $targetFile = $targetDir . "/" . htmlspecialchars(basename($file["name"]));
 
     if (file_exists($targetFile)) {
-        return ["error" => "Sorry, file <code>".$targetFile."</code> already exists."];
+        apiError("Sorry, file <code>".$targetFile."</code> already exists.");
     }
 
     $fileType   = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
 
     if (!in_array(strtolower(pathinfo($file["name"], PATHINFO_EXTENSION)), $config["allowed_types"])) {
-        return ["error" => "Only ". implode(", ", $config["allowed_types"]). " files are allowed."];
+        apiError("Only ". implode(", ", $config["allowed_types"]). " files are allowed.");
     }
 
     if (!move_uploaded_file($file["tmp_name"], $targetFile)) {
-        return ["error" => "There was an error moving the temporary file to it's destination."];
+        apiError("There was an error moving the temporary file to its destination.");
     }
 
     return ["success" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", "file" => basename($targetFile)];
@@ -93,17 +117,21 @@ function uploadFile(
 do {
 
     if (isset($_GET["action"]) && $_GET["action"] === "dl") {
-        download($_GET["file"]);
+        $res = download($_GET["file"]);
         break;
     }
 
     if (isset($_POST["action"]) && $_POST["action"] === "rm") {
-        remove($_POST["file"]);
+        $res = remove($_POST["file"]);
+        break;
+    }
+
+    if (isset($_GET["action"]) && $_GET["action"] === "ls") {
+        $res = listSongs();
         break;
     }
 
     if (isset($_FILES["files"])) {
-        header('Content-Type: application/json');
         if (is_array($_FILES["files"]["name"])) {
             $count  = count($_FILES["files"]["name"]);
             $result = [];
@@ -120,12 +148,11 @@ do {
                 }
             }
         }
-        die(json_encode($result));
-        break;
+        $res = $result;
     }
 
 } while (false);
 
-die(json_encode(["error" => "Invalid request."]));
+apiSuccess($res);
 
 ?>

@@ -42,6 +42,6 @@ docker run -d -p 9096:80 mp3-web:main
 
 ### Manual
 * Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.
-* Run `composer install` from the directory
+* Run `composer install` from the directory (optional, but required to display durations)
 * Add some music in the subfolder `music` (or whatever you choose in `config.json`)
 * Open the page in a browser and start listening!
