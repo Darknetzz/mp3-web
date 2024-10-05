@@ -90,7 +90,7 @@ echo '
           }
 echo '
           <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled>'.icon("play").'</button>
+            <button class="btn btn-sm btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled>'.icon("play").'</button>
             <button class="btn btn-sm btn-pill btn-outline-danger ctrlBtn stopBtn" onclick="stopSong()" disabled>'.icon('stop-fill').'</button>
           </div>
           <div class="btn-group mx-2">
@@ -150,6 +150,8 @@ echo '
     <th data-field="name">Name</th>
     <th data-field="filename" data-visible="false">Filename</th>
     <th data-field="duration">Duration</th>
+    <th data-field="size">Size</th>
+    <th data-field="date">Date</th>
     <th data-field="download">Download</th>
     <th data-field="delete">Delete</th>
   </tr>
@@ -157,6 +159,7 @@ echo '
   ';
 $i = 1;
 foreach ($musicFiles as $file) {
+    $urlFilename = urlencode($file);
     $filePath    = $config["audio_path"] . "/" . $file;
     if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), $config['allowed_types'])) {
       continue;
@@ -177,9 +180,11 @@ foreach ($musicFiles as $file) {
         '.htmlspecialchars($audioName).'
       </td>
       <td>
-        '.urlencode($file).'
+        '.$urlFilename.'
       </td>
       <td class="durationCol">'.getDuration($filePath).'</td>
+      <td class="sizeCol">'.round(filesize($filePath) / 1024 / 1024).'MB</td>
+      <td class="dateCol">'.date("Y-m-d H:i:s", filemtime($filePath)).'</td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
@@ -445,8 +450,8 @@ echo '</div></div>';
     audioElement.volume = <?= $config["default_volume"] ?>;
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
-    playlistTable.on('post-body.bs.table', function () {
-      playlistTable.find('td[data-field="name"]').addClass('cursor-pointer');
+    $('#playlistTable').on('post-body.bs.table', function () {
+      $('#playlistTable').find('td[data-field="name"]').addClass('cursor-pointer');
     });
 
     /* ───────────────────────────── NOTE: Interval ───────────────────────────── */
@@ -535,11 +540,19 @@ echo '</div></div>';
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
     $(audioElement).on('play', function() {
       playing = true;
-      $(".playPauseBtn").html(pauseIconHTML);
+      playPauseBtn = $(".playPauseBtn");
+      playPauseBtn.html(pauseIconHTML);
+      playPauseBtn.removeClass("btn-outline-success");
+      playPauseBtn.removeClass("btn-outline-warning");
+      playPauseBtn.addClass("btn-success");
     });
 
     /* ────────────────────────────── NOTE: Pause ─────────────────────────────── */
     $(audioElement).on('pause', function() {
+      playPauseBtn = $(".playPauseBtn");
+      playPauseBtn.removeClass("btn-success");
+      playPauseBtn.removeClass("btn-outline-success");
+      playPauseBtn.addClass("btn-outline-warning");
       playing = false;
       $(".playPauseBtn").html(playIconHTML);
     });
