@@ -71,21 +71,48 @@ function listSongs() {
 /* ───────────────────────────── FUNCTION: upload ─────────────────────────── */
 function uploadFile(
     array $file = [
-    "name"     => "",
-    "type"     => "",
-    "tmp_name" => "",
-    "error"    => 4,
-    "size"     => 0
+        "name"     => "",
+        "type"     => "",
+        "tmp_name" => "",
+        "error"    => 4,
+        "size"     => 0
     ]) : array {
 
     global $config;
 
     if (!is_array($file) || empty($file) || $file === []) {
-        apiError("Invalid or empty file.");
+        apiError("Invalid or empty file. ".print_r($file, true));
+    }
+
+    if ($file["error"] !== UPLOAD_ERR_OK) {
+        switch ($file["error"]) {
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                apiError("The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".");
+                break;
+            case UPLOAD_ERR_PARTIAL:
+                apiError("The uploaded file was only partially uploaded.");
+                break;
+            case UPLOAD_ERR_NO_FILE:
+                apiError("No file was uploaded.");
+                break;
+            case UPLOAD_ERR_NO_TMP_DIR:
+                apiError("Missing a temporary folder.");
+                break;
+            case UPLOAD_ERR_CANT_WRITE:
+                apiError("Failed to write file to disk.");
+                break;
+            case UPLOAD_ERR_EXTENSION:
+                apiError("A PHP extension stopped the file upload.");
+                break;
+            default:
+                apiError("Unknown upload error.");
+                break;
+        }
     }
 
     if (empty($file["name"])) {
-        apiError("The file name is empty.");
+        apiError("The file name is empty.".print_r($file, true));
     }
 
     if (!isset($config["allowed_types"]) || !is_array($config["allowed_types"])) {
@@ -110,20 +137,10 @@ function uploadFile(
     }
 
     if (!move_uploaded_file($file["tmp_name"], $targetFile)) {
-        apiError("There was an error moving the temporary file to its destination.");
+        apiError("There was an error moving the temporary file <code>".$file["tmp_name"]."</code> to its destination <code>".$targetFile."</code>.");
     }
 
     return ["success" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", "file" => basename($targetFile)];
-}
-
-/* ──────────────────────────── FUNCTION: base64 ──────────────────────────── */
-function b64_encode($fileName) {
-    return ["success" => base64_encode($fileName)];
-}
-
-/* ──────────────────────────── FUNCTION: base64 ──────────────────────────── */
-function b64_decode($fileName) {
-    return ["success" => base64_decode($fileName)];
 }
 
 do {
@@ -144,33 +161,19 @@ do {
     }
 
     if (isset($_FILES["files"])) {
-        if (is_array($_FILES["files"]["name"])) {
-            $count  = count($_FILES["files"]["name"]);
-            $result = [];
-            for ($i = 0; $i < $count; $i++) {
-                $result[] = uploadFile([
-                    "name"     => $_FILES["files"]["name"][$i],
-                    "type"     => $_FILES["files"]["type"][$i],
-                    "tmp_name" => $_FILES["files"]["tmp_name"][$i],
-                    "error"    => $_FILES["files"]["error"][$i],
-                    "size"     => $_FILES["files"]["size"][$i]
-                ]);
-                if (!empty($result[$i]["error"])) {
-                    continue;
-                }
-            }
+        $result = [];
+        foreach ($_FILES["files"]["name"] as $key => $name) {
+            $result[] = uploadFile(
+                [
+                    "name"     => $name,
+                    "type"     => $_FILES["files"]["type"][$key],
+                    "tmp_name" => $_FILES["files"]["tmp_name"][$key],
+                    "error"    => $_FILES["files"]["error"][$key],
+                    "size"     => $_FILES["files"]["size"][$key]
+                ]
+            );
         }
         $res = $result;
-    }
-
-    if (isset($_GET["action"]) && $_GET["action"] === "b64") {
-        $res = b64_encode($_GET["file"]);
-        break;
-    }
-
-    if (isset($_GET["action"]) && $_GET["action"] === "b64d") {
-        $res = b64_decode($_GET["file"]);
-        break;
     }
 
 } while (false);

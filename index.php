@@ -253,10 +253,7 @@ echo '</div></div>';
     if (!autoScroll) {
         return;
     }
-    var activeSong = getSongByIndex(currentIndex);
-    if (activeSong) {
-      $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0].scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0].scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
@@ -430,12 +427,15 @@ echo '</div></div>';
       init: function() {
         this.on("complete", function(file) {
           var response = file.xhr ? JSON.parse(file.xhr.responseText) : {};
+          console.log("Dropzone response: ", typeof(response), JSON.stringify(response));
           if (Array.isArray(response)) {
             response.forEach(function(res, index) {
                 showToast(res.error || res.success, res.error ? "danger" : "success");
             });
-          } else {
+          } else if (typeof response === 'object' && !Array.isArray(response)) {
             showToast(response.error || response.success, response.error ? "danger" : "success");
+          } else {
+            showToast("An error occurred while uploading the file.", "danger");
           }
         });
       }
