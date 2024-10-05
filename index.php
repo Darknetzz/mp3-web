@@ -471,9 +471,9 @@ echo '</div></div>';
       // $element: The jQuery object of the clicked cell element
 
       var rowid = row.id;
+      var file = getSongNameByIndex(rowid);
 
       if (field === 'delete') {
-        var file = getSongNameByIndex(rowid);
         $.ajax({
           url: 'api.php',
           type: 'POST',
@@ -491,11 +491,10 @@ echo '</div></div>';
           }
         });
       } else if (field === 'download') {
-        var file = getSongNameByIndex(rowid);
         window.open('<?= $config["audio_path"] ?>/' + file, '_blank');
       } else {
         currentIndex = row.id;
-        playSong(currentIndex);
+        playSong(rowid);
       }
     });
 
