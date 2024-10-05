@@ -336,7 +336,7 @@ echo '</div></div>';
 
   /* ───────────────────────── FUNCTION: prevSong ───────────────────────── */
   function prevSong() {
-    var prevIndex = currentIndex - 1;
+    var prevIndex = parseInt(currentIndex) - 1;
     if (shuffle) {
       randomSong();
       return;
@@ -351,7 +351,7 @@ echo '</div></div>';
 
   /* ─────────────────────────── FUNCTION: nextSong ─────────────────────────── */
   function nextSong() {
-    var nextIndex = currentIndex + 1;
+    var nextIndex = parseInt(currentIndex) + 1;
     if (shuffle) {
       randomSong();
       return;
@@ -431,18 +431,7 @@ echo '</div></div>';
           var response = file.xhr ? JSON.parse(file.xhr.responseText) : {};
           if (Array.isArray(response)) {
             response.forEach(function(res, index) {
-              // var uniqueId = Math.random().toString(16).substr(2, 8);
-              // resdiv = $("#dropzoneResponse").append("<div id='resdiv-" + uniqueId + "'>");
-              // $("#resdiv-" + uniqueId).addClass("alert alert-" + (res.error ? "danger" : "success"));
                 showToast(res.error || res.success, res.error ? "danger" : "success");
-              // if (res.success) {
-              //   $("#resdiv-"+uniqueId).html(res.success);
-              // } else {
-              //   $("#resdiv-"+uniqueId).html((res.error || 'An unknown error occurred.'));
-              // }
-              // setTimeout(function() {
-              //   $("#resdiv-" + uniqueId).fadeOut();
-              // }, 5000);
             });
           } else {
             showToast(response.error || response.success, response.error ? "danger" : "success");
@@ -493,7 +482,7 @@ echo '</div></div>';
       } else if (field === 'download') {
         window.open('<?= $config["audio_path"] ?>/' + file, '_blank');
       } else {
-        currentIndex = row.id;
+        window.currentIndex = row.id;
         playSong(rowid);
       }
     });
