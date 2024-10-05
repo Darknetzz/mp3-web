@@ -254,8 +254,8 @@ echo '</div></div>';
         return;
     }
     var activeSong = getSongByIndex(currentIndex);
-    if (activeSong.length) {
-      $(activeSong)[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    if (activeSong) {
+      $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0].scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
 
@@ -290,8 +290,9 @@ echo '</div></div>';
     $("#audioSource").attr("src", filePath);
     $("audio")[0].load();
     $("audio")[0].play();
-    $("tr.songrow[data-uniqueid='" + index + "']").addClass("table-success");
+    var activeRow = $("tr.songrow[data-uniqueid='" + index + "']");
     window.currentIndex = index;
+    activeRow.addClass("table-success");
     scrollToActiveSong();
   }
 
