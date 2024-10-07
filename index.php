@@ -146,12 +146,12 @@ echo '
 >
   <thead id="playlistHead">
   <tr class="table-success">
-    <th data-field="id">#</th>
+    <th data-field="id" data-visible="false">#</th>
     <th data-field="name">Name</th>
     <th data-field="filename" data-visible="false">Filename</th>
     <th data-field="duration">Duration</th>
-    <th data-field="size">Size</th>
-    <th data-field="date">Date</th>
+    <th data-field="size" data-visible="false">Size</th>
+    <th data-field="date" data-visible="false">Date</th>
     <th data-field="download">Download</th>
     <th data-field="delete">Delete</th>
   </tr>
@@ -339,6 +339,10 @@ echo '</div></div>';
 
   /* ───────────────────────── FUNCTION: prevSong ───────────────────────── */
   function prevSong() {
+    if ($("audio")[0].currentTime > 5) {
+      $("audio")[0].currentTime = 0;
+      return;
+    }
     var prevIndex = parseInt(currentIndex) - 1;
     if (shuffle) {
       randomSong();
