@@ -567,6 +567,7 @@ echo '</div></div>';
       window.history.replaceState({ path: url.href }, '', url.href);
     }
 
+    // Support media keys
     if ('mediaSession' in navigator) {
       navigator.mediaSession.setActionHandler('play', function() {
         resumeSong();
@@ -582,6 +583,7 @@ echo '</div></div>';
       });
     }
 
+    // Keyboard shortcuts
     $(document).keydown(function(e) {
       if (e.code === 'Space') {
         e.preventDefault();
