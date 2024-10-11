@@ -33,8 +33,13 @@ do {
         break;
     }
 
+    # REVIEW: 
     if (isset($_POST['action']) && $_POST['action'] === 'setconfig') {
-        $res = ["success" => "The configuration has been saved."];
+        $postConfig = $_POST['config'];
+        if (!isset($postConfig['key']) || !isset($postConfig['value'])) {
+            apiError("Key or value not set: " . json_encode($_POST));
+        }
+        $res = setConfig($postConfig['key'], $postConfig['value']);
         break;
     }
 

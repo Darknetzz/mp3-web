@@ -8,15 +8,18 @@
 
     /* ────────────────────────────── Configuration ───────────────────────────── */
     if (file_exists('config.local.php')) {
-        include_once('config.local.php');
+        $configFile = 'config.local.php';
+        include_once($configFile);
     } elseif (file_exists('config.php')) {
-        include_once('config.php');
+        $configFile = 'config.php';
+        include_once($configFile);
     } else {
         die(json_encode("The configuration file is missing."));
     }
 
     # Save the configuration to a constant
     define('CONFIG', $config);
+    define('CONFIG_FILE', $configFile);
     define('AUDIO_PATH', CONFIG["audio_path"]["value"]);
     define('COMPOSER', $composer);
 
