@@ -7,7 +7,7 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
 <!DOCTYPE html>
 <meta charset="utf-8">
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<title>Music Player</title>
+<title><?= getConfig("site_title") ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
@@ -53,8 +53,23 @@ echo '
 <html>
 
 <body class="theme-dark">
-
 ';
+
+/* ──────────────────────────────────── Reload ─────────────────────────────── */
+if (isset($_GET['reload'])) {
+  ?>
+      <script>
+          localStorage.clear();
+          var url = new URL(window.location.href);
+          url.search = '';
+          window.history.replaceState({}, document.title, url.toString());
+          setTimeout(function() {
+          location.reload();
+          }, 2000);
+      </script>
+  <?php 
+      exit("Reloading page...");
+  }
 
 /* ───────────────────────── Startup (session) modal ──────────────────────── */
 echo '

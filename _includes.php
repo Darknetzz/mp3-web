@@ -1,21 +1,5 @@
 <?php
 
-    /* ──────────────────────────────────── Reload ─────────────────────────────── */
-    if (isset($_GET['reload'])) {
-    ?>
-        <script>
-            localStorage.clear();
-            var url = new URL(window.location.href);
-            url.search = '';
-            window.history.replaceState({}, document.title, url.toString());
-            setTimeout(function() {
-            location.reload();
-            }, 2000);
-        </script>
-    <?php 
-        exit("Reloading page...");
-    }
-
     /* ───────────────────────────────── Composer ──────────────────────────────── */
     $composer = False;
     if (file_exists('vendor/autoload.php')) {
