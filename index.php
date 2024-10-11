@@ -242,7 +242,7 @@ echo '
     <th data-field="size" data-visible="false">Size</th>
     <th data-field="date" data-visible="false">Date</th>
     <th data-field="download">Download</th>
-    <th data-field="delete">Delete</th>
+    <th data-field="delete" data-visible="false">Delete</th>
   </tr>
   <tbody id="playlistBody">
   ';
