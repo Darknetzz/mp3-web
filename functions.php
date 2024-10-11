@@ -26,17 +26,19 @@
 
     /* ──────────────────────────── FUNCTION: mp3info ─────────────────────────── */
     function getDuration($file) {
-        if (!COMPOSER || !class_exists('wapmorgan\Mp3Info\Mp3Info')) {
-            return "0:00";
-        }
+        $duration = "0:00";
+        // if (!COMPOSER || !class_exists('wapmorgan\Mp3Info\Mp3Info')) {
+        //  return "0:00";
+        // }
         if (!file_exists($file)) {
-            return "File <code>$file</code> not found.";
+            $duration = "File <code>$file</code> not found.";
         }
         $mp3info  = new wapmorgan\Mp3Info\Mp3Info($file);
         $duration = $mp3info->duration;
-        $minutes = floor($duration / 60);
-        $seconds = $duration % 60;
-        return sprintf("%d:%02d", $minutes, $seconds);
+        $minutes  = floor($duration / 60);
+        $seconds  = $duration % 60;
+        $duration = sprintf("%d:%02d", $minutes, $seconds);
+        return $duration;
     }
 
     /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */

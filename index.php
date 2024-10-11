@@ -245,9 +245,9 @@ echo '
 <div class="container">
 ';
 
-if (!$composer && getConfig('env') != 'demo') {
-  echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
-}
+// if (getConfig('env') != 'demo') {
+//   echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
+// }
 
 echo '
 <div class="audio-player-container">
@@ -300,7 +300,7 @@ echo '
 <div class="card m-3">
   <div class="card-header d-flex justify-content-between">
     <h2>'.getConfig("site_title").'</h2>
-    <small class="text-muted">'.VERSION.'</small>
+    <small class="text-muted">'.ENV['VERSION'].'</small>
   </div>
 <div class="card-body">
 
