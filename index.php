@@ -153,6 +153,7 @@ echo '
 <div class="audio-player-container">
   <div class="d-flex align-items-center card">
       <h3 id="songtitle" class="card-header text-success">'.getConfig("no_song_text").'</h3>
+      <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
       <div class="card-body">
           <audio '.(getConfig('use_legacy_player') ? 'controls' : '').' style="width:100%">
           <source id="audioSource" src="" type="audio/mpeg">
@@ -375,6 +376,14 @@ echo '</div></div>';
       return;
     }
 
+    // Update next in queue text
+    $("#nextInQueueText").parent().hide();
+    var nextInQueue = getQueuedSong();
+    if (nextInQueue !== null) {
+      $("#nextInQueueText").text(getSongNameByIndex(nextInQueue));
+      $("#nextInQueueText").parent().show();
+    }
+
     window.songName = getSongNameByIndex(index);
     if (!songName || songName.length === 0) {
       showToast("Invalid songname: " + songName, "danger");
@@ -467,6 +476,22 @@ echo '</div></div>';
       nextIndex = 0;
     }
     playSong(nextIndex);
+  }
+
+  /* ───────────────────────── FUNCTION: getQueuedSong ──────────────────────── */
+  function getQueuedSong() {
+    if (queue.length > 0) {
+      return queue[0];
+    }
+    return null;
+  }
+
+  /* ─────────────────────────── FUNCTION: queueSong ────────────────────────── */
+  function queueSong(index) {
+    queue.push(index);
+    showToast("Added to queue: " + getSongNameByIndex(index), "success");
+    $("#nextInQueueText").parent().show();
+    $("#nextInQueueText").text(getSongNameByIndex(getQueuedSong()));
   }
 
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
@@ -621,8 +646,7 @@ echo '</div></div>';
       } else if (field === 'download') {
         window.open('<?= getConfig("audio_path") ?>/' + file, '_blank');
       } else if (field === 'queue') {
-        queue.push(rowid);
-        showToast("Added to queue: " + file, "success");
+        queueSong(rowid);
       } else {
         window.currentIndex = row.id;
         playSong(rowid);
