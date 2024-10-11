@@ -2,6 +2,11 @@
 require_once('_includes.php');
 
 $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
+
+if (isset($_GET['reload'])) {
+  header("Location: " . $_SERVER['PHP_SELF']);
+  exit();
+}
 ?>
 
 <!DOCTYPE html>
@@ -45,21 +50,21 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
   .audio-player-container .btn-group {
     margin-top: 10px;
   }
-  .modal-open-blur {
-    filter: blur(5px);
-  }
-  .modal-open-blur .modal {
-    filter: none;
-  }
 </style>
 <?php
 
-echo '<html>';
+echo '
+
+<html>
+
+<body class="theme-dark">
+
+';
 
 /* ────────────────────────────── Config Modal ────────────────────────────── */
 echo '
 <div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="configModalLabel">Configuration</h5>
@@ -68,6 +73,7 @@ echo '
       </div>
       <div class="modal-body">
       <form action="api.php" method="POST">
+      <div class="modalTable">
       <table class="table table-bordered">
         <thead>
           <tr>
@@ -124,14 +130,17 @@ echo '
       }
 echo '</tbody>
       </table>
+      </div>
       </form>
       <div class="d-flex justify-content-end">
-        <a href="javascript:void(0);" class="btn btn-outline-success reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
+        <a href="javascript:void(0);" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</a>
+        <a href="?reload=1" class="btn btn-outline-success reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
       </div>
       </div>
     </div>
   </div>
-</div>';
+</div>
+';
 
 /* ─────────────────────────────── apiResponse ────────────────────────────── */
 echo '
@@ -141,7 +150,6 @@ echo '
 ';
 
 echo '
-<body class="theme-dark">
 <div class="container">
 ';
 
@@ -219,7 +227,7 @@ if (empty($musicFiles)) {
 echo '
 <div id="toolbar">
   <div class="btn-group">
-    <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
+    <button type="button" class="btn btn-sm btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
   </div>
 </div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
@@ -288,7 +296,8 @@ echo '</div></div>';
 
 
 </div>
-</body></html>
+</body>
+</html>
 
 <!--
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -747,15 +756,6 @@ echo '</div></div>';
       }
     });
 
-    // Modal
-    $("#configModal").on("show.bs.modal", function () {
-      $(".container").addClass("modal-open-blur");
-    });
-
-    $("#configModal").on("hidden.bs.modal", function () {
-      $(".container").removeClass("modal-open-blur");
-    });
-
     // cfgInputClass
     $(".<?= $cfgInputClass ?>").on("change", function() {
       $(".reloadCfgBtn").show();
@@ -771,11 +771,6 @@ echo '</div></div>';
       }
       console.log("Key: " + key + ", Value: " + value);
       api("setconfig", { config: { key: key, value: value } }, "POST");
-    });
-
-    // reloadCfgBtn
-    $(".reloadCfgBtn").on("click", function() {
-      location.reload(true);
     });
 
     // Setting Range

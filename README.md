@@ -27,9 +27,9 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Browser refresh persistency
 * Session sharing
 
-## How to use
+## Getting started
 
-### Dockerfile
+### Dockerfile (recommended)
 You could build a docker container running `mp3-web` using the [dockerfile](https://raw.githubusercontent.com/Darknetzz/mp3-web/refs/heads/main/Dockerfile).
 ```bash
 # Get the Dockerfile
@@ -38,22 +38,27 @@ curl -O https://raw.githubusercontent.com/Darknetzz/mp3-web/refs/heads/main/Dock
 # Build the container
 docker build -t mp3-web:main .
 
-# Run the container
+# Run the container (replace 9096 with any port you want)
 docker run -d -p 9096:80 mp3-web:main
 ```
 
 ### Manual
 * Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.
 * Run `composer install` from the directory (optional, but required to display durations)
-* Add some music in the subfolder `music` (or whatever you choose in `config.json`)
+* Add some music in the subfolder `music` (or whatever you choose in `config.php`)
 * Open the page in a browser and start listening!
 
 ### Troubleshooting
 
-#### The directory `PATH` is not writable.
-Run the following commands, replacing `<PATH>` with the music directory:
+#### Unable to upload/delete music
+Usually the main reason for this is permissions. You might see error messages similar to this:
+* The directory `<PATH>` is not writable.
+Run the following commands, replacing `<PATH>` with the mp3-web directory:
 ```bash
+# Example: chown -R www-data:www-data /var/www/html/mp3-web
 chown -R www-data:www-data <PATH>
+
+# Example: chmod -R 775 /var/www/html/mp3-web
 chmod -R 775 <PATH>
 ```
 
