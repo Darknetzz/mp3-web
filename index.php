@@ -117,9 +117,11 @@ echo '
         } elseif ($type == "selection") {
           $options = $values["options"];
           $input = '<select class="form-select '.$cfgInputClass.'" '.$inputData.'>';
-          foreach ($options as $option => $name) {
-            $selected = ($option == $value) ? 'selected' : '';
-            $input .= '<option value="'.$option.'" '.$selected.'>'.$name.'</option>';
+          foreach ($options as $index => $data) {
+            foreach ($data as $option => $fullName) {
+              $selected = ($option == $value) ? 'selected' : '';
+              $input .= '<option value="'.$option.'" '.$selected.'>'.$fullName.'</option>';
+            }
           }
           $input .= '</select>';
         } else {
