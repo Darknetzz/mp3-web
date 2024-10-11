@@ -339,7 +339,7 @@ echo '
   data-escape="false"
 >
   <thead id="playlistHead">
-  <tr class="table-success">
+  <tr>
     <th data-field="id" data-visible="false">#</th>
     <th data-field="name">Name</th>
     <th data-field="filename" data-visible="false">Filename</th>
@@ -413,6 +413,7 @@ echo '</div></div>';
   var currentIndex  = 0;
   var apiURL        = "api.php";
   var queue         = [];
+  var activeClass   = "table-active text-success";
 
   /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
   function createSession() {
@@ -508,7 +509,7 @@ echo '</div></div>';
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index) {
     console.log("Playing song at index: " + index);
-    $("tr.songrow").removeClass("table-success");
+    $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
     var tableData  = playlistTable.bootstrapTable('getData');
     var firstIndex = tableData[0].id;
     var lastIndex  = tableData.slice(-1)[0].id;
@@ -546,7 +547,7 @@ echo '</div></div>';
     $("audio")[0].play();
     var activeRow = $("tr.songrow[data-uniqueid='" + index + "']");
     window.currentIndex = index;
-    activeRow.addClass("table-success");
+    activeRow.addClass(activeClass).children().addClass(activeClass);
     scrollToActiveSong();
   }
 
