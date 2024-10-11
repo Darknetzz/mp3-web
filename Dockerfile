@@ -9,6 +9,7 @@ RUN sed -i 's/^file_uploads = .*/file_uploads = On/' /etc/php/8.2/apache2/php.in
 RUN rm -rf /var/www/html && \
     git clone https://github.com/Darknetzz/mp3-web.git /var/www/html && \
     cd /var/www/html && \
+    git fetch origin && \
     git pull && \
     curl -sS https://getcomposer.org/installer -o composer-setup.php && \
     php composer-setup.php --install-dir=/usr/local/bin --filename=composer && \
