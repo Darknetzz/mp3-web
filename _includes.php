@@ -1,11 +1,20 @@
 <?php
 
     /* ───────────────────────────────── Composer ──────────────────────────────── */
-    $composer = False;
-    if (file_exists('vendor/autoload.php')) {
-        $composer = True;
-        require __DIR__ . '/vendor/autoload.php';
+    if (!file_exists('vendor/autoload.php')) {
+        die("The Composer autoload file is missing.");
     }
+    
+    require __DIR__ . '/vendor/autoload.php';
+    $env      = 'dev';
+    $version  = Null;
+    
+    use Dotenv\Dotenv;
+    $dotenv = Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+
+    $env     = getenv('ENV');
+    $version = getenv('VERSION');
 
     /* ────────────────────────────── Configuration ───────────────────────────── */
     if (file_exists('config.local.php')) {
@@ -22,9 +31,8 @@
     define('CONFIG', $config);
     define('CONFIG_FILE', $configFile);
     define('AUDIO_PATH', CONFIG["audio_path"]["value"]);
-    define('COMPOSER', $composer);
-    define('ENV', (!empty(CONFIG["env"]["value"]) ? CONFIG["env"]["value"] : 'dev'));
-    define('VERSION', (!empty(file_get_contents('VERSION')) ? file_get_contents('VERSION') : ENV));
+    define('ENV', $env);
+    define('VERSION', $version);
 
     /* ──────────────────────────────── Functions ─────────────────────────────── */
     include_once('functions.php');

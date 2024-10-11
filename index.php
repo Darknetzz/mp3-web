@@ -245,9 +245,9 @@ echo '
 <div class="container">
 ';
 
-if (!$composer && getConfig('env') != 'demo') {
-  echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
-}
+// if (getConfig('env') != 'demo') {
+//   echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
+// }
 
 echo '
 <div class="audio-player-container">
