@@ -38,10 +38,10 @@
         if (!is_array(CONFIG)) {
             apiError("The configuration is not an array.");
         }
-        if (!isset(CONFIG[$key])) {
+        if (!empty($key) && !isset(CONFIG[$key])) {
             apiError("The key '$key' does not exist.");
         }
-        if (!isset(CONFIG[$key][$data])) {
+        if (!empty($key) && !isset(CONFIG[$key][$data])) {
             apiError("The data '$data' for key '$key' does not exist.");
         }
         if (!empty($key)) {
