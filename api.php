@@ -5,143 +5,11 @@ require_once('_includes.php');
 # You want to return something else? You're in the wrong place.
 header('Content-Type: application/json');
 
-if (empty($config["audio_path"])) {
+if (empty(CONFIG["audio_path"]["value"])) {
     apiError("The audio path is not set.");
 }
 
-/* ───────────────────────────── FUNCTION: download ─────────────────────────── */
-function download($file) {
-    global $config;
-    $file     = urldecode($file);
-    $filePath = $config["audio_path"] . '/' . $file;
-    if (empty($filePath) || !file_exists($filePath)) {
-        apiError("The file does not exist.");
-    }
-    return [
-        "message" => "The file ". basename($filePath). " has been downloaded.",
-        "file"    => basename($filePath),
-        "path"    => $filePath
-    ];
-}
 
-/* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
-function remove($file) {
-    global $config;
-    $file       = urldecode($file);
-    $filePath   = $config["audio_path"] . '/' . $file;
-    $deletedDir = 'deleted';
-    if (!is_dir($deletedDir)) {
-        mkdir($deletedDir, 0777, true);
-    }
-    if (!is_dir($deletedDir) || !is_writable($deletedDir)) {
-        apiError("The directory <code>".$config["audio_path"]."</code> is not writable.");
-    }
-    if (!file_exists($filePath)) {
-        apiError("The file <code>$filePath</code> does not exist.");
-    }
-    if (!is_file($filePath)) {
-        apiError("The file <code>$filePath</code> is not a regular file.");
-    }
-    rename($filePath, $deletedDir . "/" . $file);
-    return ["success" => "The file ". basename($filePath). " has been removed."];
-}
-
-/* ─────────────────────────── FUNCTION: listSongs ────────────────────────── */
-function listSongs() {
-    global $config;
-    $audioPath = $config["audio_path"];
-    if (!is_dir($audioPath) || !is_readable($audioPath)) {
-        apiError("The audio path is not readable.");
-    }
-    $files = array_diff(scandir($audioPath), array('..', '.'));
-    $songs = [];
-    foreach ($files as $file) {
-        $filePath = $audioPath . '/' . $file;
-        if (is_file($filePath)) {
-            $songs[] = [
-                "name" => $file,
-                "size" => filesize($filePath),
-                "date" => date("Y-m-d H:i:s", filemtime($filePath))
-            ];
-        }
-    }
-    return $songs;
-}
-
-/* ───────────────────────────── FUNCTION: upload ─────────────────────────── */
-function uploadFile(
-    array $file = [
-        "name"     => "",
-        "type"     => "",
-        "tmp_name" => "",
-        "error"    => 4,
-        "size"     => 0
-    ]) : array {
-
-    global $config;
-
-    if (!is_array($file) || empty($file) || $file === []) {
-        apiError("Invalid or empty file. ".print_r($file, true));
-    }
-
-    if ($file["error"] !== UPLOAD_ERR_OK) {
-        switch ($file["error"]) {
-            case UPLOAD_ERR_INI_SIZE:
-            case UPLOAD_ERR_FORM_SIZE:
-                apiError("The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".");
-                break;
-            case UPLOAD_ERR_PARTIAL:
-                apiError("The uploaded file was only partially uploaded.");
-                break;
-            case UPLOAD_ERR_NO_FILE:
-                apiError("No file was uploaded.");
-                break;
-            case UPLOAD_ERR_NO_TMP_DIR:
-                apiError("Missing a temporary folder.");
-                break;
-            case UPLOAD_ERR_CANT_WRITE:
-                apiError("Failed to write file to disk.");
-                break;
-            case UPLOAD_ERR_EXTENSION:
-                apiError("A PHP extension stopped the file upload.");
-                break;
-            default:
-                apiError("Unknown upload error.");
-                break;
-        }
-    }
-
-    if (empty($file["name"])) {
-        apiError("The file name is empty.".print_r($file, true));
-    }
-
-    if (!isset($config["allowed_types"]) || !is_array($config["allowed_types"])) {
-        apiError("The allowed types are not set or invalid.");
-    }
-
-    if (!isset($config["audio_path"]) || empty($config["audio_path"]) || !is_dir($config["audio_path"])) {
-        apiError("The audio path is not set.");
-    }
-
-    $targetDir  = rtrim($config['audio_path'], DIRECTORY_SEPARATOR);
-    $targetFile = $targetDir . "/" . htmlspecialchars(basename($file["name"]));
-
-    if (file_exists($targetFile)) {
-        apiError("Sorry, file <code>".$targetFile."</code> already exists.");
-    }
-
-    $fileType   = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
-
-    if (!in_array(strtolower(pathinfo($file["name"], PATHINFO_EXTENSION)), $config["allowed_types"])) {
-        apiError("Only ". implode(", ", $config["allowed_types"]). " files are allowed.");
-    }
-
-    if (!move_uploaded_file($file["tmp_name"], $targetFile)) {
-        apiError("There was an error moving the temporary file <code>".$file["tmp_name"]."</code> to its destination <code>".$targetFile."</code>.");
-    }
-
-    return ["success" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", "file" => basename($targetFile)];
-}
 
 do {
 
@@ -159,6 +27,22 @@ do {
         $res = listSongs();
         break;
     }
+
+    if (isset($_GET['action']) && $_GET['action'] === 'getconfig') {
+        $res = getConfig();
+        break;
+    }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'setconfig') {
+        $res = ["success" => "The configuration has been saved."];
+        break;
+    }
+
+    // if (isset($_POST['action']) && $_POST['action'] === 'saveconfig') {
+    //     saveConfig($_POST['config']);
+    //     $res = getConfig();
+    //     break;
+    // }
 
     if (isset($_FILES["files"])) {
         $result = [];
@@ -178,6 +62,9 @@ do {
 
 } while (false);
 
+if (empty($res)) {
+    apiError("Invalid request.");
+}
 apiSuccess($res);
 
 ?>

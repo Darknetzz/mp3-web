@@ -2,7 +2,8 @@ music_*
 old
 index_files
 @eaDir
-config.local.php
+!config.php
+config.*
 .ht*
 vendor
 composer.lock

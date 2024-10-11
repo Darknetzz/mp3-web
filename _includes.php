@@ -15,6 +15,11 @@
         die(json_encode("The configuration file is missing."));
     }
 
+    # Save the configuration to a constant
+    define('CONFIG', $config);
+    define('AUDIO_PATH', CONFIG["audio_path"]["value"]);
+    define('COMPOSER', $composer);
+
     /* ──────────────────────────────── Functions ─────────────────────────────── */
     include_once('functions.php');
 ?>
