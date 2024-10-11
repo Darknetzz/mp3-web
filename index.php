@@ -241,6 +241,7 @@ echo '
     <th data-field="duration">Duration</th>
     <th data-field="size" data-visible="false">Size</th>
     <th data-field="date" data-visible="false">Date</th>
+    <th data-field="queue">Queue</th>
     <th data-field="download">Download</th>
     <th data-field="delete" data-visible="false">Delete</th>
   </tr>
@@ -274,6 +275,7 @@ foreach ($musicFiles as $file) {
       <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="sizeCol">'.round(filesize($filePath) / 1024 / 1024).'MB</td>
       <td class="dateCol">'.date("Y-m-d H:i:s", filemtime($filePath)).'</td>
+      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('music-note-list', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
@@ -305,6 +307,7 @@ echo '</div></div>';
   var currentTime   = 0;
   var currentIndex  = 0;
   var apiURL        = "api.php";
+  var queue         = [];
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
   function urldecode(str) {
@@ -448,6 +451,11 @@ echo '</div></div>';
 
   /* ─────────────────────────── FUNCTION: nextSong ─────────────────────────── */
   function nextSong() {
+    if (queue.length > 0) {
+      var nextQueueIndex = queue.shift();
+      playSong(nextQueueIndex);
+      return;
+    }
     var nextIndex = parseInt(currentIndex) + 1;
     if (shuffle) {
       randomSong();
@@ -612,6 +620,9 @@ echo '</div></div>';
         });
       } else if (field === 'download') {
         window.open('<?= getConfig("audio_path") ?>/' + file, '_blank');
+      } else if (field === 'queue') {
+        queue.push(rowid);
+        showToast("Added to queue: " + file, "success");
       } else {
         window.currentIndex = row.id;
         playSong(rowid);

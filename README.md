@@ -18,6 +18,7 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Shuffle playlist
 * Loop song
 * Upload files directly from web UI
+* Change settings from GUI
 
 ## TBA
 * Favorites
@@ -25,7 +26,6 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Support multiple playlists
 * Browser refresh persistency
 * Session sharing
-* Change settings from GUI
 
 ## How to use
 
