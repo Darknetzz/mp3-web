@@ -6,7 +6,7 @@ require_once('_includes.php');
 header('Content-Type: application/json');
 
 if (empty(CONFIG["audio_path"]["value"])) {
-    apiError("The audio path is not set.");
+    apiResponse("error", "The audio path is not set.");
 }
 
 
@@ -14,14 +14,20 @@ if (empty(CONFIG["audio_path"]["value"])) {
 do {
 
     if (getConfig("env") === "demo") {
-        apiError("File actions have been disabled in this demo.");
+        $res = apiResponse("error", "File actions have been disabled in this demo.");
+        break;
     }
 
-    if (empty($_GET["action"]) && empty($_POST["action"])) {
-        apiError("No action specified.");
+    if (!empty($_FILES)) {
+        $action = "upload";
+    } elseif (array_key_exists("action", $_GET)) {
+        $action = $_GET["action"];
+    } elseif (array_key_exists("action", $_POST)) {
+        $action = $_POST["action"];
+    } else {
+        $res = apiResponse("error", "Action was not found in GET or POST.");
+        break;
     }
-
-    $action = isset($_GET["action"]) ? $_GET["action"] : $_POST["action"];
 
     if ($action === "dl") {
         $res = download($_GET["file"]);
@@ -47,14 +53,26 @@ do {
     if ($action === 'setconfig') {
         $postConfig = $_POST['config'];
         if (!isset($postConfig['key']) || !isset($postConfig['value'])) {
-            apiError("Key or value not set: " . json_encode($_POST));
+            apiResponse("error", "Key or value not set: " . json_encode($_POST));
         }
         $res = setConfig($postConfig['key'], $postConfig['value']);
         break;
     }
 
-    if ($action === 'upload') {
-        $res = uploadFile($_FILES["file"]);
+    # WARNING: BROKEN
+    if ($action == 'upload') {
+        $result = [];
+        foreach ($_FILES["files"]["name"] as $key => $name) {
+            $file = [
+                "name"     => $_FILES["files"]["name"][$key],
+                "type"     => $_FILES["files"]["type"][$key],
+                "tmp_name" => $_FILES["files"]["tmp_name"][$key],
+                "error"    => $_FILES["files"]["error"][$key],
+                "size"     => $_FILES["files"]["size"][$key]
+            ];
+            $result[] = uploadFile($file);
+        }
+        $res = $result;
         break;
     }
 
@@ -68,26 +86,13 @@ do {
         break;
     }
 
-    if (isset($_FILES["files"])) {
-        $result = [];
-        foreach ($_FILES["files"]["name"] as $key => $name) {
-            $result[] = uploadFile(
-                [
-                    "name"     => $name,
-                    "type"     => $_FILES["files"]["type"][$key],
-                    "tmp_name" => $_FILES["files"]["tmp_name"][$key],
-                    "error"    => $_FILES["files"]["error"][$key],
-                    "size"     => $_FILES["files"]["size"][$key]
-                ]
-            );
-        }
-        $res = $result;
-    }
-
 } while (false);
 
 if (empty($res)) {
     apiResponse("error", "Invalid request (empty response).");
+}
+if (!json_validate($res)) {
+    apiResponse("error", "Invalid response: " . $res);
 }
 apiResponse("success", $res);
 

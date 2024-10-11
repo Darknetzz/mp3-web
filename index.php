@@ -7,7 +7,7 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
 <!DOCTYPE html>
 <meta charset="utf-8">
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<title>Music Player</title>
+<title><?= getConfig("site_title") ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
@@ -53,8 +53,23 @@ echo '
 <html>
 
 <body class="theme-dark">
-
 ';
+
+/* ──────────────────────────────────── Reload ─────────────────────────────── */
+if (isset($_GET['reload'])) {
+  ?>
+      <script>
+          localStorage.clear();
+          var url = new URL(window.location.href);
+          url.search = '';
+          window.history.replaceState({}, document.title, url.toString());
+          setTimeout(function() {
+          location.reload();
+          }, 2000);
+      </script>
+  <?php 
+      exit(alert("Applying changes", "Please wait..."));
+  }
 
 /* ───────────────────────── Startup (session) modal ──────────────────────── */
 echo '
@@ -209,8 +224,8 @@ echo '</tbody>
       </div>
       </form>
       <div class="d-flex justify-content-end">
-        <a href="javascript:void(0);" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</a>
-        <a href="?reload=1" class="btn btn-outline-success reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
+        <a href="javascript:void(0);" class="btn btn-outline-secondary m-1" data-bs-dismiss="modal">Close</a>
+        <a href="?reload=1" class="btn btn-success m-1 reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
       </div>
       </div>
     </div>
@@ -711,7 +726,7 @@ echo '</div></div>';
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
 
-    showToast("Welcome to the Music Player!", "success");
+  // showToast("Welcome to the Music Player!", "success");
 
     $("#musicDropzone").dropzone({
       url: apiURL,
@@ -724,18 +739,33 @@ echo '</div></div>';
       clickable: ".dropzoneSelect",
       disablePreviews: true,
       init: function() {
-        this.on("complete", function(file) {
-          var response = file.xhr ? JSON.parse(file.xhr.responseText) : {};
-          console.log("Dropzone response: ", typeof(response), JSON.stringify(response));
-          if (Array.isArray(response)) {
-            response.forEach(function(res, index) {
-                showToast(res.error || res.success, res.error ? "danger" : "success");
-            });
-          } else if (typeof response === 'object' && !Array.isArray(response)) {
-            showToast(response.error || response.success, response.error ? "danger" : "success");
+        var res = {};
+        this.on("complete", function(response) {
+          console.log("Response: ", response);
+          
+          if (typeof response.xhr.responseText === 'string') {
+            res = JSON.parse(response.xhr.responseText);
           } else {
-            showToast("An error occurred while uploading the file.", "danger");
+            res = response.xhr.responseText;
           }
+
+          if (typeof res !== 'object' || res === null) {
+            showToast("Response is not an object: "+res, "danger");
+            return;
+          }
+
+          var statusText      = res.status;
+          var statusCode      = res.statuscode;
+          var responseMessage = res.response;
+          console.log("Response: ", responseMessage);
+          console.log("Status: ", statusText);
+          console.log("Code: ", statusCode);
+          if (statusCode !== 0) {
+            var type = "danger";
+          } else {
+            var type = "success";
+          }
+          showToast(responseMessage, type);
         });
       }
     });
@@ -888,9 +918,9 @@ echo '</div></div>';
 
     // Keyboard shortcuts
     $(document).keydown(function(e) {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        toggleSong();
+      if (e.code === 'Space' && !$(':focus').is('input, textarea')) {
+      e.preventDefault();
+      toggleSong();
       }
     });
 
