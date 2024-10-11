@@ -5,6 +5,17 @@
 /* ────────────────────────────────────────────────────────────────────────── */
 
 $config = [
+    "env" => [
+        "name"        => "Environment",
+        "description" => "The environment the app is running in",
+        "value"       => "dev",
+        "type"        => "selection",
+        "options"     => [
+            ["dev"  => "Development"],
+            ["prod" => "Production"],
+            ["demo" => "Demo"],
+        ]
+    ],
     "site_title" => [
         "name"        => "Site Title",
         "description" => "The title of the site",

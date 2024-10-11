@@ -114,6 +114,14 @@ echo '
             <input class="form-range '.$cfgInputClass.' settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
             <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.$value.'</output>
           ';
+        } elseif ($type == "selection") {
+          $options = $values["options"];
+          $input = '<select class="form-select '.$cfgInputClass.'" '.$inputData.'>';
+          foreach ($options as $option => $name) {
+            $selected = ($option == $value) ? 'selected' : '';
+            $input .= '<option value="'.$option.'" '.$selected.'>'.$name.'</option>';
+          }
+          $input .= '</select>';
         } else {
           continue;
         }
@@ -153,7 +161,7 @@ echo '
 <div class="container">
 ';
 
-if (!$composer) {
+if (!$composer && getConfig('env') != 'demo') {
   echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
 }
 

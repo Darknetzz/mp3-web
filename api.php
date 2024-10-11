@@ -13,6 +13,10 @@ if (empty(CONFIG["audio_path"]["value"])) {
 
 do {
 
+    if (getConfig("env") === "demo") {
+        apiError("File actions have been disabled in this demo.");
+    }
+
     if (isset($_GET["action"]) && $_GET["action"] === "dl") {
         $res = download($_GET["file"]);
         break;
