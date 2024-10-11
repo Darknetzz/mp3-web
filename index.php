@@ -300,7 +300,7 @@ echo '
 <div class="card m-3">
   <div class="card-header d-flex justify-content-between">
     <h2>'.getConfig("site_title").'</h2>
-    <small class="text-muted">'.VERSION.'</small>
+    <small class="text-muted">'.ENV['VERSION'].'</small>
   </div>
 <div class="card-body">
 
