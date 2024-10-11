@@ -328,8 +328,7 @@ echo '
 </div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
   data-toggle="table" 
-  data-search="true" 
-  data-sortable="true" 
+  data-search="true"  
   data-show-refresh="true"
   data-show-toggle="true"
   data-show-columns="true"
@@ -340,12 +339,12 @@ echo '
 >
   <thead id="playlistHead">
   <tr>
-    <th data-field="id" data-visible="false">#</th>
-    <th data-field="name">Name</th>
-    <th data-field="filename" data-visible="false">Filename</th>
-    <th data-field="duration">Duration</th>
-    <th data-field="size" data-visible="false">Size</th>
-    <th data-field="date" data-visible="false">Date</th>
+    <th data-sortable="true" data-field="id" data-visible="false">#</th>
+    <th data-sortable="true" data-field="name">Name</th>
+    <th data-sortable="true" data-field="filename" data-visible="false">Filename</th>
+    <th data-sortable="true" data-field="duration">Duration</th>
+    <th data-sortable="true" data-field="size" data-visible="false">Size</th>
+    <th data-sortable="true" data-field="date" data-visible="false">Date</th>
     <th data-field="queue">Queue</th>
     <th data-field="download">Download</th>
     <th data-field="delete" data-visible="false">Delete</th>
