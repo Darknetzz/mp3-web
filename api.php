@@ -59,6 +59,7 @@ do {
         break;
     }
 
+    # WARNING: BROKEN
     if ($action == 'upload') {
         $result = [];
         foreach ($_FILES["files"]["name"] as $key => $name) {

@@ -249,7 +249,7 @@
             "size"     => 0
         ]) {
 
-        if (is_array($file['name'] && count($file['name']) > 1)) {
+        if (is_array($file['name']) && count($file['name']) > 1) {
             return apiResponse("error", "Multiple file upload supported, but should not be passed directly to <code>uploadFile</code> function.");
         }
 
