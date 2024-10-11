@@ -39,8 +39,8 @@
     define('CONFIG_FILE', $configFile);
     define('AUDIO_PATH', CONFIG["audio_path"]["value"]);
     define('COMPOSER', $composer);
-    define('ENV', CONFIG["env"]["value"]);
-    define('VERSION', (file_get_contents('VERSION') ? file_get_contents('VERSION') : ENV));
+    define('ENV', (!empty(CONFIG["env"]["value"]) ? CONFIG["env"]["value"] : 'dev'));
+    define('VERSION', (!empty(file_get_contents('VERSION')) ? file_get_contents('VERSION') : ENV));
 
     /* ──────────────────────────────── Functions ─────────────────────────────── */
     include_once('functions.php');
