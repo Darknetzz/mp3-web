@@ -31,18 +31,21 @@
     }
 
     /* ─────────────────────────── FUNCTION: getConfig ────────────────────────── */
-    function getConfig($key = Null) : mixed {
+    function getConfig($key = Null, $data = "value") : mixed {
         if (!defined('CONFIG')) {
             apiError("The configuration is not set.");
         }
         if (!is_array(CONFIG)) {
             apiError("The configuration is not an array.");
         }
-        if (!empty($key) && empty(CONFIG[$key])) {
+        if (!isset(CONFIG[$key])) {
             apiError("The key '$key' does not exist.");
         }
-        if ($key) {
-            return CONFIG[$key]["value"];
+        if (!isset(CONFIG[$key][$data])) {
+            apiError("The data '$data' for key '$key' does not exist.");
+        }
+        if (!empty($key)) {
+            return CONFIG[$key][$data];
         }
 
         return CONFIG;
@@ -123,7 +126,7 @@
     /* ───────────────────────────── FUNCTION: download ─────────────────────────── */
     function download($file) {
         $file     = urldecode($file);
-        $filePath = CONFIG["audio_path"]["value"] . '/' . $file;
+        $filePath = getConfig("audio_path") . '/' . $file;
         if (empty($filePath) || !file_exists($filePath)) {
             apiError("The file does not exist.");
         }
@@ -137,7 +140,7 @@
     /* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
     function remove($file) {
         $file       = urldecode($file);
-        $filePath   = CONFIG["audio_path"] . '/' . $file;
+        $filePath   = getConfig("audio_path") . '/' . $file;
         $deletedDir = 'deleted';
         if (!is_dir($deletedDir)) {
             mkdir($deletedDir, 0777, true);
