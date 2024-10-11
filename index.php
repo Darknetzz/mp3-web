@@ -282,7 +282,10 @@ echo '
 
 echo '
 <div class="card m-3">
-<h1 class="card-header">'.getConfig("site_title").'</h1>
+  <div class="card-header d-flex justify-content-between">
+    <h2>'.getConfig("site_title").'</h2>
+    <small class="text-muted">'.VERSION.'</small>
+  </div>
 <div class="card-body">
 
 <div id="musicDropzone" class="border border-primary align-items-center p-3">
