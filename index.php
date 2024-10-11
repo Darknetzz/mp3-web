@@ -2,11 +2,6 @@
 require_once('_includes.php');
 
 $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
-
-if (isset($_GET['reload'])) {
-  header("Location: " . $_SERVER['PHP_SELF']);
-  exit();
-}
 ?>
 
 <!DOCTYPE html>
