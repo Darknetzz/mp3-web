@@ -1,7 +1,7 @@
 <?php 
 require_once('_includes.php');
 
-$musicFiles = array_diff(scandir($config["audio_path"]), array('..', '.'));
+$musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
 ?>
 
 <!DOCTYPE html>
@@ -45,36 +45,113 @@ $musicFiles = array_diff(scandir($config["audio_path"]), array('..', '.'));
   .audio-player-container .btn-group {
     margin-top: 10px;
   }
+  .modal-open-blur {
+    filter: blur(5px);
+  }
+  .modal-open-blur .modal {
+    filter: none;
+  }
 </style>
 <?php
 
-echo '
-<html>
-<body class="theme-dark">
-<div class="container">';
+echo '<html>';
 
-if (!$composer) {
-  echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
-}
+/* ────────────────────────────── Config Modal ────────────────────────────── */
+echo '
+<div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="configModalLabel">Configuration</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-status bg-primary"></div>
+      </div>
+      <div class="modal-body">
+      <form action="api.php" method="POST">
+      <table class="table table-bordered">
+        <!--
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        -->
+        <tbody>';
+      foreach (CONFIG as $key => $values) {
+        $name          = $values["name"];
+        $value         = $values["value"];
+        $description   = $values["description"];
+        $type          = $values["type"];
+        $attributes    = $values["attributes"] ?? [];
+        $cfgInputClass = "settingInput";
+        $input         = '<textarea class="form-control '.$cfgInputClass.'" type="text" id="'.$key.'">'.$value.'</textarea>';
+        // $json_value  = json_encode($value);
+        if ($type == "string") {
+          $input = '<input class="form-control '.$cfgInputClass.'" type="text" id="'.$key.'" value="'.$value.'">';
+        }
+        if ($type == "array") {
+          $value = implode(", ", $value);
+          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" id="'.$key.'">'.$value.'</textarea>';
+        }
+        if ($type == "bool") {
+          $value = $value ? "true" : "false";
+          $input = '<div class="form-check form-switch '.$cfgInputClass.'"><input class="form-check-input" type="checkbox" id="'.$key.'" '.($value ? 'checked' : '').'></div>';
+        }
+        if ($type == "range") {
+          $input = '<input class="form-control '.$cfgInputClass.'" type="number" id="'.$key.'" value="'.$value.'" min="'.$attributes["min"].'" max="'.$attributes["max"].'" step="'.$attributes["step"].'">';
+        }
+        echo '
+        <tr>
+          <td class="text-primary">
+            <label for="'.$key.'" class="form-label">'.$name.'</label>
+            <small class="text-muted '.$cfgInputClass.'">'.$description.'</small>
+          </td>
+          <td>
+            '.$input.'
+          </td>
+        </tr>';
+      }
+echo '</tbody>
+      </table>
+      </form>
+      <!--
+        <div class="d-flex justify-content-end">
+          <input type="submit" class="btn btn-outline-success" value="Save">
+        </div>
+      -->
+      </div>
+    </div>
+  </div>
+</div>';
 
 /* ─────────────────────────────── apiResponse ────────────────────────────── */
 echo '
-  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3">
+  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
     <!-- Response from API will be displayed here -->
   </div>
 ';
 
 echo '
+<body class="theme-dark">
+<div class="container">
+';
+
+if (!$composer) {
+  echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';
+}
+
+echo '
 <div class="audio-player-container">
   <div class="d-flex align-items-center card">
-      <h3 id="songtitle" class="card-header text-success">'.$config["no_song_text"].'</h3>
+      <h3 id="songtitle" class="card-header text-success">'.getConfig("no_song_text").'</h3>
       <div class="card-body">
-          <audio '.($config['use_legacy_player'] ? 'controls' : '').' style="width:100%">
+          <audio '.(getConfig('use_legacy_player') ? 'controls' : '').' style="width:100%">
           <source id="audioSource" src="" type="audio/mpeg">
           Your browser does not support the audio element.
           </audio>';
 
-          if (!$config['use_legacy_player']) {
+          if (!getConfig('use_legacy_player')) {
             echo '
             <div class="d-flex align-items-center">
               <span class="audioCurrentTime">0:00</span>
@@ -84,7 +161,7 @@ echo '
             
             <div class="btn-group mx-2 align-items-center">
               <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
-              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.$config['default_volume'].'">
+              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.getConfig('default_volume').'">
             </div>
             ';
           }
@@ -112,7 +189,7 @@ echo '
 
 echo '
 <div class="card m-3">
-<h1 class="card-header">'.$config["site_title"].'</h1>
+<h1 class="card-header">'.getConfig("site_title").'</h1>
 <div class="card-body">
 
 <div id="musicDropzone" class="border border-primary align-items-center p-3">
@@ -128,10 +205,14 @@ echo '
 
 if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
-    echo '<p>Upload some music files to the <code>'.$config["audio_path"].'/</code> directory.</p>';
+    echo '<p>Upload some music files to the <code>'.getConfig("audio_path").'/</code> directory.</p>';
 }
 echo '
-<div id="toolbar"></div>
+<div id="toolbar">
+  <div class="btn-group">
+    <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
+  </div>
+</div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
   data-toggle="table" 
   data-search="true" 
@@ -143,6 +224,7 @@ echo '
   data-show-export="true"
   data-unique-id="id"
   data-escape="false"
+  data-url="api.php?action=ls"
 >
   <thead id="playlistHead">
   <tr class="table-success">
@@ -160,12 +242,12 @@ echo '
 $i = 1;
 foreach ($musicFiles as $file) {
     $urlFilename = urlencode($file);
-    $filePath    = $config["audio_path"] . "/" . $file;
-    if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), $config['allowed_types'])) {
+    $filePath    = getConfig("audio_path") . "/" . $file;
+    if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), getConfig('allowed_types'))) {
       continue;
     }
 
-    if (!$config["include_file_extension"]) {
+    if (!getConfig("include_file_extension")) {
       $audioName = pathinfo($file, PATHINFO_FILENAME);
     } else {
       $audioName = pathinfo($file, PATHINFO_FILENAME) . "." . pathinfo($file, PATHINFO_EXTENSION);
@@ -215,6 +297,7 @@ echo '</div></div>';
   var duration      = 0;
   var currentTime   = 0;
   var currentIndex  = 0;
+  var apiURL        = "api.php";
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
   function urldecode(str) {
@@ -254,7 +337,7 @@ echo '</div></div>';
 
   /* ────────────────────── FUNCTION: scrollToActiveSong ────────────────────── */
   function scrollToActiveSong() {
-    var autoScroll = <?= json_encode($config["auto_scroll"]) ?>;
+    var autoScroll = <?= json_encode(getConfig("auto_scroll")) ?>;
     if (!autoScroll) {
         return;
     }
@@ -288,7 +371,7 @@ echo '</div></div>';
       return;
     }
     updateTitle(songName);
-    var filePath = "<?= $config["audio_path"] ?>/" + songName;
+    var filePath = "<?= getConfig("audio_path") ?>/" + songName;
     $("#audioSource").attr("src", filePath);
     $("audio")[0].load();
     $("audio")[0].play();
@@ -418,13 +501,36 @@ echo '</div></div>';
     toast.show();
   }
 
+  /* ─────────────────────────── FUNCTION: api ─────────────────────────── */
+  function api(action, data = {}, callback = null) {
+    $.ajax({
+      url: apiURL,
+      type: 'POST',
+      data: { action: action, ...data },
+      success: function(response) {
+        console.log("API Response: ", response);
+        if (response.success) {
+          showToast(response.success, "success");
+        } else {
+          showToast("Error: " + response.error, "danger");
+        }
+        if (callback) {
+          callback(response);
+        }
+      },
+      error: function(error) {
+        showToast("An error occurred: " + error, "danger");
+      }
+    });
+  }
+
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
 
     showToast("Welcome to the Music Player!", "success");
 
     $("#musicDropzone").dropzone({
-      url: "api.php",
+      url: apiURL,
       paramName: "files",
       maxFilesize: 10,
       acceptedFiles: ".mp3",
@@ -451,7 +557,7 @@ echo '</div></div>';
     });
 
     var audioElement = $("audio")[0];
-    audioElement.volume = <?= $config["default_volume"] ?>;
+    audioElement.volume = <?= getConfig("default_volume") ?>;
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
     $('#playlistTable').on('post-body.bs.table', function () {
@@ -474,7 +580,7 @@ echo '</div></div>';
 
       if (field === 'delete') {
         $.ajax({
-          url: 'api.php',
+          url: apiURL,
           type: 'POST',
           data: { action: 'rm', file: file },
           success: function(response) {
@@ -490,7 +596,7 @@ echo '</div></div>';
           }
         });
       } else if (field === 'download') {
-        window.open('<?= $config["audio_path"] ?>/' + file, '_blank');
+        window.open('<?= getConfig("audio_path") ?>/' + file, '_blank');
       } else {
         window.currentIndex = row.id;
         playSong(rowid);
@@ -589,6 +695,29 @@ echo '</div></div>';
         e.preventDefault();
         toggleSong();
       }
+    });
+
+    // Modal
+    $("#configModal").on("show.bs.modal", function () {
+      $(".container").addClass("modal-open-blur");
+    });
+
+    $("#configModal").on("hidden.bs.modal", function () {
+      $(".container").removeClass("modal-open-blur");
+    });
+
+    // cfgInputClass
+    $(".<?= $cfgInputClass ?>").on("change", function() {
+      var key = $(this).attr("id");
+      var value = $(this).val();
+      console.log("Key: " + key + ", Value: " + value);
+      api("setconfig", { config: { [key]: value } }, function(response) {
+        if (response.success) {
+          showToast(response.success, "success");
+        } else {
+          showToast("Error saving configuration: " + response.error, "danger");
+        }
+      });
     });
 });
 </script>
