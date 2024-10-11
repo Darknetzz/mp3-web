@@ -17,28 +17,34 @@ do {
         apiError("File actions have been disabled in this demo.");
     }
 
-    if (isset($_GET["action"]) && $_GET["action"] === "dl") {
+    if (empty($_GET["action"]) && empty($_POST["action"])) {
+        apiError("No action specified.");
+    }
+
+    $action = isset($_GET["action"]) ? $_GET["action"] : $_POST["action"];
+
+    if ($action === "dl") {
         $res = download($_GET["file"]);
         break;
     }
 
-    if (isset($_POST["action"]) && $_POST["action"] === "rm") {
+    if ($action === "rm") {
         $res = remove($_POST["file"]);
         break;
     }
 
-    if (isset($_GET["action"]) && $_GET["action"] === "ls") {
+    if ($action === "ls") {
         $res = listSongs();
         break;
     }
 
-    if (isset($_GET['action']) && $_GET['action'] === 'getconfig') {
+    if ($action === 'getconfig') {
         $res = getConfig();
         break;
     }
 
     # REVIEW: 
-    if (isset($_POST['action']) && $_POST['action'] === 'setconfig') {
+    if ($action === 'setconfig') {
         $postConfig = $_POST['config'];
         if (!isset($postConfig['key']) || !isset($postConfig['value'])) {
             apiError("Key or value not set: " . json_encode($_POST));
@@ -47,11 +53,20 @@ do {
         break;
     }
 
-    // if (isset($_POST['action']) && $_POST['action'] === 'saveconfig') {
-    //     saveConfig($_POST['config']);
-    //     $res = getConfig();
-    //     break;
-    // }
+    if ($action === 'upload') {
+        $res = uploadFile($_FILES["file"]);
+        break;
+    }
+
+    if ($action == 'createSession') {
+        $res = createSession();
+        break;
+    }
+
+    if ($action == 'joinSession') {
+        $res = joinSession();
+        break;
+    }
 
     if (isset($_FILES["files"])) {
         $result = [];
@@ -72,8 +87,8 @@ do {
 } while (false);
 
 if (empty($res)) {
-    apiError("Invalid request.");
+    apiResponse("error", "Invalid request (empty response).");
 }
-apiSuccess($res);
+apiResponse("success", $res);
 
 ?>

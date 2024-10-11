@@ -61,6 +61,67 @@ echo '
 
 ';
 
+/* ───────────────────────── Startup (session) modal ──────────────────────── */
+echo '
+<div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sessionModalLabel">Session</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-status bg-primary"></div>
+      </div>
+      <div class="modal-body">
+
+        <div class="d-flex justify-content-evenly">
+
+          <div class="card m-2 text-align-center">
+            <div class="card-status-top bg-success"></div>
+            <h4 class="card-header">Create Session</h4>
+            <div class="card-body text-align-center">
+              <a class="btn btn-success m-2 sessionActionBtn" id="createSessionBtn" data-action="createSession">
+                  '.icon("person-plus-fill", 2).'
+              </a>
+              <div class="sessionResponse" id="createSessionResponse" style="display:none;">
+              
+              </div>
+            </div>
+          </div>
+
+          <div class="card m-2">
+            <div class="card-status-top bg-primary"></div>
+            <h4 class="card-header">Join session</h4>
+            <div class="card-body text-align-center">
+              <a class="btn btn-primary m-2 sessionActionBtn" id="joinSessionBtn" data-action="joinSession">
+                  '.icon("people-fill", 2).'
+              </a>
+              <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
+                <form action="api.php" method="POST">
+                  <input type="text" class="form-control" id="sessionCode" placeholder="Session code">
+                  <button type="submit" class="btn btn-primary m-2">Join</button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="card m-2 text-align-center">
+            <h4 class="card-header">Listen Alone</h4>
+            <div class="card-status-top bg-secondary"></div>
+            <div class="card-body">
+              <a class="btn btn-secondary m-2 sessionActionBtn" data-bs-dismiss="modal">
+                  '.icon("person-fill", 2).'
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+';
+
 /* ────────────────────────────── Config Modal ────────────────────────────── */
 echo '
 <div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
@@ -117,12 +178,22 @@ echo '
         } elseif ($type == "selection") {
           $options = $values["options"];
           $input = '<select class="form-select '.$cfgInputClass.'" '.$inputData.'>';
-          foreach ($options as $index => $data) {
-            foreach ($data as $option => $fullName) {
-              $selected = ($option == $value) ? 'selected' : '';
-              $input .= '<option value="'.$option.'" '.$selected.'>'.$fullName.'</option>';
+          if (is_array($options)) {
+            foreach ($options as $optionValue => $optionName) {
+              $selected  = ($optionValue == $value) ? 'selected' : '';
+              $input    .= '<option value="'.$optionValue.'" '.$selected.'>'.$optionName.'</option>';
             }
+          } else {
+            $selected = Null;
+            $input = "Invalid selection (not an array)";
+            continue;
           }
+          // foreach ($options as $index => $data) {
+          //   foreach ($data as $option => $fullName) {
+          //     $selected = ($option == $value) ? 'selected' : '';
+          //     $input .= '<option value="'.$option.'" '.$selected.'>'.$fullName.'</option>';
+          //   }
+          // }
           $input .= '</select>';
         } else {
           continue;
@@ -238,6 +309,7 @@ echo '
 <div id="toolbar">
   <div class="btn-group">
     <button type="button" class="btn btn-sm btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
+    <button type="button" class="btn btn-sm btn-secondary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
   </div>
 </div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
@@ -328,6 +400,52 @@ echo '</div></div>';
   var currentIndex  = 0;
   var apiURL        = "api.php";
   var queue         = [];
+
+  /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
+  function createSession() {
+    $(".sessionResponse").hide();
+    var createSessionResponse = $("#createSessionResponse");
+    // if (createSessionResponse.is(":visible")) {
+    //   createSessionResponse.fadeOut();
+    //   return;
+    // }
+    createSessionResponse.fadeIn();
+    createSessionResponse.html(`
+      <div class='text-center'>
+        <div class='spinner-border text-success createSessionSpinner' role='status'></div>
+        <br>
+        Creating session...
+      </div>
+    `);
+    api("createSession", function(response) {
+      if (response.status === "success") {
+        createSessionResponse.html(`
+          <div class='alert alert-success'>Session created successfully.</div>
+          <div class='text-center'>
+            <h3>Session code:</h3>
+            <h1 class='display-1'>`+response.data.code+`</h1>
+            <p>Share this code with your friends to join the session.</p>
+          </div>
+        `);
+        $(".modal-status").addClass("bg-success");
+      } else {
+        createSessionResponse.html(`
+          <div class='alert alert-danger'>`+response.message+`</div>
+        `);
+        $(".modal-status").addClass("bg-danger");
+      }
+    });
+  }
+
+  /* ───────────────────────── FUNCTION: joinSession ────────────────────────── */
+  function joinSession(id = null) {
+    var joinSessionResponse = $("#joinSessionResponse");
+    if (joinSessionResponse.is(":visible")) {
+      joinSessionResponse.fadeOut();
+      return;
+    }
+    joinSessionResponse.fadeIn();
+  }
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
   function urldecode(str) {
@@ -571,17 +689,18 @@ echo '</div></div>';
       data: { action: action, ...data },
       success: function(response) {
         console.log("API Response: ", response);
-        var res  = response.success ? response.success : response.error;
-        var type = "danger";
-        if (res.success) {
-          res = res.success;
-          type = "success";
+        statusCode = response.statuscode;
+        responseMessage = response.response ? response.response : response;
+        responseData = response.data ? response.data : response;
+        // 0 = success, 1 = error
+        if (statusCode == 0) {
+          var type = "success";
+        } else if (statusCode == 1) {
+          var type = "danger";
+        } else {
+          var type = "warning";
         }
-        else if (res.error) {
-          res = res.error;
-          type = "danger";
-        }
-        showToast(res, type);
+        showToast(responseMessage, type);
       },
       error: function(error) {
         console.log("API Error: ", error);
@@ -625,6 +744,17 @@ echo '</div></div>';
 
     var audioElement = $("audio")[0];
     audioElement.volume = <?= getConfig("default_volume") ?>;
+
+    /* ─────────────────────────── NOTE: Session Modal ────────────────────────── */
+    $(".sessionActionBtn").on("click", function() {
+      $(".sessionResponse").hide();
+      var action = $(this).data("action");
+      if (action === "createSession") {
+        createSession();
+      } else if (action === "joinSession") {
+        joinSession();
+      }
+    });
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
     $('#playlistTable').on('post-body.bs.table', function () {
