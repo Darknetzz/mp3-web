@@ -5,55 +5,56 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
 ?>
 
 <!DOCTYPE html>
-<meta charset="utf-8">
-<link rel="icon" href="favicon.ico" type="image/x-icon">
-<title><?= getConfig("site_title") ?></title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<html lang="en">
+  <head>
 
-<script src=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.js "></script>
-<link href=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.css " rel="stylesheet">
+    <meta charset="utf-8">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title><?= getConfig("site_title") ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
-<script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
-<link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta21/dist/js/tabler.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta21/dist/css/tabler.min.css">
 
-<style>
-  body {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  .container {
-    padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
-  }
-  .audio-player-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    /* background-color: #f8f9fa; */
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-    z-index: 1000;
-    padding: 10px;
-  }
-  .audio-player-container audio {
-    width: 100%;
-  }
-  .audio-player-container .btn-group {
-    margin-top: 10px;
-  }
-</style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <script src=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.js "></script>
+    <link href=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.css " rel="stylesheet">
+
+    <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
+    <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      .container {
+        padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
+      }
+      .audio-player-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        /* background-color: #f8f9fa; */
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        z-index: 1000;
+        padding: 10px;
+      }
+      .audio-player-container audio {
+        width: 100%;
+      }
+      .audio-player-container .btn-group {
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+<body data-bs-theme="dark">
 <?php
 
-echo '
-
-<html>
-
-<body class="theme-dark">
-';
 
 /* ──────────────────────────────────── Reload ─────────────────────────────── */
 if (isset($_GET['reload'])) {
@@ -135,7 +136,7 @@ echo '
 /* ────────────────────────────── Config Modal ────────────────────────────── */
 echo '
 <div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-fullscreen">
+  <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="configModalLabel">Configuration</h5>
@@ -211,7 +212,7 @@ echo '
         echo '
         <tr>
           <td class="text-primary">
-            <label for="'.$key.'" class="form-label"><small class="badge bg-primary">'.$type.'</small> '.$name.'</label>
+            <label for="'.$key.'" class="form-label"><small class="badge text-bg-primary">'.$type.'</small> '.$name.'</label>
             <small class="text-muted">'.$key.': '.$description.'</small>
           </td>
           <td>
@@ -322,13 +323,13 @@ echo '
 <div id="toolbar">
   <div class="btn-group">
     <button type="button" class="btn btn-sm btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
-    <button type="button" class="btn btn-sm btn-secondary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
+    <button type="button" class="btn btn-sm btn-primary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
   </div>
 </div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
   data-toggle="table" 
   data-search="true" 
-  data-sort="true" 
+  data-sortable="true" 
   data-show-refresh="true"
   data-show-toggle="true"
   data-show-columns="true"
@@ -392,7 +393,6 @@ echo '</div></div>';
 
 </div>
 </body>
-</html>
 
 <!--
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -950,3 +950,5 @@ echo '</div></div>';
     });
 });
 </script>
+
+</html>
