@@ -8,3 +8,4 @@ config.*
 vendor
 composer.lock
 deleted
+scripts
