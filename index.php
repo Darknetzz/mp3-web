@@ -68,7 +68,7 @@ if (isset($_GET['reload'])) {
           }, 2000);
       </script>
   <?php 
-      exit("Reloading page...");
+      exit(alert("Applying changes", "Please wait..."));
   }
 
 /* ───────────────────────── Startup (session) modal ──────────────────────── */
@@ -224,8 +224,8 @@ echo '</tbody>
       </div>
       </form>
       <div class="d-flex justify-content-end">
-        <a href="javascript:void(0);" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</a>
-        <a href="?reload=1" class="btn btn-outline-success reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
+        <a href="javascript:void(0);" class="btn btn-outline-secondary m-1" data-bs-dismiss="modal">Close</a>
+        <a href="?reload=1" class="btn btn-success m-1 reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
       </div>
       </div>
     </div>
@@ -726,7 +726,7 @@ echo '</div></div>';
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
 
-    showToast("Welcome to the Music Player!", "success");
+  // showToast("Welcome to the Music Player!", "success");
 
     $("#musicDropzone").dropzone({
       url: apiURL,
@@ -739,18 +739,33 @@ echo '</div></div>';
       clickable: ".dropzoneSelect",
       disablePreviews: true,
       init: function() {
-        this.on("complete", function(file) {
-          var response = file.xhr ? JSON.parse(file.xhr.responseText) : {};
-          console.log("Dropzone response: ", typeof(response), JSON.stringify(response));
-          if (Array.isArray(response)) {
-            response.forEach(function(res, index) {
-                showToast(res.error || res.success, res.error ? "danger" : "success");
-            });
-          } else if (typeof response === 'object' && !Array.isArray(response)) {
-            showToast(response.error || response.success, response.error ? "danger" : "success");
+        var res = {};
+        this.on("complete", function(response) {
+          console.log("Response: ", response);
+          
+          if (typeof response.xhr.responseText === 'string') {
+            res = JSON.parse(response.xhr.responseText);
           } else {
-            showToast("An error occurred while uploading the file.", "danger");
+            res = response.xhr.responseText;
           }
+
+          if (typeof res !== 'object' || res === null) {
+            showToast("Response is not an object: "+res, "danger");
+            return;
+          }
+
+          var statusText      = res.status;
+          var statusCode      = res.statuscode;
+          var responseMessage = res.response;
+          console.log("Response: ", responseMessage);
+          console.log("Status: ", statusText);
+          console.log("Code: ", statusCode);
+          if (statusCode !== 0) {
+            var type = "danger";
+          } else {
+            var type = "success";
+          }
+          showToast(responseMessage, type);
         });
       }
     });
@@ -903,9 +918,9 @@ echo '</div></div>';
 
     // Keyboard shortcuts
     $(document).keydown(function(e) {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        toggleSong();
+      if (e.code === 'Space' && !$(':focus').is('input, textarea')) {
+      e.preventDefault();
+      toggleSong();
       }
     });
 

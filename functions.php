@@ -5,6 +5,25 @@
         return '<i class="bi bi-' . $icon . ' m-' . $margin . '" style="font-size: ' . $size . 'em;"></i>';
     }
 
+    /* ───────────────────────────── FUNCTION: alert ──────────────────────────── */
+    function alert($title = Null, $message = "", $type = "info", $margin = 2, $padding = 2, $dismiss = true) {
+        $class    = "alert alert-' . $type . '  fade show";
+        $closeBtn = "";
+        $title    = (!empty($title)) ? '<h4 class="alert-heading">' . $title . '</h4>' : "";
+        if ($dismiss) {
+            $class    .= " alert-dismissible";
+            $closeBtn  = '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+        }
+        return '
+        <div class="m-' . $margin . ' p-' . $padding . '">
+            <div class="'.$class.'" role="alert">
+                ' . $title . '
+                ' . $message . '
+                ' . $closeBtn . '
+            </div>
+        </div>';
+    }
+
     /* ──────────────────────────── FUNCTION: mp3info ─────────────────────────── */
     function getDuration($file) {
         if (!COMPOSER || !class_exists('wapmorgan\Mp3Info\Mp3Info')) {
@@ -21,34 +40,21 @@
     }
 
     /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */
-    function apiResponse($status = "error", $message = "An error occurred.", $data = []) {
-        return json_encode([
+    function apiResponse($status = "error", $response = "An error occurred.", $data = []) {
+        if (empty($status)) {
+            $status = "error";
+        }
+        if (!is_array($data)) {
+            $data = ["invalid" => "Data is not an array."];
+        }
+        $response = json_encode([
             "status"     => $status,
             "statuscode" => ($status == "error") ? 1 : 0,
-            "response"   => $message,
+            "response"   => $response,
             "data"       => $data
         ]);
+        die($response);
     }
-
-    /* ─────────────────────────── FUNCTION: apiError ────────────────────────── */
-    // function apiError($message = "An error occurred.", $data = []) {
-    //     return (json_encode([
-    //         "status"     => "error",
-    //         "statuscode" => 1,
-    //         "response"   => $message,
-    //         "data"       => $data
-    //     ]));
-    // }
-
-    /* ────────────────────────── FUNCTION: apiSuccess ───────────────────────── */
-    // function apiSuccess($response = "OK", $data = []) {
-    //     return json_encode([
-    //         "status"     => "success",
-    //         "statuscode" => 0,
-    //         "response"   => $response,
-    //         "data"       => $data
-    //     ]);
-    // }
 
     /* ─────────────────────────── FUNCTION: getConfig ────────────────────────── */
     function getConfig($key = Null, $data = "value") {
@@ -121,7 +127,7 @@
                 $value = ($value === true || $value === "true") ? "true" : "false";
                 $configContent .= $value;
             } else {
-                $configContent .= '"' . addslashes($value) . '"';
+                $configContent .= "\"" . addslashes($value) . "\"";
             }
             # NOTE: End of value
             $configContent .= ",\n";
@@ -241,15 +247,25 @@
             "tmp_name" => "",
             "error"    => 4,
             "size"     => 0
-        ]) : array {
+        ]) {
+
+        if (is_array($file['name'] && count($file['name']) > 1)) {
+            return apiResponse("error", "Multiple file upload supported, but should not be passed directly to <code>uploadFile</code> function.");
+        }
 
         if (!is_array($file) || empty($file) || $file === []) {
             return apiResponse("error", "Invalid or empty file. ".print_r($file, true));
         }
 
+        if (!array_key_exists("error", $file)) {
+            return apiResponse("error", "The file array does not contain an error key.");
+        }
+
         if ($file["error"] !== UPLOAD_ERR_OK) {
             switch ($file["error"]) {
                 case UPLOAD_ERR_INI_SIZE:
+                    return apiResponse("error", "The uploaded file exceeds the upload_max_filesize directive in php.ini.");
+                    break;
                 case UPLOAD_ERR_FORM_SIZE:
                     return apiResponse("error", "The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".");
                     break;
@@ -269,7 +285,7 @@
                     return apiResponse("error", "A PHP extension stopped the file upload.");
                     break;
                 default:
-                    return apiResponse("error", "Unknown upload error.");
+                    return apiResponse("error", "Unknown upload error (".print_r($file["error"], true).").");
                     break;
             }
         }
@@ -303,9 +319,12 @@
             return apiResponse("error", "There was an error moving the temporary file <code>".$file["tmp_name"]."</code> to its destination <code>".$targetFile."</code>.");
         }
 
-        return apiResponse("success", "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", 
-            [
-                "file" => basename($targetFile)
+        return apiResponse(
+            status: "success", 
+            response: "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", 
+            data: [
+                "file"      => basename($targetFile),
+                "fileArray" => $file
             ]
         );
     }
