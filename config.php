@@ -11,9 +11,9 @@ $config = [
         "value"       => "dev",
         "type"        => "selection",
         "options"     => [
-            ["dev"  => "Development"],
-            ["prod" => "Production"],
-            ["demo" => "Demo"],
+            "dev"  => "Development",
+            "prod" => "Production",
+            "demo" => "Demo",
         ]
     ],
     "site_title" => [

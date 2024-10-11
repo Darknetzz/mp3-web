@@ -20,29 +20,49 @@
         return sprintf("%d:%02d", $minutes, $seconds);
     }
 
-    /* ─────────────────────────── FUNCTION: apiError ────────────────────────── */
-    function apiError($message = "An error occurred.") {
-        die(json_encode(["error" => $message]));
+    /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */
+    function apiResponse($status = "error", $message = "An error occurred.", $data = []) {
+        return json_encode([
+            "status"     => $status,
+            "statuscode" => ($status == "error") ? 1 : 0,
+            "response"   => $message,
+            "data"       => $data
+        ]);
     }
+
+    /* ─────────────────────────── FUNCTION: apiError ────────────────────────── */
+    // function apiError($message = "An error occurred.", $data = []) {
+    //     return (json_encode([
+    //         "status"     => "error",
+    //         "statuscode" => 1,
+    //         "response"   => $message,
+    //         "data"       => $data
+    //     ]));
+    // }
 
     /* ────────────────────────── FUNCTION: apiSuccess ───────────────────────── */
-    function apiSuccess($response) {
-        die(json_encode(["success" => $response]));
-    }
+    // function apiSuccess($response = "OK", $data = []) {
+    //     return json_encode([
+    //         "status"     => "success",
+    //         "statuscode" => 0,
+    //         "response"   => $response,
+    //         "data"       => $data
+    //     ]);
+    // }
 
     /* ─────────────────────────── FUNCTION: getConfig ────────────────────────── */
-    function getConfig($key = Null, $data = "value") : mixed {
+    function getConfig($key = Null, $data = "value") {
         if (!defined('CONFIG')) {
-            apiError("The configuration is not set.");
+            return apiResponse("error", "The configuration is not set.");
         }
         if (!is_array(CONFIG)) {
-            apiError("The configuration is not an array.");
+            return apiResponse("error", "The configuration is not an array.");
         }
         if (!empty($key) && !isset(CONFIG[$key])) {
-            apiError("The key '$key' does not exist.");
+            return apiResponse("error", "The key '$key' does not exist.");
         }
         if (!empty($key) && !isset(CONFIG[$key][$data])) {
-            apiError("The data '$data' for key '$key' does not exist.");
+            return apiResponse("error", "The data '$data' for key '$key' does not exist.");
         }
         if (!empty($key)) {
             return CONFIG[$key][$data];
@@ -52,7 +72,14 @@
     }
 
     /* ─────────────────────────── FUNCTION: saveConfig ───────────────────────── */
-    function saveConfig($config) : array {
+    function saveConfig($config) {
+        $tab = function($amt = 1) {
+            $tabs = "";
+            for ($i = 0; $i < $amt; $i++) {
+                $tabs .= "    ";
+            }
+            return $tabs;
+        };
         $configContent = "<?php\n\n";
         $configContent .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
         $configContent .= "/*                                 Configuration                              */\n";
@@ -60,61 +87,79 @@
         $configContent .= "\$config = [\n";
     
         foreach ($config as $key => $setting) {
-            $configContent .= "    \"$key\" => [\n";
-            $configContent .= "        \"name\" => \"" . addslashes($setting['name']) . "\",\n";
-            $configContent .= "        \"description\" => \"" . addslashes($setting['description']) . "\",\n";
-            $configContent .= "        \"value\" => ";
-    
-            $value = $setting['value'];
-            $type  = $setting['type'];
 
-            if ($type === "array") {
+            $name        = $setting['name'];
+            $description = $setting['description'];
+            $value       = $setting['value'];
+            $type        = $setting['type'];
+            $options     = (isset($setting['options'])) ? $setting['options'] : [];
+            $attributes  = (isset($setting['attributes'])) ? $setting['attributes'] : [];
+
+            $configContent .= $tab(1)."\"$key\" => [\n";
+            $configContent .= $tab(2)."\"name\" => \"" . addslashes($name) . "\",\n";
+            $configContent .= $tab(2)."\"description\" => \"" . addslashes($description) . "\",\n";
+            $configContent .= $tab(2)."\"type\" => \"" . addslashes($type) . "\",\n";
+
+            # NOTE: Options
+            if (!empty($options) && is_array($options)) {
+                $configContent .= $tab(2)."\"options\" => [\n";
+                foreach ($options as $option => $name) {
+                    $configContent .= $tab(3)."\"" . addslashes($option) . "\" => \"" . addslashes($name) . "\",\n";
+                }
+                $configContent .= $tab(2)."],\n";
+            }
+
+            # NOTE: Value
+            $configContent .= $tab(2)."\"value\" => ";
+            if ($type == "range") {
+                $configContent .= $value;
+            } elseif ($type == "selection") {
+                $configContent .= '"' . addslashes($value) . '"';
+            } elseif ($type === "array") {
                 $configContent .= '["' . implode('", "', $value) . '"]';
             } elseif ($type === "bool") {
-                if ($value === true || $value === "true") {
-                    $configContent .= 'true';
-                } else {
-                    $configContent .= 'false';
-                }
+                $value = ($value === true || $value === "true") ? "true" : "false";
+                $configContent .= $value;
             } else {
                 $configContent .= '"' . addslashes($value) . '"';
             }
-    
+            # NOTE: End of value
             $configContent .= ",\n";
-            $configContent .= "        \"type\" => \"" . addslashes($setting['type']) . "\",\n";
-    
-            if (isset($setting['attributes']) && is_array($setting['attributes'])) {
-                $configContent .= "        \"attributes\" => [\n";
-                foreach ($setting['attributes'] as $attrKey => $attrValue) {
-                    $configContent .= "            \"$attrKey\" => $attrValue,\n";
+            $configContent .= $tab(1)."],\n";
+
+            # NOTE: Attributes
+            if (!empty($attributes) && is_array($attributes)) {
+                $configContent .= $tab(1)."\"attributes\" => [\n";
+                foreach ($attributes as $attrKey => $attrValue) {
+                    $configContent .= $tab(2)."\"$attrKey\" => \"$attrValue\",\n";
                 }
-                $configContent .= "        ],\n";
+                # NOTE: End of Attributes
+                $configContent .= $tab(1)."],\n";
             }
-    
-            $configContent .= "    ],\n";
         }
-    
+
+        # NOTE: End of config file
         $configContent .= "];\n\n";
         $configContent .= "?>";
     
         file_put_contents(CONFIG_FILE, $configContent);
-        return ["success" => "The configuration has been saved."];
+        return apiResponse("success", "The configuration has been saved.");
     }
 
     /* ─────────────────────────── FUNCTION: setConfig ────────────────────────── */
-    function setConfig($key, $newValue) : array {
+    function setConfig($key, $newValue) {
         $config = getConfig();
     
         if (!isset($config[$key])) {
-            apiError("Key does not exist"); // Key does not exist
+            return apiResponse("error", "Key does not exist"); // Key does not exist
         }
 
         if ($newValue === $config[$key]['value']) {
-            apiError("Value is the same"); // Value is the same
+            return apiResponse("error", "Value is the same"); // Value is the same
         }
 
         if (empty($key) || empty($newValue)) {
-            apiError("Key or value is empty"); // Key or value is empty
+            return apiResponse("error", "Key or value is empty"); // Key or value is empty
         }
     
         $config[$key]['value'] = $newValue;
@@ -124,18 +169,18 @@
 
 
     /* ───────────────────────────── FUNCTION: download ─────────────────────────── */
-    function download($file) {
-        $file     = urldecode($file);
-        $filePath = getConfig("audio_path") . '/' . $file;
-        if (empty($filePath) || !file_exists($filePath)) {
-            apiError("The file does not exist.");
-        }
-        return [
-            "message" => "The file ". basename($filePath). " has been downloaded.",
-            "file"    => basename($filePath),
-            "path"    => $filePath
-        ];
-    }
+    // function download($file) {
+    //     $file     = urldecode($file);
+    //     $filePath = getConfig("audio_path") . '/' . $file;
+    //     if (empty($filePath) || !file_exists($filePath)) {
+    //         apiResponse("error", "The file does not exist.");
+    //     }
+    //     return [
+    //         "message" => "The file ". basename($filePath). " has been downloaded.",
+    //         "file"    => basename($filePath),
+    //         "path"    => $filePath
+    //     ];
+    // }
 
     /* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
     function remove($file) {
@@ -146,23 +191,23 @@
             mkdir($deletedDir, 0777, true);
         }
         if (!is_dir($deletedDir) || !is_writable($deletedDir)) {
-            apiError("The directory <code>".CONFIG["audio_path"]."</code> is not writable.");
+            return apiResponse("error", "The directory <code>".CONFIG["audio_path"]."</code> is not writable.");
         }
         if (!file_exists($filePath)) {
-            apiError("The file <code>$filePath</code> does not exist.");
+            return apiResponse("error", "The file <code>$filePath</code> does not exist.");
         }
         if (!is_file($filePath)) {
-            apiError("The file <code>$filePath</code> is not a regular file.");
+            return apiResponse("error", "The file <code>$filePath</code> is not a regular file.");
         }
         rename($filePath, $deletedDir . "/" . $file);
-        return ["success" => "The file ". basename($filePath). " has been removed."];
+        return apiResponse("success", "The file ". basename($filePath). " has been removed.");
     }
 
     /* ─────────────────────────── FUNCTION: listSongs ────────────────────────── */
     function listSongs() {
         $audioPath = CONFIG["audio_path"]["value"];
         if (!is_dir($audioPath) || !is_readable($audioPath)) {
-            apiError("The audio path is not readable.");
+            return apiResponse("error", "The audio path is not readable.");
         }
         $files = array_diff(scandir($audioPath), array('..', '.'));
         $songs = [];
@@ -185,7 +230,7 @@
                 $i++;
             }
         }
-        return $songs;
+        return apiResponse("success", "OK", $songs);
     }
 
     /* ───────────────────────────── FUNCTION: upload ─────────────────────────── */
@@ -199,66 +244,88 @@
         ]) : array {
 
         if (!is_array($file) || empty($file) || $file === []) {
-            apiError("Invalid or empty file. ".print_r($file, true));
+            return apiResponse("error", "Invalid or empty file. ".print_r($file, true));
         }
 
         if ($file["error"] !== UPLOAD_ERR_OK) {
             switch ($file["error"]) {
                 case UPLOAD_ERR_INI_SIZE:
                 case UPLOAD_ERR_FORM_SIZE:
-                    apiError("The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".");
+                    return apiResponse("error", "The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".");
                     break;
                 case UPLOAD_ERR_PARTIAL:
-                    apiError("The uploaded file was only partially uploaded.");
+                    return apiResponse("error", "The uploaded file was only partially uploaded.");
                     break;
                 case UPLOAD_ERR_NO_FILE:
-                    apiError("No file was uploaded.");
+                    return apiResponse("error", "No file was uploaded.");
                     break;
                 case UPLOAD_ERR_NO_TMP_DIR:
-                    apiError("Missing a temporary folder.");
+                    return apiResponse("error", "Missing a temporary folder.");
                     break;
                 case UPLOAD_ERR_CANT_WRITE:
-                    apiError("Failed to write file to disk.");
+                    return apiResponse("error", "Failed to write file to disk.");
                     break;
                 case UPLOAD_ERR_EXTENSION:
-                    apiError("A PHP extension stopped the file upload.");
+                    return apiResponse("error", "A PHP extension stopped the file upload.");
                     break;
                 default:
-                    apiError("Unknown upload error.");
+                    return apiResponse("error", "Unknown upload error.");
                     break;
             }
         }
 
         if (empty($file["name"])) {
-            apiError("The file name is empty.".print_r($file, true));
+            return apiResponse("error", "The file name is empty.".print_r($file, true));
         }
 
         if (!is_array(getConfig("allowed_types"))) {
-            apiError("The allowed types are not set or invalid.");
+            return apiResponse("error", "The allowed types are not set or invalid.");
         }
 
         if (empty(getConfig("audio_path")) || !is_dir(getConfig("audio_path"))) {
-            apiError("The audio path is not set.");
+            return apiResponse("error", "The audio path is not set.");
         }
 
         $targetDir  = rtrim(getConfig('audio_path'), DIRECTORY_SEPARATOR);
         $targetFile = $targetDir . "/" . htmlspecialchars(basename($file["name"]));
 
         if (file_exists($targetFile)) {
-            apiError("Sorry, file <code>".$targetFile."</code> already exists.");
+            return apiResponse("error", "Sorry, file <code>".$targetFile."</code> already exists.");
         }
 
         $fileType   = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
 
         if (!in_array(strtolower(pathinfo($file["name"], PATHINFO_EXTENSION)), getConfig("allowed_types"))) {
-            apiError("Only ". implode(", ", getConfig("allowed_types")). " files are allowed.");
+            return apiResponse("error", "Only ". implode(", ", getConfig("allowed_types")). " files are allowed.");
         }
 
         if (!move_uploaded_file($file["tmp_name"], $targetFile)) {
-            apiError("There was an error moving the temporary file <code>".$file["tmp_name"]."</code> to its destination <code>".$targetFile."</code>.");
+            return apiResponse("error", "There was an error moving the temporary file <code>".$file["tmp_name"]."</code> to its destination <code>".$targetFile."</code>.");
         }
 
-        return ["success" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", "file" => basename($targetFile)];
+        return apiResponse("success", "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", 
+            [
+                "file" => basename($targetFile)
+            ]
+        );
+    }
+
+    /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
+    function createSession($id = Null) {
+        $id = bin2hex(random_bytes(4));
+        $_SESSION["session_code"] = $id;
+        return apiResponse("success", "The session <code>$id</code> has been created.");
+    }
+
+    /* ───────────────────────── FUNCTION: joinSession ─────────────────────────── */
+    function joinSession($id = Null) {
+        if (!isset($_SESSION["session_code"])) {
+            apiResponse("error", "The session code is not set.");
+        }
+        if ($_SESSION["session_code"] !== $id) {
+            apiResponse("error", "The session code is invalid.");
+        }
+        return apiResponse("success", "You have joined session <code>$id</code>.");
     }
 
 
