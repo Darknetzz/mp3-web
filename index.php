@@ -69,43 +69,53 @@ echo '
       <div class="modal-body">
       <form action="api.php" method="POST">
       <table class="table table-bordered">
-        <!--
         <thead>
           <tr>
-            <th>Key</th>
-            <th>Value</th>
+            <th colspan="100%" class="text-bg-secondary text-center">'.CONFIG_FILE.'</th>
           </tr>
         </thead>
-        -->
         <tbody>';
       foreach (CONFIG as $key => $values) {
-        $name          = $values["name"];
-        $value         = $values["value"];
-        $description   = $values["description"];
-        $type          = $values["type"];
-        $attributes    = $values["attributes"] ?? [];
-        $cfgInputClass = "settingInput";
-        $input         = '<textarea class="form-control '.$cfgInputClass.'" type="text" id="'.$key.'">'.$value.'</textarea>';
+        $name            = $values["name"];
+        $value           = $values["value"];
+        $description     = $values["description"];
+        $type            = $values["type"];
+        $attributes      = $values["attributes"] ?? [];
+        $inputData       = "data-key='".$key."'";
+        $cfgInputClass   = "settingInput";
         // $json_value  = json_encode($value);
         if ($type == "string") {
-          $input = '<input class="form-control '.$cfgInputClass.'" type="text" id="'.$key.'" value="'.$value.'">';
-        }
-        if ($type == "array") {
-          $value = implode(", ", $value);
-          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" id="'.$key.'">'.$value.'</textarea>';
-        }
-        if ($type == "bool") {
-          $value = $value ? "true" : "false";
-          $input = '<div class="form-check form-switch '.$cfgInputClass.'"><input class="form-check-input" type="checkbox" id="'.$key.'" '.($value ? 'checked' : '').'></div>';
-        }
-        if ($type == "range") {
-          $input = '<input class="form-control '.$cfgInputClass.'" type="number" id="'.$key.'" value="'.$value.'" min="'.$attributes["min"].'" max="'.$attributes["max"].'" step="'.$attributes["step"].'">';
+          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
+        } elseif ($type == "array") {
+          $value = json_encode($value, JSON_PRETTY_PRINT);
+          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
+        } elseif ($type == "bool") {
+          if ($value === "true") {
+            $value = True;
+          } elseif ($value === "false") {
+            $value = False;
+          }
+          $input = '
+            <div class="form-check form-switch">
+              <input class="form-check-input '.$cfgInputClass.'" type="checkbox" '.($value ? 'checked' : '').' '.$inputData.'>
+            </div>';
+        } elseif ($type == "range") {
+          $value = $value ?? 0;
+          $min  = $attributes["min"] ?? 0;
+          $max  = $attributes["max"] ?? 1;
+          $step = $attributes["step"] ?? .1;
+          $input = '
+            <input class="form-range '.$cfgInputClass.' settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
+            <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.$value.'</output>
+          ';
+        } else {
+          continue;
         }
         echo '
         <tr>
           <td class="text-primary">
-            <label for="'.$key.'" class="form-label">'.$name.'</label>
-            <small class="text-muted '.$cfgInputClass.'">'.$description.'</small>
+            <label for="'.$key.'" class="form-label"><small class="badge bg-primary">'.$type.'</small> '.$name.'</label>
+            <small class="text-muted">'.$key.': '.$description.'</small>
           </td>
           <td>
             '.$input.'
@@ -115,11 +125,9 @@ echo '
 echo '</tbody>
       </table>
       </form>
-      <!--
-        <div class="d-flex justify-content-end">
-          <input type="submit" class="btn btn-outline-success" value="Save">
-        </div>
-      -->
+      <div class="d-flex justify-content-end">
+        <a href="javascript:void(0);" class="btn btn-outline-success reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
+      </div>
       </div>
     </div>
   </div>
@@ -224,7 +232,6 @@ echo '
   data-show-export="true"
   data-unique-id="id"
   data-escape="false"
-  data-url="api.php?action=ls"
 >
   <thead id="playlistHead">
   <tr class="table-success">
@@ -487,6 +494,9 @@ echo '</div></div>';
 
   /* ─────────────────────────── FUNCTION: showToast ────────────────────────── */
   function showToast(message, type = "info") {
+    if (typeof(message) === "object") {
+      message = JSON.stringify(message);
+    }
     $("#apiResponse").append(`
       <div class='toast align-items-center text-bg-`+type+` border-0' role='alert' aria-live='assertive' aria-atomic='true'>
         <div class='d-flex'>
@@ -502,24 +512,29 @@ echo '</div></div>';
   }
 
   /* ─────────────────────────── FUNCTION: api ─────────────────────────── */
-  function api(action, data = {}, callback = null) {
+  function api(action, data = {}, method = "GET", callback = null) {
     $.ajax({
       url: apiURL,
-      type: 'POST',
+      type: method,
       data: { action: action, ...data },
       success: function(response) {
         console.log("API Response: ", response);
-        if (response.success) {
-          showToast(response.success, "success");
-        } else {
-          showToast("Error: " + response.error, "danger");
+        var res  = response.success ? response.success : response.error;
+        var type = "danger";
+        if (res.success) {
+          res = res.success;
+          type = "success";
         }
-        if (callback) {
-          callback(response);
+        else if (res.error) {
+          res = res.error;
+          type = "danger";
         }
+        showToast(res, type);
       },
       error: function(error) {
-        showToast("An error occurred: " + error, "danger");
+        console.log("API Error: ", error);
+        res = JSON.stringify(error);
+        showToast("An error occurred: " + res, "danger");
       }
     });
   }
@@ -708,16 +723,32 @@ echo '</div></div>';
 
     // cfgInputClass
     $(".<?= $cfgInputClass ?>").on("change", function() {
-      var key = $(this).attr("id");
-      var value = $(this).val();
+      $(".reloadCfgBtn").show();
+      var key   = $(this).data("key");
+      if (typeof(key) === "undefined") {
+        console.log("Key is undefined.", key);
+        return;
+      }
+      if ($(this).is(":checkbox")) {
+        var value = ($(this).is(":checked") ? true : false);
+      } else {
+        var value = $(this).val();
+      }
       console.log("Key: " + key + ", Value: " + value);
-      api("setconfig", { config: { [key]: value } }, function(response) {
-        if (response.success) {
-          showToast(response.success, "success");
-        } else {
-          showToast("Error saving configuration: " + response.error, "danger");
-        }
-      });
+      api("setconfig", { config: { key: key, value: value } }, "POST");
+    });
+
+    // reloadCfgBtn
+    $(".reloadCfgBtn").on("click", function() {
+      location.reload(true);
+    });
+
+    // Setting Range
+    $(".settingRange").on("input", function() {
+      var key      = $(this).attr("id");
+      var value    = $(this).val();
+      var valueObj = $(this).attr("data-valueobject");
+      $("#" + valueObj).text(value);
     });
 });
 </script>

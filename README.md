@@ -25,6 +25,7 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 * Support multiple playlists
 * Browser refresh persistency
 * Session sharing
+* Change settings from GUI
 
 ## How to use
 
