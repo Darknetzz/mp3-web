@@ -340,7 +340,7 @@
     }
 
     /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
-    function createSession($id = Null) {
+    function createSession($id = Null, $public = False) {
         global $_SESSION;
         if (!empty($_SESSION["session_code"])) {
             $sessionCode = $_SESSION["session_code"];
@@ -369,7 +369,7 @@
         $sessionFile = $sessionDir . '/' . $id . '.json';
         touch($sessionFile);
         chmod($sessionFile, 0777);
-        file_put_contents($sessionFile, json_encode(["session_code" => $id, "created" => date("Y-m-d H:i:s")]));
+        file_put_contents($sessionFile, json_encode(["session_code" => $id, "created" => date("Y-m-d H:i:s"), "public" => $public]));
         if (!file_exists($sessionFile) || !is_file($sessionFile)) {
             return apiResponse("error", "The session file <code>$sessionFile</code> could not be created.");
         }

@@ -81,6 +81,12 @@ echo '
           <form class="sessionForm apiForm" id="createSessionForm" style="display:none;" method="POST">
             <input type="hidden" name="action" value="createSession">
             <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
+            
+            <label m-2>
+              <input type="checkbox" class="form-check-input" name="public" id="isPublic" value="1">
+              Public
+            </label>
+
             <div class="btn-group w-100">
               <button type="submit" class="btn btn-success m-1">Create Session</button>
               <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
