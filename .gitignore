@@ -9,3 +9,4 @@ vendor
 composer.lock
 deleted
 scripts
+session/*

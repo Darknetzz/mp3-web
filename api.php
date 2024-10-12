@@ -45,6 +45,10 @@ do {
     }
 
     if ($action === 'getconfig') {
+        if (isset($_GET['key'])) {
+            $res = getConfig($_GET['key']);
+            break;
+        }
         $res = getConfig();
         break;
     }
@@ -88,7 +92,7 @@ do {
 } while (false);
 
 if (empty($res)) {
-    apiResponse("error", "Invalid request (empty response).");
+    apiResponse("error", "Invalid response (empty). Probably the endpoint doesn't exist: " . $action);
 }
 if (!json_validate($res)) {
     apiResponse("error", "Invalid response: " . $res);

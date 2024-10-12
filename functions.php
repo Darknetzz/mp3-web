@@ -80,7 +80,7 @@
         if (!empty($key) && !isset(CONFIG[$key][$data])) {
             return apiResponse("error", "The data '$data' for key '$key' does not exist.");
         }
-        if (!empty($key)) {
+        if (!empty($key) && array_key_exists($key, CONFIG) && !empty($data)) {
             return CONFIG[$key][$data];
         }
 
@@ -341,23 +341,54 @@
 
     /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
     function createSession($id = Null) {
-        $id = bin2hex(random_bytes(4));
+        global $_SESSION;
+        if (!empty($_SESSION["session_code"])) {
+            $sessionCode = $_SESSION["session_code"];
+            return apiResponse("error", "Session <code>$sessionCode</code> is already active.");
+        }
+        if (empty($id)) {
+            $id = bin2hex(random_bytes(4));
+        }
+        if (preg_match('/[^a-zA-Z0-9]/', $id) || strlen($id) !== 8) {
+            return apiResponse("error", "The session code is invalid. It must be 8 characters long and alphanumeric.");
+        }
+        $sessionDir = 'session';
+        if (!is_dir($sessionDir)) {
+            $createDir = mkdir($sessionDir, 0777, true);
+            if (!$createDir) {
+                return apiResponse("error", "The session directory <code>$sessionDir</code> could not be created.");
+            }
+        }
+        if (!is_dir($sessionDir) || !is_writable($sessionDir)) {
+            return apiResponse("error", "The session directory <code>$sessionDir</code> is not writable.");
+        }
+        if (file_exists($sessionDir . '/' . $id . '.json')) {
+            return apiResponse("error", "The session code <code>$id</code> already exists.");
+        }
+
+        $sessionFile = $sessionDir . '/' . $id . '.json';
+        touch($sessionFile);
+        chmod($sessionFile, 0777);
+        file_put_contents($sessionFile, json_encode(["session_code" => $id, "created" => date("Y-m-d H:i:s")]));
+        if (!file_exists($sessionFile) || !is_file($sessionFile)) {
+            return apiResponse("error", "The session file <code>$sessionFile</code> could not be created.");
+        }
+
         $_SESSION["session_code"] = $id;
-        return apiResponse("success", "The session <code>$id</code> has been created.");
+        return apiResponse("success", "The session <code>$id</code> has been created.", ["session_code" => $id]);
     }
 
     /* ───────────────────────── FUNCTION: joinSession ─────────────────────────── */
     function joinSession($id = Null) {
+        global $_SESSION;
         if (empty($id)) {
             return apiResponse("error", "The session code is empty.");
         }
-        if (!isset($_SESSION["session_code"])) {
-            return apiResponse("error", "The session code is not set.");
-        }
-        if ($_SESSION["session_code"] !== $id) {
+        if (!file_exists('session/' . $id . '.json') || !is_file('session/' . $id . '.json')) {
             return apiResponse("error", "The session code is invalid.");
         }
-        return apiResponse("success", "You have joined session <code>$id</code>.");
+        $_SESSION["session_code"] = $id;
+        return apiResponse("success", "You have joined session <code>$id</code>.", ["session_code" => $id]);
     }
 
 

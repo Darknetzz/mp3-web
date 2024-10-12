@@ -25,64 +25,7 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
     <script src="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone-min.js"></script>
     <link href="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone.css" rel="stylesheet" type="text/css" />
 
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        z-index: auto;
-      }
-      .container {
-        padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
-        z-index: auto;
-      }
-      .audio-player-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        /* background-color: #f8f9fa; */
-        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-        z-index: 10;
-        padding: 10px;
-      }
-      .audio-player-container audio {
-        width: 100%;
-      }
-      .audio-player-container .btn-group {
-        margin-top: 10px;
-      }
-      .form-control.is-warning {
-        background-image: url('https://upload.wikimedia.org/wikipedia/commons/c/c9/Exclamation_flat_icon.svg');
-        background-repeat: no-repeat;
-        /* background-position: right calc(0.375em + 0.1875rem) center; */
-        background-position: right 10% top 25%;
-        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
-        padding-right: calc(1.5em + 0.75rem);
-        border-color: #ffc107;
-      }
-      .modal {
-        z-index: 100;
-      }
-      .modal-backdrop {
-          opacity:0.85 !important;
-          /* -webkit-backdrop-filter: blur(15px); Safari */
-          /* backdrop-filter: blur(15px); Other browsers */
-          background-color: rgba(255, 255, 255, 0.4);
-          -webkit-backdrop-filter: blur(20px);
-          backdrop-filter: blur(20px);
-          z-index: 50;
-      }
-      .toast-container {
-        z-index: 150;
-      }
-      .toast {
-        z-index: 200;
-      }
-      .autoheight {
-        height: auto;
-      }
-    </style>
+    <link rel="stylesheet" href="style.css">
   </head>
 <body data-bs-theme="dark">
 <?php
@@ -121,78 +64,92 @@ echo '
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         <div class="modal-status bg-primary"></div>
       </div>
-      <div class="modal-body">
+      <div class="modal-body">';
 
-        <div class="d-flex justify-content-around">
+      $sessionCards = '<div class="d-flex justify-content-around sessionCards noSessionCards">
 
+      <!-- # NOTE: CREATE SESSION CARD -->
+      <div class="card m-2 w-100">
+        <div class="card-status-top bg-success"></div>
+        <h4 class="card-header text-center">Create session</h4>
+        <div class="card-body text-center">
 
-          <!-- # NOTE: CREATE SESSION CARD -->
-          <div class="card m-2 w-100">
-            <div class="card-status-top bg-success"></div>
-            <h4 class="card-header text-center">Create session</h4>
-            <div class="card-body text-center">
+          <a class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
+              '.icon("person-plus-fill", 2).'
+          </a>
 
-              <a class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
-                  '.icon("person-plus-fill", 2).'
-              </a>
-
-              <form class="sessionForm apiForm" id="createSessionForm" style="display:none;">
-                <input type="hidden" name="action" value="createSession">
-                <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
-                <div class="btn-group w-100">
-                  <button type="submit" class="btn btn-success m-1" id="createSessionConfirmBtn">Create Session</button>
-                  <a href="javascript:void(0);" class="btn btn-secondary m-1" data-bs-dismiss="modal">Cancel</a>
-                </div>
-              </form>
-
-              <div class="sessionResponse" id="createSessionResponse" style="display:none;">
-                <!-- Response from createSession will be displayed here -->
-              </div>
-
+          <form class="sessionForm apiForm" id="createSessionForm" style="display:none;" method="POST">
+            <input type="hidden" name="action" value="createSession">
+            <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
+            <div class="btn-group w-100">
+              <button type="submit" class="btn btn-success m-1">Create Session</button>
+              <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
             </div>
+          </form>
+
+          <div class="sessionResponse" id="createSessionResponse" style="display:none;">
+            <!-- Response from createSession will be displayed here -->
           </div>
-
-
-          <!-- # NOTE: JOIN SESSION CARD -->
-          <div class="card m-2 w-100">
-            <div class="card-status-top bg-primary"></div>
-            <h4 class="card-header text-center">Join session</h4>
-            <div class="card-body text-center">
-
-              <a class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
-                  '.icon("people-fill", 2).'
-              </a>
-
-              <form class="sessionForm apiForm" id="joinSessionForm" style="display:none;">
-                  <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session code">
-                  <div class="btn-group w-100">
-                    <button type="submit" class="btn btn-primary m-1" id="joinSessionConfirmBtn">Join Session</button>
-                    <a href="javascript:void(0);" class="btn btn-secondary m-1" data-bs-dismiss="modal">Cancel</a>
-                  </div>
-              </form>
-
-              <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
-                <!-- Response from joinSession will be displayed here -->
-              </div>
-
-            </div>
-          </div>
-
-
-          <!-- # NOTE: CANCEL MODAL
-          <div class="card m-2 w-100">
-            <h4 class="card-header text-center">Listen alone</h4>
-            <div class="card-status-top bg-secondary"></div>
-            <div class="card-body text-center">
-              <a class="btn btn-secondary m-2 sessionActionBtn" data-bs-dismiss="modal">
-                  '.icon("person-x-fill", 2).'
-              </a>
-            </div>
-          </div>
-          -->
 
         </div>
+      </div>
 
+
+      <!-- # NOTE: JOIN SESSION CARD -->
+      <div class="card m-2 w-100">
+        <div class="card-status-top bg-primary"></div>
+        <h4 class="card-header text-center">Join session</h4>
+        <div class="card-body text-center">
+
+          <a class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
+              '.icon("people-fill", 2).'
+          </a>
+
+          <form class="sessionForm apiForm" id="joinSessionForm" style="display:none;" method="POST">
+              <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session code">
+              <div class="btn-group w-100">
+                <button type="submit" class="btn btn-primary m-1">Join Session</button>
+                <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
+              </div>
+          </form>
+
+          <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
+            <!-- Response from joinSession will be displayed here -->
+          </div>
+
+        </div>
+      </div>
+
+    </div>';
+
+    // <!-- # NOTE: CANCEL MODAL
+    // <div class="card m-2 w-100">
+    //   <h4 class="card-header text-center">Listen alone</h4>
+    //   <div class="card-status-top bg-secondary"></div>
+    //   <div class="card-body text-center">
+    //     <a class="btn btn-secondary m-2 sessionActionBtn" data-bs-dismiss="modal">
+    //         '.icon("person-x-fill", 2).'
+    //     </a>
+    //   </div>
+    // </div>
+    // -->
+
+    if (!empty($_SESSION['session_code'])) {
+      $sessionCards .= '
+      <div class="d-flex justify-content-around sessionCards hasSessionCards">
+        <div class="card m-2 w-100">
+          <h4 class="card-header text-center">Session</h4>
+          <div class="card-body text-center">
+            <p class="text-muted"> ' . $_SESSION['session_code'] . ' </p>
+            <a href="api.php?action=leaveSession" class="btn btn-danger m-2">Leave session</a>
+          </div>
+        </div>
+      </div>';
+      }
+
+      echo $sessionCards;
+
+echo '
       </div>
     </div>
   </div>
@@ -794,8 +751,6 @@ echo '</div></div>';
     $(".autoheight").each(function() {
       var lbr    = ($(this).text().match(/\n/g) || []).length;
       var height = (lbr * 25) + 25;
-      console.log("Line breaks: " + lbr);
-      console.log("Height: " + height);
       $(this).css("height", height+"px");
       $(this).css("resize", "none");
     });
@@ -854,25 +809,28 @@ echo '</div></div>';
     });
 
     /* ──────────────────────────── NOTE: sessionForm ─────────────────────────── */
+    // REVIEW: incomplete
     $(".sessionForm").on("submit", function(e) {
       e.preventDefault();
-      var action = apiURL;
       var method = $(this).attr("method");
-      var data   = $(this).serialize();
+      var data   = $(this).serializeArray().reduce(function(obj, item) {
+        obj[item.name] = item.value;
+        return obj;
+      }, {});
+      var action = data.action;
       console.log("Session form data: ", data);
-      api(action, data);
-    });
-    
-    /* ────────────────────── NOTE: createSessionConfirmBtn ───────────────────── */
-    $(".sessionConfirmBtn").on("click", function(e) {
-      e.preventDefault();
-      var action = "createSession";
-      var data = $(this).closest("form").serialize();
+      api(action, data, method);
+      $(".sessionCards").find(".noSessionCards").hide();
+      // $(".sessionCards").find(".hasSessionCards").show();
     });
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
     $('#playlistTable').on('post-body.bs.table', function () {
       $('#playlistTable').find('td[data-field="name"]').addClass('cursor-pointer');
+    });
+
+    $(".cancelSessionBtn").on("click", function() {
+      $(".sessionForm").hide();
     });
 
     /* ───────────────────────────── NOTE: Interval ───────────────────────────── */
