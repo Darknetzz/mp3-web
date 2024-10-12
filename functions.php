@@ -366,10 +366,16 @@
             return apiResponse("error", "The session code <code>$id</code> already exists.");
         }
 
+        $session = [
+            "session_code" => $id,
+            "created"      => date("Y-m-d H:i:s"),
+            "public"       => $public
+        ];
+
         $sessionFile = $sessionDir . '/' . $id . '.json';
         touch($sessionFile);
         chmod($sessionFile, 0777);
-        file_put_contents($sessionFile, json_encode(["session_code" => $id, "created" => date("Y-m-d H:i:s"), "public" => $public]));
+        file_put_contents($sessionFile, json_encode($session, JSON_PRETTY_PRINT));
         if (!file_exists($sessionFile) || !is_file($sessionFile)) {
             return apiResponse("error", "The session file <code>$sessionFile</code> could not be created.");
         }

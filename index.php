@@ -82,12 +82,14 @@ echo '
             <input type="hidden" name="action" value="createSession">
             <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
             
-            <label m-2>
-              <input type="checkbox" class="form-check-input" name="public" id="isPublic" value="1">
-              Public
-            </label>
+            <div class="m-2">
+              <label>
+                <input type="checkbox" class="form-check-input" name="public" id="isPublic" value="1">
+                Public
+              </label>
+            </div>
 
-            <div class="btn-group w-100">
+            <div class="btn-group w-100 m-1">
               <button type="submit" class="btn btn-success m-1">Create Session</button>
               <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
             </div>
@@ -113,7 +115,7 @@ echo '
 
           <form class="sessionForm apiForm" id="joinSessionForm" style="display:none;" method="POST">
               <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session code">
-              <div class="btn-group w-100">
+              <div class="btn-group w-100 m-1">
                 <button type="submit" class="btn btn-primary m-1">Join Session</button>
                 <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
               </div>
@@ -342,17 +344,17 @@ echo '
         <h2>'.getConfig("site_title").' <small class="text-muted m-2">'.ENV['VERSION'].'</small></h2>
       </div>
       <div class="btn-group">
-        <button type="button" class="btn btn-sm btn-pill btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
+        <button type="button" class="btn btn-sm btn-pill btn-primary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
           '.icon("gear").'
         </button>
-        <button type="button" class="btn btn-sm btn-pill btn-secondary" data-bs-toggle="modal" data-bs-target="#sessionModal">
+        <button type="button" class="btn btn-sm btn-pill btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal">
           '.icon("people").'
         </button>
     </div>
   </div>
 <div class="card-body">
 
-<div id="musicDropzone" class="border border-primary align-items-center p-3">
+<div id="musicDropzone" class="border border-secondary align-items-center p-3">
       <h3>Upload Music</h3>
       <a href="javascript:void(0);" class="dropzoneSelect text-muted">Drag and drop MP3 files here or click to upload.</a>
 </div>
