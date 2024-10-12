@@ -24,6 +24,14 @@
         </div>';
     }
 
+    /* ──────────────────────────── FUNCTION: spinner ─────────────────────────── */
+    function spinner($type = "primary", $id = Null, $size = 3, $margin = 2) {
+        return '
+        <div id="'.$id.'" class="spinner-border text-'.$type.' m-' . $margin . '" role="status" style="width: ' . $size . 'rem; height: ' . $size . 'rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>';
+    }
+
     /* ──────────────────────────── FUNCTION: mp3info ─────────────────────────── */
     function getDuration($file) {
         $duration = "0:00";
@@ -133,17 +141,17 @@
             }
             # NOTE: End of value
             $configContent .= ",\n";
-            $configContent .= $tab(1)."],\n";
 
             # NOTE: Attributes
             if (!empty($attributes) && is_array($attributes)) {
-                $configContent .= $tab(1)."\"attributes\" => [\n";
+                $configContent .= $tab(2)."\"attributes\" => [\n";
                 foreach ($attributes as $attrKey => $attrValue) {
-                    $configContent .= $tab(2)."\"$attrKey\" => \"$attrValue\",\n";
+                    $configContent .= $tab(3)."\"$attrKey\" => \"$attrValue\",\n";
                 }
                 # NOTE: End of Attributes
                 $configContent .= $tab(1)."],\n";
             }
+            $configContent .= $tab(2)."],\n";
         }
 
         # NOTE: End of config file
@@ -340,11 +348,14 @@
 
     /* ───────────────────────── FUNCTION: joinSession ─────────────────────────── */
     function joinSession($id = Null) {
+        if (empty($id)) {
+            return apiResponse("error", "The session code is empty.");
+        }
         if (!isset($_SESSION["session_code"])) {
-            apiResponse("error", "The session code is not set.");
+            return apiResponse("error", "The session code is not set.");
         }
         if ($_SESSION["session_code"] !== $id) {
-            apiResponse("error", "The session code is invalid.");
+            return apiResponse("error", "The session code is invalid.");
         }
         return apiResponse("success", "You have joined session <code>$id</code>.");
     }

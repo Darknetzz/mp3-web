@@ -30,9 +30,11 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         margin: 0;
         padding: 0;
         box-sizing: border-box;
+        z-index: auto;
       }
       .container {
         padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
+        z-index: auto;
       }
       .audio-player-container {
         position: fixed;
@@ -41,7 +43,7 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         width: 100%;
         /* background-color: #f8f9fa; */
         box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-        z-index: 1000;
+        z-index: 10;
         padding: 10px;
       }
       .audio-player-container audio {
@@ -58,6 +60,27 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
         padding-right: calc(1.5em + 0.75rem);
         border-color: #ffc107;
+      }
+      .modal {
+        z-index: 100;
+      }
+      .modal-backdrop {
+          opacity:0.85 !important;
+          /* -webkit-backdrop-filter: blur(15px); Safari */
+          /* backdrop-filter: blur(15px); Other browsers */
+          background-color: rgba(255, 255, 255, 0.4);
+          -webkit-backdrop-filter: blur(20px);
+          backdrop-filter: blur(20px);
+          z-index: 50;
+      }
+      .toast-container {
+        z-index: 150;
+      }
+      .toast {
+        z-index: 200;
+      }
+      .autoheight {
+        height: auto;
       }
     </style>
   </head>
@@ -81,10 +104,17 @@ if (isset($_GET['reload'])) {
       exit(alert("Applying changes", "Please wait..."));
   }
 
+/* ─────────────────────────────── apiResponse ────────────────────────────── */
+echo '
+  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3">
+    <!-- Response from API will be displayed here -->
+  </div>
+';
+
 /* ───────────────────────── Startup (session) modal ──────────────────────── */
 echo '
 <div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="sessionModalLabel">Session</h5>
@@ -93,46 +123,73 @@ echo '
       </div>
       <div class="modal-body">
 
-        <div class="d-flex justify-content-evenly">
+        <div class="d-flex justify-content-around">
 
-          <div class="card m-2 text-align-center">
+
+          <!-- # NOTE: CREATE SESSION CARD -->
+          <div class="card m-2 w-100">
             <div class="card-status-top bg-success"></div>
-            <h4 class="card-header">Create Session</h4>
-            <div class="card-body text-align-center">
-              <a class="btn btn-success m-2 sessionActionBtn" id="createSessionBtn" data-action="createSession">
+            <h4 class="card-header text-center">Create session</h4>
+            <div class="card-body text-center">
+
+              <a class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
                   '.icon("person-plus-fill", 2).'
               </a>
+
+              <form class="sessionForm apiForm" id="createSessionForm" style="display:none;">
+                <input type="hidden" name="action" value="createSession">
+                <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
+                <div class="btn-group w-100">
+                  <button type="submit" class="btn btn-success m-1" id="createSessionConfirmBtn">Create Session</button>
+                  <a href="javascript:void(0);" class="btn btn-secondary m-1" data-bs-dismiss="modal">Cancel</a>
+                </div>
+              </form>
+
               <div class="sessionResponse" id="createSessionResponse" style="display:none;">
-              
+                <!-- Response from createSession will be displayed here -->
               </div>
+
             </div>
           </div>
 
-          <div class="card m-2">
+
+          <!-- # NOTE: JOIN SESSION CARD -->
+          <div class="card m-2 w-100">
             <div class="card-status-top bg-primary"></div>
-            <h4 class="card-header">Join session</h4>
-            <div class="card-body text-align-center">
-              <a class="btn btn-primary m-2 sessionActionBtn" id="joinSessionBtn" data-action="joinSession">
+            <h4 class="card-header text-center">Join session</h4>
+            <div class="card-body text-center">
+
+              <a class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
                   '.icon("people-fill", 2).'
               </a>
+
+              <form class="sessionForm apiForm" id="joinSessionForm" style="display:none;">
+                  <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session code">
+                  <div class="btn-group w-100">
+                    <button type="submit" class="btn btn-primary m-1" id="joinSessionConfirmBtn">Join Session</button>
+                    <a href="javascript:void(0);" class="btn btn-secondary m-1" data-bs-dismiss="modal">Cancel</a>
+                  </div>
+              </form>
+
               <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
-                <form action="api.php" method="POST">
-                  <input type="text" class="form-control" id="sessionCode" placeholder="Session code">
-                  <button type="submit" class="btn btn-primary m-2">Join</button>
-                </form>
+                <!-- Response from joinSession will be displayed here -->
               </div>
+
             </div>
           </div>
 
-          <div class="card m-2 text-align-center">
-            <h4 class="card-header">Listen Alone</h4>
+
+          <!-- # NOTE: CANCEL MODAL
+          <div class="card m-2 w-100">
+            <h4 class="card-header text-center">Listen alone</h4>
             <div class="card-status-top bg-secondary"></div>
-            <div class="card-body">
+            <div class="card-body text-center">
               <a class="btn btn-secondary m-2 sessionActionBtn" data-bs-dismiss="modal">
-                  '.icon("person-fill", 2).'
+                  '.icon("person-x-fill", 2).'
               </a>
             </div>
           </div>
+          -->
 
         </div>
 
@@ -163,39 +220,58 @@ echo '
         </thead>
         <tbody>';
       foreach (CONFIG as $key => $values) {
-        $name            = $values["name"];
-        $value           = $values["value"];
-        $description     = $values["description"];
-        $type            = $values["type"];
-        $attributes      = $values["attributes"] ?? [];
-        $inputData       = "data-key='".$key."'";
-        $cfgInputClass   = "settingInput";
-        // $json_value  = json_encode($value);
+        $name          = $values["name"];
+        $value         = $values["value"];
+        $description   = $values["description"];
+        $type          = $values["type"];
+        $attributes    = $values["attributes"] ?? [];
+        $inputData     = "data-key='".$key."'";
+        $cfgInputClass = "settingInput";
+        $badgeClass    = "badge text-bg-primary";
+        
+        # String
         if ($type == "string") {
-          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
-        } elseif ($type == "array") {
-          $value = json_encode($value, JSON_PRETTY_PRINT);
-          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
-        } elseif ($type == "bool") {
-          if ($value === "true") {
+          $badgeClass = "badge text-bg-secondary";
+          $input      = '<textarea class="autoheight form-control '.$cfgInputClass.'" '.$inputData.'>'.$value.'</textarea>';
+        }
+
+        # Array
+        if ($type == "array") {
+          $badgeClass = "badge text-bg-info";
+          $value      = json_encode($value, JSON_PRETTY_PRINT);
+          $input      = '<textarea class="autoheight form-control '.$cfgInputClass.'" '.$inputData.'>'.$value.'</textarea>';
+        }
+
+        # Boolean
+        if ($type == "bool") {
+          $badgeClass = "badge text-bg-azure";
+          if ($value === "true" || $value === 1) {
             $value = True;
-          } elseif ($value === "false") {
+          } elseif ($value === "false" || $value === 0 || empty($value)) {
             $value = False;
           }
           $input = '
             <div class="form-check form-switch">
               <input class="form-check-input '.$cfgInputClass.'" type="checkbox" '.($value ? 'checked' : '').' '.$inputData.'>
             </div>';
-        } elseif ($type == "range") {
-          $value = $value ?? 0;
-          $min  = $attributes["min"] ?? 0;
-          $max  = $attributes["max"] ?? 1;
-          $step = $attributes["step"] ?? .1;
-          $input = '
+        }
+
+        # Range
+        if ($type == "range") {
+          $badgeClass = "badge text-bg-warning";
+          $value      = $value ?? 0;
+          $min        = $attributes["min"] ?? 0;
+          $max        = $attributes["max"] ?? 1;
+          $step       = $attributes["step"] ?? .1;
+          $input      = '
             <input class="form-range '.$cfgInputClass.' settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
-            <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.$value.'</output>
+            <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.($value * 100).'%</output>
           ';
-        } elseif ($type == "selection") {
+        }
+
+        # Selection
+        if ($type == "selection") {
+          $badgeClass = "badge text-bg-success";
           $options = $values["options"];
           $input = '<select class="form-select '.$cfgInputClass.'" '.$inputData.'>';
           if (is_array($options)) {
@@ -206,24 +282,22 @@ echo '
           } else {
             $selected = Null;
             $input = "Invalid selection (not an array)";
-            continue;
           }
-          // foreach ($options as $index => $data) {
-          //   foreach ($data as $option => $fullName) {
-          //     $selected = ($option == $value) ? 'selected' : '';
-          //     $input .= '<option value="'.$option.'" '.$selected.'>'.$fullName.'</option>';
-          //   }
-          // }
           $input .= '</select>';
-        } else {
-          continue;
         }
         echo '
         <tr>
-          <td class="text-primary">
-            <label for="'.$key.'" class="form-label"><small class="badge text-bg-primary">'.$type.'</small> '.$name.'</label>
-            <small class="text-muted">'.$key.': '.$description.'</small>
-          </td>
+            <td class="text-primary">
+            <div class="d-flex justify-content-between">
+              <div>
+                <label for="'.$key.'" class="form-label">'.$name.'</label>
+                <small class="text-muted">'.$key.': '.$description.'</small>
+              </div>
+              <div>
+                <span class="'.$badgeClass.'">'.$type.'</span>
+              </div>
+            </div>
+            </td>
           <td>
             '.$input.'
           </td>
@@ -241,13 +315,6 @@ echo '</tbody>
     </div>
   </div>
 </div>
-';
-
-/* ─────────────────────────────── apiResponse ────────────────────────────── */
-echo '
-  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
-    <!-- Response from API will be displayed here -->
-  </div>
 ';
 
 echo '
@@ -308,8 +375,17 @@ echo '
 echo '
 <div class="card m-3">
   <div class="card-header d-flex justify-content-between">
-    <h2>'.getConfig("site_title").'</h2>
-    <small class="text-muted">'.ENV['VERSION'].'</small>
+      <div>
+        <h2>'.getConfig("site_title").' <small class="text-muted m-2">'.ENV['VERSION'].'</small></h2>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-pill btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
+          '.icon("gear").'
+        </button>
+        <button type="button" class="btn btn-sm btn-pill btn-secondary" data-bs-toggle="modal" data-bs-target="#sessionModal">
+          '.icon("people").'
+        </button>
+    </div>
   </div>
 <div class="card-body">
 
@@ -329,12 +405,7 @@ if (empty($musicFiles)) {
     echo '<p>Upload some music files to the <code>'.getConfig("audio_path").'/</code> directory.</p>';
 }
 echo '
-<div id="toolbar">
-  <div class="btn-group">
-    <button type="button" class="btn btn-sm btn-pill btn-outline-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
-    <button type="button" class="btn btn-sm btn-pill btn-outline-primary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
-  </div>
-</div>
+<div id="toolbar"></div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
   data-toggle="table" 
   data-search="true"  
@@ -439,50 +510,16 @@ echo '</div></div>';
     element.removeClass(warningClass);
   }
 
-  /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
-  function createSession() {
-    $(".sessionResponse").hide();
-    var createSessionResponse = $("#createSessionResponse");
-    // if (createSessionResponse.is(":visible")) {
-    //   createSessionResponse.fadeOut();
-    //   return;
-    // }
-    createSessionResponse.fadeIn();
-    createSessionResponse.html(`
-      <div class='text-center'>
-        <div class='spinner-border text-success createSessionSpinner' role='status'></div>
-        <br>
-        Creating session...
-      </div>
-    `);
-    api("createSession", function(response) {
-      if (response.status === "success") {
-        createSessionResponse.html(`
-          <div class='alert alert-success'>Session created successfully.</div>
-          <div class='text-center'>
-            <h3>Session code:</h3>
-            <h1 class='display-1'>`+response.data.code+`</h1>
-            <p>Share this code with your friends to join the session.</p>
-          </div>
-        `);
-        $(".modal-status").addClass("bg-success");
-      } else {
-        createSessionResponse.html(`
-          <div class='alert alert-danger'>`+response.message+`</div>
-        `);
-        $(".modal-status").addClass("bg-danger");
-      }
-    });
-  }
-
-  /* ───────────────────────── FUNCTION: joinSession ────────────────────────── */
-  function joinSession(id = null) {
-    var joinSessionResponse = $("#joinSessionResponse");
-    if (joinSessionResponse.is(":visible")) {
-      joinSessionResponse.fadeOut();
+  /* ────────────────────────── FUNCTION: toggleFade ────────────────────────── */
+  function toggleFade(selectorOrElement) {
+    var element = (typeof selectorOrElement === 'string') ? $(selectorOrElement) : selectorOrElement;
+    if ($(element).is(":visible")) {
+      $(element).fadeOut();
+      console.log("Fading out: " + element);
       return;
     }
-    joinSessionResponse.fadeIn();
+    console.log("Fading in: " + element);
+    element.fadeIn();
   }
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
@@ -753,6 +790,17 @@ echo '</div></div>';
 
   // showToast("Welcome to the Music Player!", "success");
 
+    /* ────────────────────── NOTE: autoheight ───────────────────── */
+    $(".autoheight").each(function() {
+      var lbr    = ($(this).text().match(/\n/g) || []).length;
+      var height = (lbr * 25) + 25;
+      console.log("Line breaks: " + lbr);
+      console.log("Height: " + height);
+      $(this).css("height", height+"px");
+      $(this).css("resize", "none");
+    });
+
+    /* ───────────────────────────── NOTE: Dropzone ───────────────────────────── */
     $("#musicDropzone").dropzone({
       url: apiURL,
       paramName: "files",
@@ -798,15 +846,28 @@ echo '</div></div>';
     var audioElement = $("audio")[0];
     audioElement.volume = <?= getConfig("default_volume") ?>;
 
-    /* ─────────────────────────── NOTE: Session Modal ────────────────────────── */
-    $(".sessionActionBtn").on("click", function() {
-      $(".sessionResponse").hide();
-      var action = $(this).data("action");
-      if (action === "createSession") {
-        createSession();
-      } else if (action === "joinSession") {
-        joinSession();
-      }
+    /* ──────────────────────────── NOTE: sessionBtn ──────────────────────────── */
+    $(".sessionBtn").on("click", function() {
+      $(".sessionForm").hide();
+      var target = $(this).data("target");
+      toggleFade(target);
+    });
+
+    /* ──────────────────────────── NOTE: sessionForm ─────────────────────────── */
+    $(".sessionForm").on("submit", function(e) {
+      e.preventDefault();
+      var action = apiURL;
+      var method = $(this).attr("method");
+      var data   = $(this).serialize();
+      console.log("Session form data: ", data);
+      api(action, data);
+    });
+    
+    /* ────────────────────── NOTE: createSessionConfirmBtn ───────────────────── */
+    $(".sessionConfirmBtn").on("click", function(e) {
+      e.preventDefault();
+      var action = "createSession";
+      var data = $(this).closest("form").serialize();
     });
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
@@ -944,8 +1005,8 @@ echo '</div></div>';
     // Keyboard shortcuts
     $(document).keydown(function(e) {
       if (e.code === 'Space' && !$(':focus').is('input, textarea')) {
-      e.preventDefault();
-      toggleSong();
+        e.preventDefault();
+        toggleSong();
       }
     });
 
@@ -977,7 +1038,7 @@ echo '</div></div>';
       var key      = $(this).attr("id");
       var value    = $(this).val();
       var valueObj = $(this).attr("data-valueobject");
-      $("#" + valueObj).text(value);
+      $("#" + valueObj).text(value * 100 + "%");
     });
 });
 </script>
