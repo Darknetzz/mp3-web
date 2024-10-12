@@ -122,34 +122,56 @@ echo '
 
         <div class="d-flex justify-content-around">
 
+
+          <!-- # NOTE: CREATE SESSION CARD -->
           <div class="card m-2 w-100">
             <div class="card-status-top bg-success"></div>
             <h4 class="card-header text-center">Create session</h4>
             <div class="card-body text-center">
-              <a class="btn btn-success m-2 sessionActionBtn" id="createSessionBtn" data-action="createSession">
+
+              <a class="btn btn-success m-2 sessionBtn" id="createSessionBtn" data-action="createSession">
                   '.icon("person-plus-fill", 2).'
               </a>
-              <div class="sessionResponse" id="createSessionResponse" style="display:none;">
+
+              <div class="sessionForm" id="createSessionForm" style="display:none;">
+                 <input type="text" class="form-control w-100" id="sessionName" placeholder="Session name (optional)">
+                 <button class="btn btn-success m-1 w-100" id="createSessionConfirmBtn">Create Session</button>
               </div>
+
+              <div class="sessionResponse" id="createSessionResponse" style="display:none;">
+                <!-- Response from createSession will be displayed here -->
+              </div>
+
             </div>
           </div>
 
+
+          <!-- # NOTE: JOIN SESSION CARD -->
           <div class="card m-2 w-100">
             <div class="card-status-top bg-primary"></div>
             <h4 class="card-header text-center">Join session</h4>
             <div class="card-body text-center">
-              <a class="btn btn-primary m-2 sessionActionBtn" id="joinSessionBtn" data-action="joinSession">
+
+              <a class="btn btn-primary m-2 sessionBtn" id="joinSessionBtn" data-action="joinSession">
                   '.icon("people-fill", 2).'
               </a>
-              <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
+
+              <div class="sessionForm" id="joinSessionForm" style="display:none;">
                 <form action="api.php" method="POST">
-                  <input type="text" class="form-control" id="sessionCode" placeholder="Session code">
-                  <button type="submit" class="btn btn-primary m-2">Join</button>
+                  <input type="text" class="form-control w-100" id="sessionCode" placeholder="Session code">
+                  <button class="btn btn-primary m-1 w-100" id="joinSessionConfirmBtn">Join Session</button>
                 </form>
               </div>
+
+              <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
+                <!-- Response from joinSession will be displayed here -->
+              </div>
+
             </div>
           </div>
 
+
+          <!-- # NOTE: CANCEL MODAL -->
           <div class="card m-2 w-100">
             <h4 class="card-header text-center">Listen alone</h4>
             <div class="card-status-top bg-secondary"></div>
@@ -475,51 +497,39 @@ echo '</div></div>';
     element.removeClass(warningClass);
   }
 
-  /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
-  function createSession() {
-    $(".sessionResponse").hide();
-    var createSessionResponse = $("#createSessionResponse");
-    // if (createSessionResponse.is(":visible")) {
-    //   createSessionResponse.fadeOut();
-    //   return;
-    // }
-    createSessionResponse.fadeIn();
-    createSessionResponse.html(`
-      <div>
-        <br>
-        <input type='text' class='form-control w-100' id='sessionName' placeholder='Session name (optional)'>
-        <button class='btn btn-success m-1 w-100' id='createSessionConfirmBtn'>Create Session</button>
-      </div>
-    `);
-    api("createSession", function(response) {
-      if (response.status === "success") {
-        createSessionResponse.html(`
-          <div class='alert alert-success'>Session created successfully.</div>
-          <div class='text-center'>
-            <h3>Session code:</h3>
-            <h1 class='display-1'>`+response.data.code+`</h1>
-            <p>Share this code with your friends to join the session.</p>
-          </div>
-        `);
-        $(".modal-status").addClass("bg-success");
-      } else {
-        createSessionResponse.html(`
-          <div class='alert alert-danger'>`+response.message+`</div>
-        `);
-        $(".modal-status").addClass("bg-danger");
-      }
-    });
-  }
+  // /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
+  // function createSession() {
+  //   $(".sessionForm").hide();
+  //   var createSessionResponse = $("#createSessionResponse");
+  //   api("createSession", function(response) {
+  //     if (response.status === "success") {
+  //       createSessionResponse.html(`
+  //         <div class='alert alert-success'>Session created successfully.</div>
+  //         <div class='text-center'>
+  //           <h3>Session code:</h3>
+  //           <h1 class='display-1'>`+response.data.code+`</h1>
+  //           <p>Share this code with your friends to join the session.</p>
+  //         </div>
+  //       `);
+  //       $(".modal-status").addClass("bg-success");
+  //     } else {
+  //       createSessionResponse.html(`
+  //         <div class='alert alert-danger'>`+response.message+`</div>
+  //       `);
+  //       $(".modal-status").addClass("bg-danger");
+  //     }
+  //   });
+  // }
 
-  /* ───────────────────────── FUNCTION: joinSession ────────────────────────── */
-  function joinSession(id = null) {
-    var joinSessionResponse = $("#joinSessionResponse");
-    if (joinSessionResponse.is(":visible")) {
-      joinSessionResponse.fadeOut();
-      return;
-    }
-    joinSessionResponse.fadeIn();
-  }
+  // /* ───────────────────────── FUNCTION: joinSession ────────────────────────── */
+  // function joinSession(id = null) {
+  //   var joinSessionResponse = $("#joinSessionResponse");
+  //   if (joinSessionResponse.is(":visible")) {
+  //     joinSessionResponse.fadeOut();
+  //     return;
+  //   }
+  //   joinSessionResponse.fadeIn();
+  // }
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
   function urldecode(str) {
@@ -834,15 +844,23 @@ echo '</div></div>';
     var audioElement = $("audio")[0];
     audioElement.volume = <?= getConfig("default_volume") ?>;
 
-    /* ─────────────────────────── NOTE: Session Modal ────────────────────────── */
-    $(".sessionActionBtn").on("click", function() {
-      $(".sessionResponse").hide();
+    /* ──────────────────────────── NOTE: sessionBtn ──────────────────────────── */
+    $(".sessionBtn").on("click", function() {
+      $(".sessionForm").hide();
       var action = $(this).data("action");
-      if (action === "createSession") {
-        createSession();
-      } else if (action === "joinSession") {
-        joinSession();
-      }
+      $("#"+action+"Form").fadeIn();
+    });
+
+    /* ───────────────────────── NOTE: createSessionBtn ───────────────────────── */
+    $("#createSessionBtn").on("click", function() {
+      $(".sessionForm").hide();
+      $("#createSessionForm").fadeIn();
+    });
+
+    /* ─────────────────────────── NOTE: joinSessionBtn ───────────────────────── */
+    $("#joinSessionBtn").on("click", function() {
+      $(".sessionForm").hide();
+      $("#joinSessionForm").fadeIn();
     });
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
