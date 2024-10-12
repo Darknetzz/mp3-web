@@ -30,9 +30,11 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         margin: 0;
         padding: 0;
         box-sizing: border-box;
+        z-index: auto;
       }
       .container {
         padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
+        z-index: auto;
       }
       .audio-player-container {
         position: fixed;
@@ -41,7 +43,7 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         width: 100%;
         /* background-color: #f8f9fa; */
         box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-        z-index: 1000;
+        z-index: 10;
         padding: 10px;
       }
       .audio-player-container audio {
@@ -58,6 +60,24 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
         padding-right: calc(1.5em + 0.75rem);
         border-color: #ffc107;
+      }
+      .modal {
+        z-index: 100;
+      }
+      .modal-backdrop {
+          opacity:0.85 !important;
+          /* -webkit-backdrop-filter: blur(15px); Safari */
+          /* backdrop-filter: blur(15px); Other browsers */
+          background-color: rgba(255, 255, 255, 0.4);
+          -webkit-backdrop-filter: blur(20px);
+          backdrop-filter: blur(20px);
+          z-index: 50;
+      }
+      .toast-container {
+        z-index: 150;
+      }
+      .toast {
+        z-index: 200;
       }
     </style>
   </head>
@@ -81,10 +101,17 @@ if (isset($_GET['reload'])) {
       exit(alert("Applying changes", "Please wait..."));
   }
 
+/* ─────────────────────────────── apiResponse ────────────────────────────── */
+echo '
+  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3">
+    <!-- Response from API will be displayed here -->
+  </div>
+';
+
 /* ───────────────────────── Startup (session) modal ──────────────────────── */
 echo '
 <div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="sessionModalLabel">Session</h5>
@@ -93,25 +120,24 @@ echo '
       </div>
       <div class="modal-body">
 
-        <div class="d-flex justify-content-evenly">
+        <div class="d-flex justify-content-around">
 
-          <div class="card m-2 text-align-center">
+          <div class="card m-2 w-100">
             <div class="card-status-top bg-success"></div>
-            <h4 class="card-header">Create Session</h4>
-            <div class="card-body text-align-center">
+            <h4 class="card-header text-center">Create session</h4>
+            <div class="card-body text-center">
               <a class="btn btn-success m-2 sessionActionBtn" id="createSessionBtn" data-action="createSession">
                   '.icon("person-plus-fill", 2).'
               </a>
               <div class="sessionResponse" id="createSessionResponse" style="display:none;">
-              
               </div>
             </div>
           </div>
 
-          <div class="card m-2">
+          <div class="card m-2 w-100">
             <div class="card-status-top bg-primary"></div>
-            <h4 class="card-header">Join session</h4>
-            <div class="card-body text-align-center">
+            <h4 class="card-header text-center">Join session</h4>
+            <div class="card-body text-center">
               <a class="btn btn-primary m-2 sessionActionBtn" id="joinSessionBtn" data-action="joinSession">
                   '.icon("people-fill", 2).'
               </a>
@@ -124,12 +150,12 @@ echo '
             </div>
           </div>
 
-          <div class="card m-2 text-align-center">
-            <h4 class="card-header">Listen Alone</h4>
+          <div class="card m-2 w-100">
+            <h4 class="card-header text-center">Listen alone</h4>
             <div class="card-status-top bg-secondary"></div>
-            <div class="card-body">
+            <div class="card-body text-center">
               <a class="btn btn-secondary m-2 sessionActionBtn" data-bs-dismiss="modal">
-                  '.icon("person-fill", 2).'
+                  '.icon("person-x-fill", 2).'
               </a>
             </div>
           </div>
@@ -163,30 +189,45 @@ echo '
         </thead>
         <tbody>';
       foreach (CONFIG as $key => $values) {
-        $name            = $values["name"];
-        $value           = $values["value"];
-        $description     = $values["description"];
-        $type            = $values["type"];
-        $attributes      = $values["attributes"] ?? [];
-        $inputData       = "data-key='".$key."'";
-        $cfgInputClass   = "settingInput";
-        // $json_value  = json_encode($value);
+        $name          = $values["name"];
+        $value         = $values["value"];
+        $description   = $values["description"];
+        $type          = $values["type"];
+        $attributes    = $values["attributes"] ?? [];
+        $inputData     = "data-key='".$key."'";
+        $cfgInputClass = "settingInput";
+        $badgeClass    = "badge text-bg-primary";
+        
+        # String
         if ($type == "string") {
-          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
-        } elseif ($type == "array") {
+          $badgeClass = "badge text-bg-secondary";
+          $input      = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
+        }
+
+        # Array
+        if ($type == "array") {
+          $badgeClass = "badge text-bg-info";
           $value = json_encode($value, JSON_PRETTY_PRINT);
           $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
-        } elseif ($type == "bool") {
-          if ($value === "true") {
+        }
+
+        # Boolean
+        if ($type == "bool") {
+          $badgeClass = "badge text-bg-azure";
+          if ($value === "true" || $value === 1) {
             $value = True;
-          } elseif ($value === "false") {
+          } elseif ($value === "false" || $value === 0 || empty($value)) {
             $value = False;
           }
           $input = '
             <div class="form-check form-switch">
               <input class="form-check-input '.$cfgInputClass.'" type="checkbox" '.($value ? 'checked' : '').' '.$inputData.'>
             </div>';
-        } elseif ($type == "range") {
+        }
+
+        # Range
+        if ($type == "range") {
+          $badgeClass = "badge text-bg-warning";
           $value = $value ?? 0;
           $min  = $attributes["min"] ?? 0;
           $max  = $attributes["max"] ?? 1;
@@ -195,7 +236,11 @@ echo '
             <input class="form-range '.$cfgInputClass.' settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
             <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.$value.'</output>
           ';
-        } elseif ($type == "selection") {
+        }
+
+        # Selection
+        if ($type == "selection") {
+          $badgeClass = "badge text-bg-success";
           $options = $values["options"];
           $input = '<select class="form-select '.$cfgInputClass.'" '.$inputData.'>';
           if (is_array($options)) {
@@ -206,24 +251,22 @@ echo '
           } else {
             $selected = Null;
             $input = "Invalid selection (not an array)";
-            continue;
           }
-          // foreach ($options as $index => $data) {
-          //   foreach ($data as $option => $fullName) {
-          //     $selected = ($option == $value) ? 'selected' : '';
-          //     $input .= '<option value="'.$option.'" '.$selected.'>'.$fullName.'</option>';
-          //   }
-          // }
           $input .= '</select>';
-        } else {
-          continue;
         }
         echo '
         <tr>
-          <td class="text-primary">
-            <label for="'.$key.'" class="form-label"><small class="badge text-bg-primary">'.$type.'</small> '.$name.'</label>
-            <small class="text-muted">'.$key.': '.$description.'</small>
-          </td>
+            <td class="text-primary">
+            <div class="d-flex justify-content-between">
+              <div>
+                <label for="'.$key.'" class="form-label">'.$name.'</label>
+                <small class="text-muted">'.$key.': '.$description.'</small>
+              </div>
+              <div>
+                <span class="'.$badgeClass.'">'.$type.'</span>
+              </div>
+            </div>
+            </td>
           <td>
             '.$input.'
           </td>
@@ -241,13 +284,6 @@ echo '</tbody>
     </div>
   </div>
 </div>
-';
-
-/* ─────────────────────────────── apiResponse ────────────────────────────── */
-echo '
-  <div id="apiResponse" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
-    <!-- Response from API will be displayed here -->
-  </div>
 ';
 
 echo '
@@ -449,10 +485,10 @@ echo '</div></div>';
     // }
     createSessionResponse.fadeIn();
     createSessionResponse.html(`
-      <div class='text-center'>
-        <div class='spinner-border text-success createSessionSpinner' role='status'></div>
+      <div>
         <br>
-        Creating session...
+        <input type='text' class='form-control w-100' id='sessionName' placeholder='Session name (optional)'>
+        <button class='btn btn-success m-1 w-100' id='createSessionConfirmBtn'>Create Session</button>
       </div>
     `);
     api("createSession", function(response) {
