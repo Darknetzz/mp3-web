@@ -80,9 +80,7 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
         z-index: 200;
       }
       .autoheight {
-        resize: none;
-        width : fit-content !important;
-        height: fit-content !important;
+        height: auto;
       }
     </style>
   </head>
@@ -234,14 +232,14 @@ echo '
         # String
         if ($type == "string") {
           $badgeClass = "badge text-bg-secondary";
-          $input      = '<textarea class="form-control '.$cfgInputClass.'" '.$inputData.'>'.$value.'</textarea>';
+          $input      = '<textarea class="autoheight form-control '.$cfgInputClass.'" '.$inputData.'>'.$value.'</textarea>';
         }
 
         # Array
         if ($type == "array") {
           $badgeClass = "badge text-bg-info";
           $value      = json_encode($value, JSON_PRETTY_PRINT);
-          $input      = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
+          $input      = '<textarea class="autoheight form-control '.$cfgInputClass.'" '.$inputData.'>'.$value.'</textarea>';
         }
 
         # Boolean
@@ -792,6 +790,17 @@ echo '</div></div>';
 
   // showToast("Welcome to the Music Player!", "success");
 
+    /* ────────────────────── NOTE: autoheight ───────────────────── */
+    $(".autoheight").each(function() {
+      var lbr    = ($(this).text().match(/\n/g) || []).length;
+      var height = (lbr * 25) + 25;
+      console.log("Line breaks: " + lbr);
+      console.log("Height: " + height);
+      $(this).css("height", height+"px");
+      $(this).css("resize", "none");
+    });
+
+    /* ───────────────────────────── NOTE: Dropzone ───────────────────────────── */
     $("#musicDropzone").dropzone({
       url: apiURL,
       paramName: "files",
@@ -996,8 +1005,8 @@ echo '</div></div>';
     // Keyboard shortcuts
     $(document).keydown(function(e) {
       if (e.code === 'Space' && !$(':focus').is('input, textarea')) {
-      e.preventDefault();
-      toggleSong();
+        e.preventDefault();
+        toggleSong();
       }
     });
 
