@@ -50,6 +50,15 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
       .audio-player-container .btn-group {
         margin-top: 10px;
       }
+      .form-control.is-warning {
+        background-image: url('https://upload.wikimedia.org/wikipedia/commons/c/c9/Exclamation_flat_icon.svg');
+        background-repeat: no-repeat;
+        /* background-position: right calc(0.375em + 0.1875rem) center; */
+        background-position: right 10% top 25%;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        padding-right: calc(1.5em + 0.75rem);
+        border-color: #ffc107;
+      }
     </style>
   </head>
 <body data-bs-theme="dark">
@@ -322,14 +331,13 @@ if (empty($musicFiles)) {
 echo '
 <div id="toolbar">
   <div class="btn-group">
-    <button type="button" class="btn btn-sm btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
-    <button type="button" class="btn btn-sm btn-primary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
+    <button type="button" class="btn btn-sm btn-pill btn-outline-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
+    <button type="button" class="btn btn-sm btn-pill btn-outline-primary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
   </div>
 </div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
   data-toggle="table" 
-  data-search="true" 
-  data-sortable="true" 
+  data-search="true"  
   data-show-refresh="true"
   data-show-toggle="true"
   data-show-columns="true"
@@ -339,13 +347,13 @@ echo '
   data-escape="false"
 >
   <thead id="playlistHead">
-  <tr class="table-success">
-    <th data-field="id" data-visible="false">#</th>
-    <th data-field="name">Name</th>
-    <th data-field="filename" data-visible="false">Filename</th>
-    <th data-field="duration">Duration</th>
-    <th data-field="size" data-visible="false">Size</th>
-    <th data-field="date" data-visible="false">Date</th>
+  <tr>
+    <th data-sortable="true" data-field="id" data-visible="false">#</th>
+    <th data-sortable="true" data-field="name">Name</th>
+    <th data-sortable="true" data-field="filename" data-visible="false">Filename</th>
+    <th data-sortable="true" data-field="duration">Duration</th>
+    <th data-sortable="true" data-field="size" data-visible="false">Size</th>
+    <th data-sortable="true" data-field="date" data-visible="false">Date</th>
     <th data-field="queue">Queue</th>
     <th data-field="download">Download</th>
     <th data-field="delete" data-visible="false">Delete</th>
@@ -400,19 +408,36 @@ echo '</div></div>';
 /* ────────────────────────────────────────────────────────────────────────── */
 -->
 <script>
-  var playlistTable = $('#playlistTable');
-  var pauseIcon     = "⏸ ";
-  var playIcon      = "⏵ ";
-  var pauseIconHTML = '<?= icon('pause-fill') ?>';
-  var playIconHTML  = '<?= icon('play-fill') ?>';
-  var playing       = false;
-  var shuffle       = false;
-  var loop          = false;
-  var duration      = 0;
-  var currentTime   = 0;
-  var currentIndex  = 0;
-  var apiURL        = "api.php";
-  var queue         = [];
+  var playlistTable         = $('#playlistTable');
+  var pauseIcon             = "⏸ ";
+  var playIcon              = "⏵ ";
+  var pauseIconHTML         = '<?= icon('pause-fill') ?>';
+  var playIconHTML          = '<?= icon('play-fill') ?>';
+  var playing               = false;
+  var shuffle               = false;
+  var loop                  = false;
+  var duration              = 0;
+  var currentTime           = 0;
+  var currentIndex          = 0;
+  var apiURL                = "api.php";
+  var queue                 = [];
+  var activeClass           = "table-active text-success";
+  var warningClass          = "text-warning border border-warning is-warning";
+  var successClass          = "text-success border border-success is-valid";
+
+  /* ────────────────────────── FUNCTION: setWarning ────────────────────────── */
+  function setWarning(selectorOrElement) {
+    var element = (typeof selectorOrElement === 'string') ? $(selectorOrElement) : selectorOrElement;
+    element.addClass(warningClass);
+    element.removeClass(successClass);
+  }
+
+  /* ────────────────────────── FUNCTION: setSuccess ────────────────────────── */
+  function setSuccess(selectorOrElement) {
+    var element = (typeof selectorOrElement === 'string') ? $(selectorOrElement) : selectorOrElement;
+    element.addClass(successClass);
+    element.removeClass(warningClass);
+  }
 
   /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
   function createSession() {
@@ -508,7 +533,7 @@ echo '</div></div>';
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index) {
     console.log("Playing song at index: " + index);
-    $("tr.songrow").removeClass("table-success");
+    $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
     var tableData  = playlistTable.bootstrapTable('getData');
     var firstIndex = tableData[0].id;
     var lastIndex  = tableData.slice(-1)[0].id;
@@ -546,7 +571,7 @@ echo '</div></div>';
     $("audio")[0].play();
     var activeRow = $("tr.songrow[data-uniqueid='" + index + "']");
     window.currentIndex = index;
-    activeRow.addClass("table-success");
+    activeRow.addClass(activeClass).children().addClass(activeClass);
     scrollToActiveSong();
   }
 
@@ -925,21 +950,27 @@ echo '</div></div>';
     });
 
     // cfgInputClass
-    $(".<?= $cfgInputClass ?>").on("change", function() {
-      $(".reloadCfgBtn").show();
-      var key   = $(this).data("key");
-      if (typeof(key) === "undefined") {
-        console.log("Key is undefined.", key);
-        return;
-      }
-      if ($(this).is(":checkbox")) {
-        var value = ($(this).is(":checked") ? true : false);
-      } else {
-        var value = $(this).val();
-      }
-      console.log("Key: " + key + ", Value: " + value);
-      api("setconfig", { config: { key: key, value: value } }, "POST");
-    });
+    $(".<?= $cfgInputClass ?>")
+      .on("keydown", function() {
+        setWarning($(this));
+        $(".reloadCfgBtn").show();
+      })
+      .on("change", function() {
+        $(".reloadCfgBtn").show();
+        var key   = $(this).data("key");
+        if (typeof(key) === "undefined") {
+          console.log("Key is undefined.", key);
+          return;
+        }
+        if ($(this).is(":checkbox")) {
+          var value = ($(this).is(":checked") ? true : false);
+        } else {
+          var value = $(this).val();
+        }
+        console.log("Key: " + key + ", Value: " + value);
+        api("setconfig", { config: { key: key, value: value } }, "POST");
+        setSuccess($(this));
+      });
 
     // Setting Range
     $(".settingRange").on("input", function() {
