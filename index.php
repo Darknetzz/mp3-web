@@ -129,14 +129,18 @@ echo '
             <h4 class="card-header text-center">Create session</h4>
             <div class="card-body text-center">
 
-              <a class="btn btn-success m-2 sessionBtn" id="createSessionBtn" data-action="createSession">
+              <a class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
                   '.icon("person-plus-fill", 2).'
               </a>
 
-              <div class="sessionForm" id="createSessionForm" style="display:none;">
-                 <input type="text" class="form-control w-100" id="sessionName" placeholder="Session name (optional)">
-                 <button class="btn btn-success m-1 w-100" id="createSessionConfirmBtn">Create Session</button>
-              </div>
+              <form class="sessionForm apiForm" id="createSessionForm" style="display:none;">
+                <input type="hidden" name="action" value="createSession">
+                <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
+                <div class="btn-group w-100">
+                  <button type="submit" class="btn btn-success m-1" id="createSessionConfirmBtn">Create Session</button>
+                  <a href="javascript:void(0);" class="btn btn-secondary m-1" data-bs-dismiss="modal">Cancel</a>
+                </div>
+              </form>
 
               <div class="sessionResponse" id="createSessionResponse" style="display:none;">
                 <!-- Response from createSession will be displayed here -->
@@ -152,16 +156,17 @@ echo '
             <h4 class="card-header text-center">Join session</h4>
             <div class="card-body text-center">
 
-              <a class="btn btn-primary m-2 sessionBtn" id="joinSessionBtn" data-action="joinSession">
+              <a class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
                   '.icon("people-fill", 2).'
               </a>
 
-              <div class="sessionForm" id="joinSessionForm" style="display:none;">
-                <form action="api.php" method="POST">
-                  <input type="text" class="form-control w-100" id="sessionCode" placeholder="Session code">
-                  <button class="btn btn-primary m-1 w-100" id="joinSessionConfirmBtn">Join Session</button>
-                </form>
-              </div>
+              <form class="sessionForm apiForm" id="joinSessionForm" style="display:none;">
+                  <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session code">
+                  <div class="btn-group w-100">
+                    <button type="submit" class="btn btn-primary m-1" id="joinSessionConfirmBtn">Join Session</button>
+                    <a href="javascript:void(0);" class="btn btn-secondary m-1" data-bs-dismiss="modal">Cancel</a>
+                  </div>
+              </form>
 
               <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
                 <!-- Response from joinSession will be displayed here -->
@@ -171,7 +176,7 @@ echo '
           </div>
 
 
-          <!-- # NOTE: CANCEL MODAL -->
+          <!-- # NOTE: CANCEL MODAL
           <div class="card m-2 w-100">
             <h4 class="card-header text-center">Listen alone</h4>
             <div class="card-status-top bg-secondary"></div>
@@ -181,6 +186,7 @@ echo '
               </a>
             </div>
           </div>
+          -->
 
         </div>
 
@@ -366,8 +372,17 @@ echo '
 echo '
 <div class="card m-3">
   <div class="card-header d-flex justify-content-between">
-    <h2>'.getConfig("site_title").'</h2>
-    <small class="text-muted">'.ENV['VERSION'].'</small>
+      <div>
+        <h2>'.getConfig("site_title").' <small class="text-muted m-2">'.ENV['VERSION'].'</small></h2>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-pill btn-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
+          '.icon("gear").'
+        </button>
+        <button type="button" class="btn btn-sm btn-pill btn-secondary" data-bs-toggle="modal" data-bs-target="#sessionModal">
+          '.icon("people").'
+        </button>
+    </div>
   </div>
 <div class="card-body">
 
@@ -387,12 +402,7 @@ if (empty($musicFiles)) {
     echo '<p>Upload some music files to the <code>'.getConfig("audio_path").'/</code> directory.</p>';
 }
 echo '
-<div id="toolbar">
-  <div class="btn-group">
-    <button type="button" class="btn btn-sm btn-pill btn-outline-secondary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">'.icon("gear").' Configuration</button>
-    <button type="button" class="btn btn-sm btn-pill btn-outline-primary sessionBtn" data-bs-toggle="modal" data-bs-target="#sessionModal">'.icon("people").' Session</button>
-  </div>
-</div>
+<div id="toolbar"></div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
   data-toggle="table" 
   data-search="true"  
@@ -497,39 +507,17 @@ echo '</div></div>';
     element.removeClass(warningClass);
   }
 
-  // /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
-  // function createSession() {
-  //   $(".sessionForm").hide();
-  //   var createSessionResponse = $("#createSessionResponse");
-  //   api("createSession", function(response) {
-  //     if (response.status === "success") {
-  //       createSessionResponse.html(`
-  //         <div class='alert alert-success'>Session created successfully.</div>
-  //         <div class='text-center'>
-  //           <h3>Session code:</h3>
-  //           <h1 class='display-1'>`+response.data.code+`</h1>
-  //           <p>Share this code with your friends to join the session.</p>
-  //         </div>
-  //       `);
-  //       $(".modal-status").addClass("bg-success");
-  //     } else {
-  //       createSessionResponse.html(`
-  //         <div class='alert alert-danger'>`+response.message+`</div>
-  //       `);
-  //       $(".modal-status").addClass("bg-danger");
-  //     }
-  //   });
-  // }
-
-  // /* ───────────────────────── FUNCTION: joinSession ────────────────────────── */
-  // function joinSession(id = null) {
-  //   var joinSessionResponse = $("#joinSessionResponse");
-  //   if (joinSessionResponse.is(":visible")) {
-  //     joinSessionResponse.fadeOut();
-  //     return;
-  //   }
-  //   joinSessionResponse.fadeIn();
-  // }
+  /* ────────────────────────── FUNCTION: toggleFade ────────────────────────── */
+  function toggleFade(selectorOrElement) {
+    var element = (typeof selectorOrElement === 'string') ? $(selectorOrElement) : selectorOrElement;
+    if ($(element).is(":visible")) {
+      $(element).fadeOut();
+      console.log("Fading out: " + element);
+      return;
+    }
+    console.log("Fading in: " + element);
+    element.fadeIn();
+  }
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
   function urldecode(str) {
@@ -847,20 +835,17 @@ echo '</div></div>';
     /* ──────────────────────────── NOTE: sessionBtn ──────────────────────────── */
     $(".sessionBtn").on("click", function() {
       $(".sessionForm").hide();
-      var action = $(this).data("action");
-      $("#"+action+"Form").fadeIn();
+      var target = $(this).data("target");
+      toggleFade(target);
     });
 
-    /* ───────────────────────── NOTE: createSessionBtn ───────────────────────── */
-    $("#createSessionBtn").on("click", function() {
-      $(".sessionForm").hide();
-      $("#createSessionForm").fadeIn();
-    });
-
-    /* ─────────────────────────── NOTE: joinSessionBtn ───────────────────────── */
-    $("#joinSessionBtn").on("click", function() {
-      $(".sessionForm").hide();
-      $("#joinSessionForm").fadeIn();
+    /* ──────────────────────────── NOTE: sessionForm ─────────────────────────── */
+    $(".sessionForm").on("submit", function(e) {
+      e.preventDefault();
+      var action = apiURL;
+      var method = $(this).attr("method");
+      var data = $(this).serialize();
+      api(action, data);
     });
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */

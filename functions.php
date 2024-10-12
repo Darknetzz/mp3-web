@@ -348,6 +348,9 @@
 
     /* ───────────────────────── FUNCTION: joinSession ─────────────────────────── */
     function joinSession($id = Null) {
+        if (empty($id)) {
+            apiResponse("error", "The session code is empty.");
+        }
         if (!isset($_SESSION["session_code"])) {
             apiResponse("error", "The session code is not set.");
         }
