@@ -349,13 +349,13 @@
     /* ───────────────────────── FUNCTION: joinSession ─────────────────────────── */
     function joinSession($id = Null) {
         if (empty($id)) {
-            apiResponse("error", "The session code is empty.");
+            return apiResponse("error", "The session code is empty.");
         }
         if (!isset($_SESSION["session_code"])) {
-            apiResponse("error", "The session code is not set.");
+            return apiResponse("error", "The session code is not set.");
         }
         if ($_SESSION["session_code"] !== $id) {
-            apiResponse("error", "The session code is invalid.");
+            return apiResponse("error", "The session code is invalid.");
         }
         return apiResponse("success", "You have joined session <code>$id</code>.");
     }

@@ -79,6 +79,11 @@ $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
       .toast {
         z-index: 200;
       }
+      .autoheight {
+        resize: none;
+        width : fit-content !important;
+        height: fit-content !important;
+      }
     </style>
   </head>
 <body data-bs-theme="dark">
@@ -229,14 +234,14 @@ echo '
         # String
         if ($type == "string") {
           $badgeClass = "badge text-bg-secondary";
-          $input      = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
+          $input      = '<textarea class="form-control '.$cfgInputClass.'" '.$inputData.'>'.$value.'</textarea>';
         }
 
         # Array
         if ($type == "array") {
           $badgeClass = "badge text-bg-info";
-          $value = json_encode($value, JSON_PRETTY_PRINT);
-          $input = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
+          $value      = json_encode($value, JSON_PRETTY_PRINT);
+          $input      = '<textarea class="form-control '.$cfgInputClass.'" type="text" '.$inputData.'>'.$value.'</textarea>';
         }
 
         # Boolean
@@ -256,13 +261,13 @@ echo '
         # Range
         if ($type == "range") {
           $badgeClass = "badge text-bg-warning";
-          $value = $value ?? 0;
-          $min  = $attributes["min"] ?? 0;
-          $max  = $attributes["max"] ?? 1;
-          $step = $attributes["step"] ?? .1;
-          $input = '
+          $value      = $value ?? 0;
+          $min        = $attributes["min"] ?? 0;
+          $max        = $attributes["max"] ?? 1;
+          $step       = $attributes["step"] ?? .1;
+          $input      = '
             <input class="form-range '.$cfgInputClass.' settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
-            <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.$value.'</output>
+            <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.($value * 100).'%</output>
           ';
         }
 
@@ -844,8 +849,16 @@ echo '</div></div>';
       e.preventDefault();
       var action = apiURL;
       var method = $(this).attr("method");
-      var data = $(this).serialize();
+      var data   = $(this).serialize();
+      console.log("Session form data: ", data);
       api(action, data);
+    });
+    
+    /* ────────────────────── NOTE: createSessionConfirmBtn ───────────────────── */
+    $(".sessionConfirmBtn").on("click", function(e) {
+      e.preventDefault();
+      var action = "createSession";
+      var data = $(this).closest("form").serialize();
     });
 
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
@@ -1016,7 +1029,7 @@ echo '</div></div>';
       var key      = $(this).attr("id");
       var value    = $(this).val();
       var valueObj = $(this).attr("data-valueobject");
-      $("#" + valueObj).text(value);
+      $("#" + valueObj).text(value * 100 + "%");
     });
 });
 </script>
