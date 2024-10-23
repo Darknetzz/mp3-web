@@ -68,7 +68,7 @@ echo '
       <h3 id="songtitle" class="card-header text-success">'.getConfig("no_song_text").'</h3>
       <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
       <div class="card-body">
-          <audio '.(getConfig('use_legacy_player') ? 'controls' : '').' style="width:100%">
+          <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
           <source id="audioSource" src="" type="audio/mpeg">
           Your browser does not support the audio element.
           </audio>';
