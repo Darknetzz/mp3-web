@@ -367,7 +367,12 @@
     });
 
     var audioElement = $("audio")[0];
-    audioElement.volume = <?= getConfig("default_volume") ?>;
+    if (localStorage.getItem('volume')) {
+      $("#volumeSlider").val(localStorage.getItem('volume'));
+    } else {
+      $("#volumeSlider").val(<?= getConfig("default_volume") ?>);
+      // audioElement.volume = <?= getConfig("default_volume") ?>;
+    }
 
     /* ──────────────────────────── NOTE: sessionBtn ──────────────────────────── */
     $(".sessionBtn").on("click", function() {
@@ -450,6 +455,7 @@
 
     /* ────────────────────────────── NOTE: volumeSlider ──────────────────────── */
     $("#volumeSlider").on('input', function() {
+      localStorage.setItem('volume', $(this).val());
       audioElement.volume = $(this).val();
       if ($(this).val() == 0) {
         $(".volumeIcon").html('<?= icon("volume-mute-fill", 2) ?>');
