@@ -367,8 +367,9 @@
     });
 
     var audioElement = $("audio")[0];
-    if (localStorage.getItem('volume')) {
-      $("#volumeSlider").val(localStorage.getItem('volume'));
+    var storedVolume = localStorage.getItem('volume');
+    if (storedVolume && !isNaN(storedVolume) && storedVolume >= 0 && storedVolume <= 100) {
+      $("#volumeSlider").val(storedVolume);
     } else {
       $("#volumeSlider").val(<?= getConfig("default_volume") ?>);
       // audioElement.volume = <?= getConfig("default_volume") ?>;
