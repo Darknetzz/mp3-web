@@ -369,9 +369,13 @@
     var audioElement = $("audio")[0];
     var storedVolume = localStorage.getItem('volume');
     if (storedVolume && !isNaN(storedVolume) && storedVolume >= 0 && storedVolume <= 100) {
+      console.log("Stored volume from localStorage: " + storedVolume);
       $("#volumeSlider").val(storedVolume);
+      audioElement.volume = storedVolume;
     } else {
+      console.log("Setting default volume: <?= getConfig("default_volume") ?>");
       $("#volumeSlider").val(<?= getConfig("default_volume") ?>);
+      audioElement.volume = storedVolume;
       // audioElement.volume = <?= getConfig("default_volume") ?>;
     }
 
