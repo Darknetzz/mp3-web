@@ -55,7 +55,7 @@ echo '
 ';
 
 echo '
-<div class="container">
+<div class="container-fluid">
 ';
 
 // if (getConfig('env') != 'demo') {
