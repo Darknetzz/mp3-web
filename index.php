@@ -183,7 +183,7 @@ foreach ($musicFiles as $file) {
     }
     # TODO: Fix `data-value` attribute
     echo '
-    <tr class="songrow" data-filename="'.$audioName.'">
+    <tr class="songrow hover-pointer" data-filename="'.$audioName.'">
       <td class="text-muted">
         '.($i).'
       </td>
