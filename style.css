@@ -26,12 +26,12 @@ body {
   margin-top: 10px;
 }
 .form-control.is-warning {
-  background-image: url('https://upload.wikimedia.org/wikipedia/commons/c/c9/Exclamation_flat_icon.svg');
+  /* background-image: url('resources/Exclamation_flat_icon.svg');
   background-repeat: no-repeat;
-  /* background-position: right calc(0.375em + 0.1875rem) center; */
+  background-position: right calc(0.375em + 0.1875rem) center;
   background-position: right 10% top 25%;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
-  padding-right: calc(1.5em + 0.75rem);
+  padding-right: calc(1.5em + 0.75rem); */
   border-color: #ffc107;
 }
 .modal {
