@@ -5,8 +5,8 @@
 -->
 <script>
   var playlistTable         = $('#playlistTable');
-  var pauseIcon             = "⏸ ";
-  var playIcon              = "⏵ ";
+  // var pauseIcon             = "⏸ ";
+  // var playIcon              = "⏵ ";
   var pauseIconHTML         = '<?= icon('pause-fill') ?>';
   var playIconHTML          = '<?= icon('play-fill') ?>';
   var playing               = false;
@@ -75,11 +75,11 @@
       title = "No song selected";
     }
     $("#songtitle").text(title);
-    if (playing) {
-      title = playIcon + title;
-    } else {
-      title = pauseIcon + title;
-    }
+    // if (playing) {
+    //   title = playIcon + title;
+    // } else {
+    //   title = pauseIcon + title;
+    // }
     document.title = title;
   }
 
@@ -310,6 +310,17 @@
     });
   }
 
+  /* ──────────────────────── FUNCTION: changeFavicon ──────────────────────── */
+  function changeFavicon(favicon) {
+    var link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+    }
+    link.href = favicon;
+  }
+
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
 
@@ -499,12 +510,13 @@
 
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
     $(audioElement).on('play', function() {
-      playing = true;
       playPauseBtn = $(".playPauseBtn");
-      playPauseBtn.html(pauseIconHTML);
       playPauseBtn.removeClass("btn-outline-success");
       playPauseBtn.removeClass("btn-outline-warning");
       playPauseBtn.addClass("btn-success");
+      playing = true;
+      playPauseBtn.html(pauseIconHTML);
+      changeFavicon("favicon_play.ico");
     });
 
     /* ────────────────────────────── NOTE: Pause ─────────────────────────────── */
@@ -515,6 +527,7 @@
       playPauseBtn.addClass("btn-outline-warning");
       playing = false;
       $(".playPauseBtn").html(playIconHTML);
+      changeFavicon("favicon_pause.ico");
     });
 
     if (window.history.replaceState) {
