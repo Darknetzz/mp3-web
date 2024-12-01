@@ -129,8 +129,10 @@
             $configContent .= $tab(2)."\"value\" => ";
             if ($type == "range") {
                 $configContent .= $value;
-            } elseif ($type == "selection") {
+            } elseif ($type === "selection") {
                 $configContent .= '"' . addslashes($value) . '"';
+            } elseif ($type === "multiselect") {
+                $configContent .= '<input type="checkbox" name="multiselect" value="1" '.($value ? 'checked' : '').'>';
             } elseif ($type === "array") {
                 $configContent .= '["' . implode('", "', $value) . '"]';
             } elseif ($type === "bool") {
