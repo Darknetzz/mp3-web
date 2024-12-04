@@ -1,7 +1,14 @@
 <?php 
 require_once('_includes.php');
 
-$musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
+if (!is_dir(AUDIO_PATH)) {
+  mkdir(AUDIO_PATH);
+}
+
+$musicFiles = [];
+if (is_dir(AUDIO_PATH)) {
+  $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
+}
 ?>
 
 <!DOCTYPE html>
