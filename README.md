@@ -4,10 +4,10 @@ A cool local music player made in PHP/jQuery.
 It can be useful if you have local music files you want to play, 
 especially if you want to cast it to your Google speakers as Spotify does not allow this for local files.
 
-## Default (modern) player
+## Default (new) player
 ![image](https://github.com/user-attachments/assets/c09b9566-930b-4e0e-9d4e-759124f956b6)
 
-## Legacy player
+## Legacy (old) player
 ![image](https://github.com/user-attachments/assets/7a3589a4-34e5-4028-b525-9978008a71ba)
 
 
