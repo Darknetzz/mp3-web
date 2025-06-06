@@ -61,9 +61,11 @@ echo '
   </div>
 ';
 
-echo '
-<div class="container">
-';
+if (getConfig('fluid-container')) {
+  echo '<div class="container-fluid">';
+} else {
+  echo '<div class="container">';
+}
 
 // if (getConfig('env') != 'demo') {
 //   echo '<div class="alert alert-danger">Please run <code>composer install</code> to install the required dependencies.</div>';

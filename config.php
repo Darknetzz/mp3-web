@@ -76,6 +76,12 @@ $config = [
         "value"       => true,
         "type"        => "bool",
     ],
+    "fluid-container" => [
+        "name"        => "Fluid Container",
+        "description" => "Use a fluid container for the layout",
+        "value"       => false,
+        "type"        => "bool",
+    ],
 ];
 
 ?>
