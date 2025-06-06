@@ -169,9 +169,9 @@ echo '
     <th data-sortable="true" data-field="duration">Duration</th>
     <th data-sortable="true" data-field="size" data-visible="false">Size</th>
     <th data-sortable="true" data-field="date" data-visible="false">Date</th>
-    <th data-field="queue">Queue</th>
-    <th data-field="download" data-visible="false">Download</th>
-    <th data-field="delete" data-visible="false">Delete</th>
+    <th data-field="queue" data-align="center">Queue</th>
+    <th data-field="download" data-visible="false" data-align="center">Download</th>
+    <th data-field="delete" data-visible="false" data-align="center">Delete</th>
   </tr>
   <tbody id="playlistBody">
   ';
