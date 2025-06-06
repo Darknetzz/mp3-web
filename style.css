@@ -1,0 +1,57 @@
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  z-index: auto;
+  /* padding-bottom: 1000px; */
+}
+.container-fluid {
+  padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
+  z-index: auto;
+}
+.audio-player-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  /* background-color: #f8f9fa; */
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+  z-index: 10;
+  padding: 10px;
+}
+.audio-player-container audio {
+  width: 100%;
+}
+.audio-player-container .btn-group {
+  margin-top: 10px;
+}
+.form-control.is-warning {
+  /* background-image: url('resources/Exclamation_flat_icon.svg');
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-position: right 10% top 25%;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  padding-right: calc(1.5em + 0.75rem); */
+  border-color: #ffc107;
+}
+.modal {
+  z-index: 100;
+}
+.modal-backdrop {
+    opacity:0.85 !important;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 50;
+    filter:blur(2px);
+}
+.toast-container {
+  z-index: 150;
+}
+.toast {
+  z-index: 200;
+}
+.autoheight {
+  height: auto;
+}
+.hover-pointer {
+  cursor: pointer;
+}

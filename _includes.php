@@ -1,5 +1,7 @@
 <?php
 
+    session_start();
+
     /* ───────────────────────────────── Composer ──────────────────────────────── */
     if (!file_exists('vendor/autoload.php')) {
         die("The Composer autoload file is missing.");

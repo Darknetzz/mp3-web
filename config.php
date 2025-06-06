@@ -16,6 +16,13 @@ $config = [
             "demo" => "Demo",
         ]
     ],
+    "default_table_cols" => [
+        "name"        => "Default Table Columns",
+        "description" => "Default columns to display in the table",
+        "value"       => ["name", "duration", "queue"],
+        "type"        => "multiselect",
+        "options"     => ["#", "filename", "size", "date", "name", "duration", "queue", "delete"],
+    ],
     "site_title" => [
         "name"        => "Site Title",
         "description" => "The title of the site",
@@ -67,6 +74,12 @@ $config = [
         "name"        => "Auto Scroll",
         "description" => "Auto scroll to the currently playing song",
         "value"       => true,
+        "type"        => "bool",
+    ],
+    "fluid-container" => [
+        "name"        => "Fluid Container",
+        "description" => "Use a fluid container for the layout",
+        "value"       => false,
         "type"        => "bool",
     ],
 ];
