@@ -170,7 +170,7 @@ echo '
     <th data-sortable="true" data-field="size" data-visible="false">Size</th>
     <th data-sortable="true" data-field="date" data-visible="false">Date</th>
     <th data-field="queue">Queue</th>
-    <th data-field="download">Download</th>
+    <th data-field="download" data-visible="false">Download</th>
     <th data-field="delete" data-visible="false">Delete</th>
   </tr>
   <tbody id="playlistBody">
