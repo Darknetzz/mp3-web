@@ -42,6 +42,12 @@ docker build -t mp3-web:main .
 docker run -d -p 9096:80 mp3-web:main
 ```
 
+### Docker compose
+```yml
+services:
+    image: 
+```
+
 ### Manual
 * Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.
 * Run `composer install` from the directory (optional, but required to display durations)
