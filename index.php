@@ -203,7 +203,7 @@ foreach ($musicFiles as $file) {
       <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="sizeCol">'.round(filesize($filePath) / 1024 / 1024).'MB</td>
       <td class="dateCol">'.date("Y-m-d H:i:s", filemtime($filePath)).'</td>
-      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('music-note-list', margin: 0).'</a></td>
+      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('plus-circle', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
