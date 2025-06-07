@@ -148,8 +148,29 @@ echo '
         # Array
         if ($type == "array") {
           $badgeClass = "badge text-bg-info";
-          $value      = json_encode($value, JSON_PRETTY_PRINT);
-          $input      = '<textarea class="autoheight form-control settingInput" '.$inputData.'>'.$value.'</textarea>';
+          $input = "<div class='configList'>";
+          if (!is_array($value) || empty($value)) {
+            $value = [];
+          }
+          foreach ($value as $arrayKey => $arrayValue) {
+            $input .= "
+            <div class='input-group m-2 configListItem'>
+              <input type='text' class='form-control settingInput' value='$arrayValue' data-key='".$key."-".$arrayKey."' placeholder='Array item $arrayKey'>
+                <button type='button' class='btn btn-outline-danger btn-sm array-minus' data-key='$key'>
+                  <span aria-hidden='true'>&minus;</span>
+                </button>
+            </div>
+            ";
+          }
+          // $value      = json_encode($value, JSON_PRETTY_PRINT);
+          // $input      = '<textarea class="autoheight form-control settingInput" '.$inputData.'>'.$value.'</textarea>';
+          $input .= '
+            <div class="configListBtns input-group m-2">
+              <button type="button" class="btn btn-outline-success btn-sm array-plus" data-key="'.$key.'">
+                <span aria-hidden="true">&plus;</span>
+              </button>
+            </div>
+          </div>';
         }
 
         # Boolean

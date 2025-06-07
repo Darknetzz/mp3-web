@@ -599,6 +599,15 @@
       $(".reloadCfgBtn").hide();
     });
 
+    $(".array-minus").on("click", function() {
+      var key = $(this).data("key");
+      var inputGroup = $(this).closest(".configListItem");
+      inputGroup.remove();
+      if ($(".configListItem").length === 0) {
+        $(".configList").append('<div class="text-muted">No items in array</div>');
+      }
+      // api("setconfig", { config: { key: key, value: [] } }, "POST");
+    });
 
 });
 </script>

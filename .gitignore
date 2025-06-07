@@ -3,6 +3,7 @@ old
 index_files
 @eaDir
 !config.php
+!config.default.php
 config.*
 .ht*
 vendor
