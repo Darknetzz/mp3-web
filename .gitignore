@@ -3,8 +3,8 @@ old
 index_files
 @eaDir
 !config.php
-!config.default.php
 config.*
+!config.default.php
 .ht*
 vendor
 composer.lock
