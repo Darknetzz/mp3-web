@@ -219,6 +219,7 @@ echo '</tbody>
       </form>
       <div class="d-flex justify-content-end">
         <a href="javascript:void(0);" class="btn btn-outline-secondary m-1" data-bs-dismiss="modal">Close</a>
+        <button type="reset" class="btn btn-warning m-1 resetCfgBtn" style="display:none;">Reset Changes</button>
         <a href="?reload=1" class="btn btn-success m-1 reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
       </div>
       </div>

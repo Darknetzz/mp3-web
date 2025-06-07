@@ -565,9 +565,11 @@
       .on("keydown", function() {
         setWarning($(this));
         $(".reloadCfgBtn").show();
+        $(".resetCfgBtn").show();
       })
       .on("change", function() {
         $(".reloadCfgBtn").show();
+        $(".resetCfgBtn").show();
         var key   = $(this).data("key");
         if (typeof(key) === "undefined") {
           console.log("Key is undefined.", key);
