@@ -561,13 +561,13 @@
     });
 
     // settingInput
-    $(".settingInput")
-      .on("keydown", function() {
+    $(document)
+      .on("keydown", ".settingInput", function() {
         setWarning($(this));
         $(".reloadCfgBtn").show();
         $(".resetCfgBtn").show();
       })
-      .on("change", function() {
+      .on("change", ".settingInput", function() {
         $(".reloadCfgBtn").show();
         $(".resetCfgBtn").show();
         var key   = $(this).data("key");
