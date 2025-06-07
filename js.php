@@ -592,5 +592,13 @@
       var valueObj = $(this).attr("data-valueobject");
       $("#" + valueObj).text(value * 100 + "%");
     });
+
+    // Settings reset
+    $(".resetCfgBtn").on("click", function() {
+      $(".resetCfgBtn").hide();
+      $(".reloadCfgBtn").hide();
+    });
+
+
 });
 </script>
