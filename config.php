@@ -16,6 +16,16 @@ $config = [
             "demo" => "Demo",
         ]
     ],
+    "player_theme" => [
+        "name"        => "Player Theme",
+        "description" => "Theme for the audio player",
+        "value"       => "dark",
+        "type"        => "selection",
+        "options"     => [
+            "dark"    => "Dark",
+            "light"   => "Light",
+        ],
+    ],
     "default_table_cols" => [
         "name"        => "Default Table Columns",
         "description" => "Default columns to display in the table",
@@ -81,6 +91,17 @@ $config = [
         "description" => "Use a fluid container for the layout",
         "value"       => false,
         "type"        => "bool",
+    ],
+    "player_opacity" => [
+        "name"        => "Player Opacity",
+        "description" => "Opacity level for the player",
+        "value"       => 0.8,
+        "type"        => "range",
+        "attributes"  => [
+            "min"  => 0,
+            "max"  => 1,
+            "step" => 0.1,
+        ],
     ],
 ];
 

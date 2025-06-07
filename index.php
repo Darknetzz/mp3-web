@@ -34,7 +34,7 @@ if (is_dir(AUDIO_PATH)) {
 
     <link rel="stylesheet" href="style.css">
   </head>
-<body data-bs-theme="dark">
+<body data-bs-theme="<?= getConfig('player_theme') ?>">
 <?php
 
 
@@ -72,8 +72,8 @@ if (getConfig('fluid-container')) {
 // }
 
 echo '
-<div class="audio-player-container">
-  <div class="d-flex align-items-center card">
+<div class="audio-player-container px-3" style="opacity: '.getConfig('player_opacity').';">
+  <div class="d-flex align-items-center card border border-success">
       <h3 id="songtitle" class="card-header text-success">'.getConfig("no_song_text").'</h3>
       <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
       <div class="card-body">
