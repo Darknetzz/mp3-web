@@ -3,7 +3,7 @@
 /* ────────────────────────────────────────────────────────────────────────── */
 /*                                 Configuration                              */
 /* ────────────────────────────────────────────────────────────────────────── */
-# WARNING: This file should not be modified directly.
+# WARNING: This file should never be modified, ever.
 
 $config = [
     "env" => [
@@ -72,7 +72,7 @@ $config = [
         "attributes"  => [
             "min"  => 0,
             "max"  => 1,
-            "step" => 0.1,
+            "step" => 0.05,
         ],
     ],
     "no_song_text" => [
@@ -96,7 +96,7 @@ $config = [
     "player_opacity" => [
         "name"        => "Player Opacity",
         "description" => "Opacity level for the player",
-        "value"       => 0.8,
+        "value"       => 1,
         "type"        => "range",
         "attributes"  => [
             "min"  => 0,

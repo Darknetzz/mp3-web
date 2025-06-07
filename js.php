@@ -599,7 +599,7 @@
       $(".reloadCfgBtn").hide();
     });
 
-    $(".array-minus").on("click", function() {
+    $(document).on("click", ".array-minus", function() {
       var key = $(this).data("key");
       var inputGroup = $(this).closest(".configListItem");
       inputGroup.remove();
@@ -607,6 +607,18 @@
         $(".configList").append('<div class="text-muted">No items in array</div>');
       }
       // api("setconfig", { config: { key: key, value: [] } }, "POST");
+    });
+
+    $(".array-plus").on("click", function() {
+      var key = $(this).data("key");
+      var newItem = `
+        <div class='input-group m-2 configListItem'>
+          <input type='text' class='form-control settingInput' placeholder='New item' data-key='` + key + `-new'>
+          <button type='button' class='btn btn-outline-danger btn-sm array-minus' data-key='` + key + `'>
+            <span aria-hidden='true'>&minus;</span>
+          </button>
+        </div>`;
+      $(".configList").append(newItem);
     });
 
 });

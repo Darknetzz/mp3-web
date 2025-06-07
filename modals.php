@@ -148,7 +148,15 @@ echo '
         # Array
         if ($type == "array") {
           $badgeClass = "badge text-bg-info";
-          $input = "<div class='configList'>";
+          $input = '
+          <div class="configList">
+          <div class="configListBtns input-group m-2">
+              <button type="button" class="btn btn-outline-success btn-sm array-plus w-100" data-key="'.$key.'">
+                <span aria-hidden="true">&plus;</span>
+              </button>
+            </div>
+          </div>
+          ';
           if (!is_array($value) || empty($value)) {
             $value = [];
           }
@@ -162,15 +170,6 @@ echo '
             </div>
             ";
           }
-          // $value      = json_encode($value, JSON_PRETTY_PRINT);
-          // $input      = '<textarea class="autoheight form-control settingInput" '.$inputData.'>'.$value.'</textarea>';
-          $input .= '
-            <div class="configListBtns input-group m-2">
-              <button type="button" class="btn btn-outline-success btn-sm array-plus" data-key="'.$key.'">
-                <span aria-hidden="true">&plus;</span>
-              </button>
-            </div>
-          </div>';
         }
 
         # Boolean
