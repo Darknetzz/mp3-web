@@ -590,7 +590,7 @@
       var key      = $(this).attr("id");
       var value    = $(this).val();
       var valueObj = $(this).attr("data-valueobject");
-      $("#" + valueObj).text(value * 100 + "%");
+      $("#" + valueObj).text(Math.round(value * 100) + "%");
     });
 
     // Settings reset
