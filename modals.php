@@ -192,7 +192,7 @@ echo '
           $value      = $value ?? 0;
           $min        = $attributes["min"] ?? 0;
           $max        = $attributes["max"] ?? 1;
-          $step       = $attributes["step"] ?? .1;
+          $step       = $attributes["step"] ?? .05;
           $input      = '
             <input class="form-range settingInput settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
             <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.($value * 100).'%</output>
