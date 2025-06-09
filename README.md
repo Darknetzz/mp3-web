@@ -12,20 +12,20 @@ especially if you want to cast it to your Google speakers as Spotify does not al
 
 
 ## Features
-* Supports Windows media keys
-* Download from playlist
-* Delete from playlist
-* Shuffle playlist
-* Loop song
-* Upload files directly from web UI
-* Change settings from GUI
-* Queue
+- [x] Supports Windows media keys
+- [x] Download from playlist
+- [x] Delete from playlist
+- [x] Shuffle playlist
+- [x] Loop song
+- [x] Upload files directly from web UI
+- [x] Change settings from GUI
+- [x] Queue
 
 ## TBA
-* Favorites
-* Support multiple playlists
-* Browser refresh persistency
-* Session sharing
+- [ ] Favorites
+- [ ] Support multiple playlists
+- [ ] Browser refresh persistency
+- [ ] Session sharing
 
 ## Getting started
 
