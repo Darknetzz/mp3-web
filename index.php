@@ -9,6 +9,69 @@ $musicFiles = [];
 if (is_dir(AUDIO_PATH)) {
   $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
 }
+
+$columns = [
+  "id" => [
+    "name"     => "#",
+    "sortable" => true,
+    "field"    => "id",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "name" => [
+    "name"     => "Name",
+    "sortable" => true,
+    "field"    => "name",
+    "visible"  => true,
+    "align"    => null,
+  ],
+  "filename" => [
+    "name"     => "Filename",
+    "sortable" => true,
+    "field"    => "filename",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "duration" => [
+    "name"     => "Duration",
+    "sortable" => true,
+    "field"    => "duration",
+    "visible"  => true,
+    "align"    => null,
+  ],
+  "size" => [
+    "name"     => "Size",
+    "sortable" => true,
+    "field"    => "size",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "date" => [
+    "name"     => "Date",
+    "sortable" => true,
+    "field"    => "date",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "queue" => [
+    "name"    => "Queue",
+    "field"   => "queue",
+    "visible" => true,
+    "align"   => "center",
+  ],
+  "download" => [
+    "name"    => "Download",
+    "field"   => "download",
+    "visible" => false,
+    "align"   => "center",
+  ],
+  "delete" => [
+    "name"    => "Delete",
+    "field"   => "delete",
+    "visible" => false,
+    "align"   => "center",
+  ],
+];
 ?>
 
 <!DOCTYPE html>
@@ -122,7 +185,7 @@ echo '
 <div class="card m-3">
   <div class="card-header d-flex justify-content-between">
       <div>
-        <h2>'.getConfig("site_title").' <small class="text-muted m-2">'.ENV['VERSION'].'</small></h2>
+        <h2>'.getConfig("site_title").' <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
       </div>
       <div class="btn-group">
         <button type="button" class="btn btn-sm btn-pill btn-primary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
@@ -165,16 +228,31 @@ echo '
 >
   <thead id="playlistHead">
   <tr>
-    <th data-sortable="true" data-field="id" data-visible="false">#</th>
-    <th data-sortable="true" data-field="name">Name</th>
-    <th data-sortable="true" data-field="filename" data-visible="false">Filename</th>
-    <th data-sortable="true" data-field="duration">Duration</th>
-    <th data-sortable="true" data-field="size" data-visible="false">Size</th>
-    <th data-sortable="true" data-field="date" data-visible="false">Date</th>
-    <th data-field="queue" data-align="center">Queue</th>
-    <th data-field="download" data-visible="false" data-align="center">Download</th>
-    <th data-field="delete" data-visible="false" data-align="center">Delete</th>
-  </tr>
+  ';
+  foreach ($columns as $key => $column) {
+    $visible  = isset($column['visible']) && $column['visible'] ? 'true' : 'false';
+    $sortable = isset($column['sortable']) && $column['sortable'] ? 'true' : '';
+    $align    = isset($column['align']) ? $column['align'] : '';
+    $name     = isset($column['name']) ? htmlspecialchars($column['name']) : '';
+    echo '<th 
+      data-sortable="'.$sortable.'"
+      data-align="'.$align.'"
+      data-field="'.$key.'"
+      data-visible="'.$visible.'"
+      data-sortable="'.$sortable.'"
+      data-align="'.$align.'">
+        '.$name.'</th>';
+  }
+    // <th data-sortable="true" data-field="id" data-visible="false">#</th>
+    // <th data-sortable="true" data-field="name">Name</th>
+    // <th data-sortable="true" data-field="filename" data-visible="false">Filename</th>
+    // <th data-sortable="true" data-field="duration">Duration</th>
+    // <th data-sortable="true" data-field="size" data-visible="false">Size</th>
+    // <th data-sortable="true" data-field="date" data-visible="false">Date</th>
+    // <th data-field="queue" data-align="center">Queue</th>
+    // <th data-field="download" data-visible="false" data-align="center">Download</th>
+    // <th data-field="delete" data-visible="false" data-align="center">Delete</th>
+  echo '</tr>
   <tbody id="playlistBody">
   ';
 $i = 1;
