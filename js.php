@@ -267,18 +267,37 @@
     if (typeof(message) === "object") {
       message = JSON.stringify(message);
     }
-    $("#apiResponse").append(`
-      <div class='toast align-items-center text-bg-`+type+` border-0' role='alert' aria-live='assertive' aria-atomic='true'>
-        <div class='d-flex'>
-          <div class='toast-body'>
-            `+message+`
-          </div>
-          <button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast' aria-label='Close'></button>
+    toastObj = `
+      <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true"
+        data-bs-autohide="false" data-bs-toggle="toast">
+        <div class="toast-header">
+          <!--
+            <strong class="">`+type+`</strong>
+            <small>11 mins ago</small>
+          -->
+          <button type="button" class="ms-2 btn-close" data-bs-dismiss="toast"
+            aria-label="Close"></button>
         </div>
+        <div class="toast-body text-`+type+`">`+message+`</div>
       </div>
-    `);
-    var toast = new bootstrap.Toast($("#apiResponse .toast").last()[0]);
-    toast.show();
+    `;
+    $("#apiResponse").append(toastObj);
+    var $toast = $("#apiResponse .toast").last();
+    setTimeout(function() {
+      $toast.fadeOut(500, function() { $(this).remove(); });
+    }, 5000);
+    // $("#apiResponse").append(`
+    //   <div class='toast align-items-center text-bg-`+type+` border-0' role='alert' aria-live='assertive' aria-atomic='true'>
+    //     <div class='d-flex'>
+    //       <div class='toast-body'>
+    //         `+message+`
+    //       </div>
+    //       <button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast' aria-label='Close'></button>
+    //     </div>
+    //   </div>
+    // `);
+    // var toast = new bootstrap.Toast($("#apiResponse .toast").last()[0]);
+    // toast.show();
   }
 
   /* ─────────────────────────── FUNCTION: api ─────────────────────────── */
