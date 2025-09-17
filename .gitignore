@@ -11,3 +11,4 @@ composer.lock
 deleted
 scripts
 session/*
+.debug.log
