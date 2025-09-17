@@ -31,6 +31,7 @@ RUN set -eux; \
 # Install composer (global)
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 RUN composer --version
+RUN composer install -d /var/www/html --no-dev --optimize-autoloader
 
 # Set working directory
 WORKDIR /var/www/html
