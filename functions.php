@@ -352,14 +352,24 @@
         
         // Validate MIME type if available
         if (!empty($file["type"])) {
-            $allowedMimeTypes = [
-                'audio/mpeg',
-                'audio/mp3',
-                'audio/x-mpeg-3',
-                'audio/mpeg3'
+            // Map file extensions to their common MIME types
+            $mimeTypeMap = [
+                'mp3' => ['audio/mpeg', 'audio/mp3', 'audio/x-mpeg-3', 'audio/mpeg3'],
+                'ogg' => ['audio/ogg', 'audio/vorbis', 'application/ogg'],
+                'wav' => ['audio/wav', 'audio/wave', 'audio/x-wav']
             ];
+            
+            // Build allowed MIME types list based on configured allowed_types
+            $allowedMimeTypes = [];
+            foreach ($allowedTypes as $type) {
+                $typeLower = strtolower($type);
+                if (isset($mimeTypeMap[$typeLower])) {
+                    $allowedMimeTypes = array_merge($allowedMimeTypes, $mimeTypeMap[$typeLower]);
+                }
+            }
+            
             if (!in_array(strtolower($file["type"]), $allowedMimeTypes)) {
-                $result = ["status" => "error", "response" => "Invalid file type. Only MP3 files are allowed.", "data" => []];
+                $result = ["status" => "error", "response" => "Invalid file type. Only ". implode(", ", $allowedTypes). " files are allowed.", "data" => []];
                 if ($returnResult) return $result;
                 apiResponse("error", $result["response"]);
             }
