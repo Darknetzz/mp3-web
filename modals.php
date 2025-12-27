@@ -163,7 +163,7 @@ echo '
           foreach ($value as $arrayKey => $arrayValue) {
             $input .= "
             <div class='input-group m-2 configListItem'>
-              <input type='text' class='form-control settingInput' value='$arrayValue' data-key='".$key."-".$arrayKey."' placeholder='Array item $arrayKey'>
+              <input type='text' class='form-control settingInput' value='".htmlspecialchars($arrayValue, ENT_QUOTES, 'UTF-8')."' data-key='".$key."-".$arrayKey."' placeholder='Array item $arrayKey'>
                 <button type='button' class='btn btn-outline-danger btn-sm array-minus' data-key='$key'>
                   <span aria-hidden='true'>&minus;</span>
                 </button>
