@@ -5,7 +5,7 @@ require_once('_includes.php');
 # You want to return something else? You're in the wrong place.
 header('Content-Type: application/json');
 
-if (empty(CONFIG["audio_path"]["value"])) {
+if (empty(getConfig("audio_path"))) {
     apiResponse("error", "The audio path is not set.");
 }
 
@@ -73,19 +73,25 @@ do {
                 "error"    => $_FILES["files"]["error"][$key],
                 "size"     => $_FILES["files"]["size"][$key]
             ];
-            $result[] = uploadFile($file);
+            uploadFile($file); // This will call apiResponse() and die(), so $result won't be used
+            // If we get here, the upload succeeded, but apiResponse() should have been called
         }
+        // This code should never be reached since uploadFile() calls apiResponse() which dies
         $res = $result;
         break;
     }
 
     if ($action == 'createSession') {
-        $res = createSession();
+        createSession(); // This will call apiResponse() and die()
         break;
     }
 
     if ($action == 'joinSession') {
-        $res = joinSession();
+        $sessionId = $_POST['sessionCode'] ?? $_POST['id'] ?? null;
+        if (empty($sessionId)) {
+            apiResponse("error", "Session ID is required.");
+        }
+        joinSession($sessionId); // This will call apiResponse() and die()
         break;
     }
 
