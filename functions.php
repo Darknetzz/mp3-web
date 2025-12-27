@@ -44,6 +44,11 @@
             $minutes  = (int)floor($duration / 60);
             $secondsFloat = round(fmod($duration, 60));
             $seconds  = (int)$secondsFloat;
+            // Handle case where rounding produces 60 seconds (e.g., 59.5 rounds to 60)
+            if ($seconds == 60) {
+                $minutes++;
+                $seconds = 0;
+            }
             $duration = sprintf("%d:%02d", $minutes, $seconds);
             return $duration;
         } catch (Exception $e) {
