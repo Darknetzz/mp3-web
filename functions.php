@@ -43,8 +43,8 @@
         }
         $mp3info  = new wapmorgan\Mp3Info\Mp3Info($file);
         $duration = $mp3info->duration;
-        $minutes  = floor($duration / 60);
-        $seconds  = (int)round($duration % 60);
+        $minutes  = (int)floor($duration / 60);
+        $seconds  = intval(round($duration % 60));
         $duration = sprintf("%d:%02d", $minutes, $seconds);
         return $duration;
     }
