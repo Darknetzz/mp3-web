@@ -579,6 +579,19 @@
       }
     });
 
+    // Helper function to collect array values for a given base key within a container
+    function collectArrayValues(baseKey, container) {
+      var values = [];
+      var selector = container ? container.find(".settingInput[data-key^='" + baseKey + "-']") : $(".settingInput[data-key^='" + baseKey + "-']");
+      selector.each(function() {
+        var value = $(this).val();
+        if (value && value.trim() !== "") {
+          values.push(value.trim());
+        }
+      });
+      return values;
+    }
+
     // settingInput
     $(document)
       .on("keydown", ".settingInput", function() {
@@ -594,14 +607,28 @@
           console.log("Key is undefined.", key);
           return;
         }
-        if ($(this).is(":checkbox")) {
-          var value = ($(this).is(":checked") ? true : false);
+        
+        // Check if this is an array item (key contains a dash followed by number or "new")
+        var arrayMatch = key.match(/^(.+)-(\d+|new)$/);
+        if (arrayMatch) {
+          // This is an array item - collect all array values from the same config list
+          var baseKey = arrayMatch[1];
+          var container = $(this).closest(".configList");
+          var values = collectArrayValues(baseKey, container);
+          console.log("Array key: " + baseKey + ", Values: " + JSON.stringify(values));
+          api("setconfig", { config: { key: baseKey, value: values } }, "POST");
+          setSuccess($(this));
         } else {
-          var value = $(this).val();
+          // Regular (non-array) config item
+          if ($(this).is(":checkbox")) {
+            var value = ($(this).is(":checked") ? true : false);
+          } else {
+            var value = $(this).val();
+          }
+          console.log("Key: " + key + ", Value: " + value);
+          api("setconfig", { config: { key: key, value: value } }, "POST");
+          setSuccess($(this));
         }
-        console.log("Key: " + key + ", Value: " + value);
-        api("setconfig", { config: { key: key, value: value } }, "POST");
-        setSuccess($(this));
       });
 
     // Setting Range
@@ -621,11 +648,17 @@
     $(document).on("click", ".array-minus", function() {
       var key = $(this).data("key");
       var inputGroup = $(this).closest(".configListItem");
+      var container = $(this).closest(".configList");
       inputGroup.remove();
-      if ($(".configListItem").length === 0) {
-        $(".configList").append('<div class="text-muted">No items in array</div>');
+      
+      // Rebuild and save the array after removal
+      var values = collectArrayValues(key, container);
+      console.log("Array key after removal: " + key + ", Values: " + JSON.stringify(values));
+      api("setconfig", { config: { key: key, value: values } }, "POST");
+      
+      if (container.find(".configListItem").length === 0) {
+        container.append('<div class="text-muted">No items in array</div>');
       }
-      // api("setconfig", { config: { key: key, value: [] } }, "POST");
     });
 
     $(".array-plus").on("click", function() {
