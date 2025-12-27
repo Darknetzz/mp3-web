@@ -4,28 +4,28 @@ A cool local music player made in PHP/jQuery.
 It can be useful if you have local music files you want to play, 
 especially if you want to cast it to your Google speakers as Spotify does not allow this for local files.
 
-## Default (modern) player
+## Default (new) player
 ![image](https://github.com/user-attachments/assets/c09b9566-930b-4e0e-9d4e-759124f956b6)
 
-## Legacy player
+## Legacy (old) player
 ![image](https://github.com/user-attachments/assets/7a3589a4-34e5-4028-b525-9978008a71ba)
 
 
 ## Features
-* Supports Windows media keys
-* Download from playlist
-* Delete from playlist
-* Shuffle playlist
-* Loop song
-* Upload files directly from web UI
-* Change settings from GUI
-* Queue
+- [x] Supports Windows media keys
+- [x] Download from playlist
+- [x] Delete from playlist
+- [x] Shuffle playlist
+- [x] Loop song
+- [x] Upload files directly from web UI
+- [x] Change settings from GUI
+- [x] Queue
 
 ## TBA
-* Favorites
-* Support multiple playlists
-* Browser refresh persistency
-* Session sharing
+- [ ] Favorites
+- [ ] Support multiple playlists
+- [ ] Browser refresh persistency
+- [ ] Session sharing
 
 ## Getting started
 
@@ -40,6 +40,12 @@ docker build -t mp3-web:main .
 
 # Run the container (replace 9096 with any port you want)
 docker run -d -p 9096:80 mp3-web:main
+```
+
+### Docker compose
+```yml
+services:
+    image: 
 ```
 
 ### Manual

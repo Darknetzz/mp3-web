@@ -1,14 +1,5 @@
 <?php 
 require_once('_includes.php');
-
-if (!is_dir(AUDIO_PATH)) {
-  mkdir(AUDIO_PATH);
-}
-
-$musicFiles = [];
-if (is_dir(AUDIO_PATH)) {
-  $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
-}
 ?>
 
 <!DOCTYPE html>
@@ -21,22 +12,94 @@ if (is_dir(AUDIO_PATH)) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta21/dist/js/tabler.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta21/dist/css/tabler.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
-    <script src=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.js "></script>
-    <link href=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.23.5/dist/bootstrap-table.min.css " rel="stylesheet">
+    <script src=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.24.1/dist/bootstrap-table.min.js "></script>
+    <link href=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.24.1/dist/bootstrap-table.min.css " rel="stylesheet">
 
     <script src="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone-min.js"></script>
-    <link href="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone.css" rel="stylesheet" type="text/css" />
+    <link href="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone.css" rel="stylesheet" type="text/css">
 
     <link rel="stylesheet" href="style.css">
   </head>
-<body data-bs-theme="dark">
+<body data-bs-theme="<?= getConfig('player_theme') ?>">
 <?php
 
+
+if (!is_dir(AUDIO_PATH)) {
+  mkdir(AUDIO_PATH);
+}
+
+$musicFiles = [];
+if (is_dir(AUDIO_PATH)) {
+  $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
+}
+
+$columns = [
+  "id" => [
+    "name"     => "#",
+    "sortable" => true,
+    "field"    => "id",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "name" => [
+    "name"     => "Name",
+    "sortable" => true,
+    "field"    => "name",
+    "visible"  => true,
+    "align"    => null,
+  ],
+  "filename" => [
+    "name"     => "Filename",
+    "sortable" => true,
+    "field"    => "filename",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "duration" => [
+    "name"     => "Duration",
+    "sortable" => true,
+    "field"    => "duration",
+    "visible"  => true,
+    "align"    => null,
+  ],
+  "size" => [
+    "name"     => "Size",
+    "sortable" => true,
+    "field"    => "size",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "date" => [
+    "name"     => "Date",
+    "sortable" => true,
+    "field"    => "date",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "queue" => [
+    "name"    => "Queue",
+    "field"   => "queue",
+    "visible" => true,
+    "align"   => "center",
+  ],
+  "download" => [
+    "name"    => "Download",
+    "field"   => "download",
+    "visible" => false,
+    "align"   => "center",
+  ],
+  "delete" => [
+    "name"    => "Delete",
+    "field"   => "delete",
+    "visible" => false,
+    "align"   => "center",
+  ],
+];
 
 /* ──────────────────────────────────── Reload ─────────────────────────────── */
 if (isset($_GET['reload'])) {
@@ -72,8 +135,8 @@ if (getConfig('fluid-container')) {
 // }
 
 echo '
-<div class="audio-player-container">
-  <div class="d-flex align-items-center card">
+<div class="audio-player-container px-3" style="opacity: '.getConfig('player_opacity').';">
+  <div class="d-flex align-items-center card border border-success">
       <h3 id="songtitle" class="card-header text-success">'.getConfig("no_song_text").'</h3>
       <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
       <div class="card-body">
@@ -122,7 +185,7 @@ echo '
 <div class="card m-3">
   <div class="card-header d-flex justify-content-between">
       <div>
-        <h2>'.getConfig("site_title").' <small class="text-muted m-2">'.ENV['VERSION'].'</small></h2>
+        <h2>'.getConfig("site_title").' <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
       </div>
       <div class="btn-group">
         <button type="button" class="btn btn-sm btn-pill btn-primary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
@@ -165,16 +228,31 @@ echo '
 >
   <thead id="playlistHead">
   <tr>
-    <th data-sortable="true" data-field="id" data-visible="false">#</th>
-    <th data-sortable="true" data-field="name">Name</th>
-    <th data-sortable="true" data-field="filename" data-visible="false">Filename</th>
-    <th data-sortable="true" data-field="duration">Duration</th>
-    <th data-sortable="true" data-field="size" data-visible="false">Size</th>
-    <th data-sortable="true" data-field="date" data-visible="false">Date</th>
-    <th data-field="queue" data-align="center">Queue</th>
-    <th data-field="download" data-visible="false" data-align="center">Download</th>
-    <th data-field="delete" data-visible="false" data-align="center">Delete</th>
-  </tr>
+  ';
+  foreach ($columns as $key => $column) {
+    $visible  = isset($column['visible']) && $column['visible'] ? 'true' : 'false';
+    $sortable = isset($column['sortable']) && $column['sortable'] ? 'true' : '';
+    $align    = isset($column['align']) ? $column['align'] : '';
+    $name     = isset($column['name']) ? htmlspecialchars($column['name']) : '';
+    echo '<th 
+      data-sortable="'.$sortable.'"
+      data-align="'.$align.'"
+      data-field="'.$key.'"
+      data-visible="'.$visible.'"
+      data-sortable="'.$sortable.'"
+      data-align="'.$align.'">
+        '.$name.'</th>';
+  }
+    // <th data-sortable="true" data-field="id" data-visible="false">#</th>
+    // <th data-sortable="true" data-field="name">Name</th>
+    // <th data-sortable="true" data-field="filename" data-visible="false">Filename</th>
+    // <th data-sortable="true" data-field="duration">Duration</th>
+    // <th data-sortable="true" data-field="size" data-visible="false">Size</th>
+    // <th data-sortable="true" data-field="date" data-visible="false">Date</th>
+    // <th data-field="queue" data-align="center">Queue</th>
+    // <th data-field="download" data-visible="false" data-align="center">Download</th>
+    // <th data-field="delete" data-visible="false" data-align="center">Delete</th>
+  echo '</tr>
   <tbody id="playlistBody">
   ';
 $i = 1;

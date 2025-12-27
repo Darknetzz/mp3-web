@@ -5,7 +5,7 @@ require_once('_includes.php');
 # You want to return something else? You're in the wrong place.
 header('Content-Type: application/json');
 
-if (empty(CONFIG["audio_path"]["value"])) {
+if (empty(getConfig("audio_path"))) {
     apiResponse("error", "The audio path is not set.");
 }
 
@@ -64,7 +64,11 @@ do {
     }
 
     if ($action == 'upload') {
-        $result = [];
+        $results = [];
+        $hasError = false;
+        $successCount = 0;
+        $errorCount = 0;
+        
         foreach ($_FILES["files"]["name"] as $key => $name) {
             $file = [
                 "name"     => $_FILES["files"]["name"][$key],
@@ -73,19 +77,46 @@ do {
                 "error"    => $_FILES["files"]["error"][$key],
                 "size"     => $_FILES["files"]["size"][$key]
             ];
-            $result[] = uploadFile($file);
+            $fileResult = uploadFile($file, true); // Return result instead of calling apiResponse()
+            $results[] = $fileResult;
+            
+            if ($fileResult["status"] === "error") {
+                $hasError = true;
+                $errorCount++;
+            } else {
+                $successCount++;
+            }
         }
-        $res = $result;
+        
+        // Build combined response message
+        $totalFiles = count($results);
+        if ($hasError) {
+            $message = "Upload completed with errors: {$successCount} succeeded, {$errorCount} failed.";
+            $status = "error";
+        } else {
+            $message = "All {$totalFiles} file(s) uploaded successfully. <a href='' class='btn btn-primary'>Refresh</a>";
+            $status = "success";
+        }
+        
+        apiResponse(
+            $status,
+            $message,
+            ["results" => $results, "total" => $totalFiles, "succeeded" => $successCount, "failed" => $errorCount]
+        );
         break;
     }
 
     if ($action == 'createSession') {
-        $res = createSession();
+        createSession(); // This will call apiResponse() and die()
         break;
     }
 
     if ($action == 'joinSession') {
-        $res = joinSession();
+        $sessionId = $_POST['sessionCode'] ?? $_POST['id'] ?? null;
+        if (empty($sessionId)) {
+            apiResponse("error", "Session ID is required.");
+        }
+        joinSession($sessionId); // This will call apiResponse() and die()
         break;
     }
 

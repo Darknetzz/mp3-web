@@ -4,9 +4,11 @@ index_files
 @eaDir
 !config.php
 config.*
+!config.default.php
 .ht*
 vendor
 composer.lock
 deleted
 scripts
 session/*
+debug.log

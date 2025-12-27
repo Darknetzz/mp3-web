@@ -267,18 +267,37 @@
     if (typeof(message) === "object") {
       message = JSON.stringify(message);
     }
-    $("#apiResponse").append(`
-      <div class='toast align-items-center text-bg-`+type+` border-0' role='alert' aria-live='assertive' aria-atomic='true'>
-        <div class='d-flex'>
-          <div class='toast-body'>
-            `+message+`
-          </div>
-          <button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast' aria-label='Close'></button>
+    toastObj = `
+      <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true"
+        data-bs-autohide="false" data-bs-toggle="toast">
+        <div class="toast-header">
+          <!--
+            <strong class="">`+type+`</strong>
+            <small>11 mins ago</small>
+          -->
+          <button type="button" class="ms-2 btn-close" data-bs-dismiss="toast"
+            aria-label="Close"></button>
         </div>
+        <div class="toast-body text-`+type+`">`+message+`</div>
       </div>
-    `);
-    var toast = new bootstrap.Toast($("#apiResponse .toast").last()[0]);
-    toast.show();
+    `;
+    $("#apiResponse").append(toastObj);
+    var $toast = $("#apiResponse .toast").last();
+    setTimeout(function() {
+      $toast.fadeOut(500, function() { $(this).remove(); });
+    }, 5000);
+    // $("#apiResponse").append(`
+    //   <div class='toast align-items-center text-bg-`+type+` border-0' role='alert' aria-live='assertive' aria-atomic='true'>
+    //     <div class='d-flex'>
+    //       <div class='toast-body'>
+    //         `+message+`
+    //       </div>
+    //       <button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast' aria-label='Close'></button>
+    //     </div>
+    //   </div>
+    // `);
+    // var toast = new bootstrap.Toast($("#apiResponse .toast").last()[0]);
+    // toast.show();
   }
 
   /* ─────────────────────────── FUNCTION: api ─────────────────────────── */
@@ -560,27 +579,56 @@
       }
     });
 
+    // Helper function to collect array values for a given base key within a container
+    function collectArrayValues(baseKey, container) {
+      var values = [];
+      var selector = container ? container.find(".settingInput[data-key^='" + baseKey + "-']") : $(".settingInput[data-key^='" + baseKey + "-']");
+      selector.each(function() {
+        var value = $(this).val();
+        if (value && value.trim() !== "") {
+          values.push(value.trim());
+        }
+      });
+      return values;
+    }
+
     // settingInput
-    $(".settingInput")
-      .on("keydown", function() {
+    $(document)
+      .on("keydown", ".settingInput", function() {
         setWarning($(this));
         $(".reloadCfgBtn").show();
+        $(".resetCfgBtn").show();
       })
-      .on("change", function() {
+      .on("change", ".settingInput", function() {
         $(".reloadCfgBtn").show();
+        $(".resetCfgBtn").show();
         var key   = $(this).data("key");
         if (typeof(key) === "undefined") {
           console.log("Key is undefined.", key);
           return;
         }
-        if ($(this).is(":checkbox")) {
-          var value = ($(this).is(":checked") ? true : false);
+        
+        // Check if this is an array item (key contains a dash followed by number or "new")
+        var arrayMatch = key.match(/^(.+)-(\d+|new)$/);
+        if (arrayMatch) {
+          // This is an array item - collect all array values from the same config list
+          var baseKey = arrayMatch[1];
+          var container = $(this).closest(".configList");
+          var values = collectArrayValues(baseKey, container);
+          console.log("Array key: " + baseKey + ", Values: " + JSON.stringify(values));
+          api("setconfig", { config: { key: baseKey, value: values } }, "POST");
+          setSuccess($(this));
         } else {
-          var value = $(this).val();
+          // Regular (non-array) config item
+          if ($(this).is(":checkbox")) {
+            var value = ($(this).is(":checked") ? true : false);
+          } else {
+            var value = $(this).val();
+          }
+          console.log("Key: " + key + ", Value: " + value);
+          api("setconfig", { config: { key: key, value: value } }, "POST");
+          setSuccess($(this));
         }
-        console.log("Key: " + key + ", Value: " + value);
-        api("setconfig", { config: { key: key, value: value } }, "POST");
-        setSuccess($(this));
       });
 
     // Setting Range
@@ -588,7 +636,42 @@
       var key      = $(this).attr("id");
       var value    = $(this).val();
       var valueObj = $(this).attr("data-valueobject");
-      $("#" + valueObj).text(value * 100 + "%");
+      $("#" + valueObj).text(Math.round(value * 100) + "%");
     });
+
+    // Settings reset
+    $(".resetCfgBtn").on("click", function() {
+      $(".resetCfgBtn").hide();
+      $(".reloadCfgBtn").hide();
+    });
+
+    $(document).on("click", ".array-minus", function() {
+      var key = $(this).data("key");
+      var inputGroup = $(this).closest(".configListItem");
+      var container = $(this).closest(".configList");
+      inputGroup.remove();
+      
+      // Rebuild and save the array after removal
+      var values = collectArrayValues(key, container);
+      console.log("Array key after removal: " + key + ", Values: " + JSON.stringify(values));
+      api("setconfig", { config: { key: key, value: values } }, "POST");
+      
+      if (container.find(".configListItem").length === 0) {
+        container.append('<div class="text-muted">No items in array</div>');
+      }
+    });
+
+    $(".array-plus").on("click", function() {
+      var key = $(this).data("key");
+      var newItem = `
+        <div class='input-group m-2 configListItem'>
+          <input type='text' class='form-control settingInput' placeholder='New item' data-key='` + key + `-new'>
+          <button type='button' class='btn btn-outline-danger btn-sm array-minus' data-key='` + key + `'>
+            <span aria-hidden='true'>&minus;</span>
+          </button>
+        </div>`;
+      $(".configList").append(newItem);
+    });
+
 });
 </script>

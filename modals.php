@@ -148,8 +148,28 @@ echo '
         # Array
         if ($type == "array") {
           $badgeClass = "badge text-bg-info";
-          $value      = json_encode($value, JSON_PRETTY_PRINT);
-          $input      = '<textarea class="autoheight form-control settingInput" '.$inputData.'>'.$value.'</textarea>';
+          $input = '
+          <div class="configList">
+          <div class="configListBtns input-group m-2">
+              <button type="button" class="btn btn-outline-success btn-sm array-plus w-100" data-key="'.$key.'">
+                <span aria-hidden="true">&plus;</span>
+              </button>
+            </div>
+          </div>
+          ';
+          if (!is_array($value) || empty($value)) {
+            $value = [];
+          }
+          foreach ($value as $arrayKey => $arrayValue) {
+            $input .= "
+            <div class='input-group m-2 configListItem'>
+              <input type='text' class='form-control settingInput' value='".htmlspecialchars($arrayValue, ENT_QUOTES, 'UTF-8')."' data-key='".$key."-".$arrayKey."' placeholder='Array item $arrayKey'>
+                <button type='button' class='btn btn-outline-danger btn-sm array-minus' data-key='$key'>
+                  <span aria-hidden='true'>&minus;</span>
+                </button>
+            </div>
+            ";
+          }
         }
 
         # Boolean
@@ -172,7 +192,7 @@ echo '
           $value      = $value ?? 0;
           $min        = $attributes["min"] ?? 0;
           $max        = $attributes["max"] ?? 1;
-          $step       = $attributes["step"] ?? .1;
+          $step       = $attributes["step"] ?? .05;
           $input      = '
             <input class="form-range settingInput settingRange" data-valueobject="'.$key.'-val" type="range" value="'.$value.'" min="'.$min.'" max="'.$max.'" step="'.$step.'" '.$inputData.'>
             <output for="'.$key.'" class="form-label" id="'.$key.'-val">'.($value * 100).'%</output>
@@ -216,11 +236,12 @@ echo '
 echo '</tbody>
       </table>
       </div>
-      </form>
       <div class="d-flex justify-content-end">
         <a href="javascript:void(0);" class="btn btn-outline-secondary m-1" data-bs-dismiss="modal">Close</a>
+        <button type="reset" class="btn btn-warning m-1 resetCfgBtn" style="display:none;">Reset Changes</button>
         <a href="?reload=1" class="btn btn-success m-1 reloadCfgBtn" style="display:none;">Reload page to apply changes</a>
       </div>
+      </form>
       </div>
     </div>
   </div>
