@@ -265,51 +265,74 @@
     }
 
     /* ───────────────────────────── FUNCTION: upload ─────────────────────────── */
-    function uploadFile(array $file): void {
+    function uploadFile(array $file, bool $returnResult = false): array {
 
         if (is_array($file['name']) && count($file['name']) > 1) {
-            apiResponse("error", "Multiple file upload supported, but should not be passed directly to <code>uploadFile</code> function.");
+            $result = ["status" => "error", "response" => "Multiple file upload supported, but should not be passed directly to <code>uploadFile</code> function.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         if (!is_array($file) || empty($file) || $file === []) {
-            apiResponse("error", "Invalid or empty file. ".print_r($file, true));
+            $result = ["status" => "error", "response" => "Invalid or empty file. ".print_r($file, true), "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         if (!array_key_exists("error", $file)) {
-            apiResponse("error", "The file array does not contain an error key.");
+            $result = ["status" => "error", "response" => "The file array does not contain an error key.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         if ($file["error"] !== UPLOAD_ERR_OK) {
+            $errorMessage = "";
             switch ($file["error"]) {
                 case UPLOAD_ERR_INI_SIZE:
-                    apiResponse("error", "The uploaded file exceeds the upload_max_filesize directive in php.ini.");
+                    $errorMessage = "The uploaded file exceeds the upload_max_filesize directive in php.ini.";
+                    break;
                 case UPLOAD_ERR_FORM_SIZE:
-                    apiResponse("error", "The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".");
+                    $errorMessage = "The uploaded file exceeds the maximum allowed size of ". ini_get("upload_max_filesize"). ".";
+                    break;
                 case UPLOAD_ERR_PARTIAL:
-                    apiResponse("error", "The uploaded file was only partially uploaded.");
+                    $errorMessage = "The uploaded file was only partially uploaded.";
+                    break;
                 case UPLOAD_ERR_NO_FILE:
-                    apiResponse("error", "No file was uploaded.");
+                    $errorMessage = "No file was uploaded.";
+                    break;
                 case UPLOAD_ERR_NO_TMP_DIR:
-                    apiResponse("error", "Missing a temporary folder.");
+                    $errorMessage = "Missing a temporary folder.";
+                    break;
                 case UPLOAD_ERR_CANT_WRITE:
-                    apiResponse("error", "Failed to write file to disk.");
+                    $errorMessage = "Failed to write file to disk.";
+                    break;
                 case UPLOAD_ERR_EXTENSION:
-                    apiResponse("error", "A PHP extension stopped the file upload.");
+                    $errorMessage = "A PHP extension stopped the file upload.";
+                    break;
                 default:
-                    apiResponse("error", "Unknown upload error (".print_r($file["error"], true).").");
+                    $errorMessage = "Unknown upload error (".print_r($file["error"], true).").";
             }
+            $result = ["status" => "error", "response" => $errorMessage, "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $errorMessage);
         }
 
         if (empty($file["name"])) {
-            apiResponse("error", "The file name is empty.".print_r($file, true));
+            $result = ["status" => "error", "response" => "The file name is empty.".print_r($file, true), "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         if (!is_array(getConfig("allowed_types"))) {
-            apiResponse("error", "The allowed types are not set or invalid.");
+            $result = ["status" => "error", "response" => "The allowed types are not set or invalid.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         if (empty(getConfig("audio_path")) || !is_dir(getConfig("audio_path"))) {
-            apiResponse("error", "The audio path is not set.");
+            $result = ["status" => "error", "response" => "The audio path is not set.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         $targetDir  = rtrim(getConfig('audio_path'), DIRECTORY_SEPARATOR);
@@ -322,7 +345,9 @@
         // Validate file extension
         $allowedTypes = getConfig("allowed_types");
         if (!in_array($fileExtension, array_map('strtolower', $allowedTypes))) {
-            apiResponse("error", "Only ". implode(", ", $allowedTypes). " files are allowed.");
+            $result = ["status" => "error", "response" => "Only ". implode(", ", $allowedTypes). " files are allowed.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
         
         // Validate MIME type if available
@@ -334,28 +359,36 @@
                 'audio/mpeg3'
             ];
             if (!in_array(strtolower($file["type"]), $allowedMimeTypes)) {
-                apiResponse("error", "Invalid file type. Only MP3 files are allowed.");
+                $result = ["status" => "error", "response" => "Invalid file type. Only MP3 files are allowed.", "data" => []];
+                if ($returnResult) return $result;
+                apiResponse("error", $result["response"]);
             }
         }
         
         $targetFile = $targetDir . "/" . $filename;
 
         if (file_exists($targetFile)) {
-            apiResponse("error", "Sorry, file <code>".htmlspecialchars($targetFile, ENT_QUOTES, 'UTF-8')."</code> already exists.");
+            $result = ["status" => "error", "response" => "Sorry, file <code>".htmlspecialchars($targetFile, ENT_QUOTES, 'UTF-8')."</code> already exists.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
         if (!move_uploaded_file($file["tmp_name"], $targetFile)) {
-            apiResponse("error", "There was an error moving the temporary file to its destination.");
+            $result = ["status" => "error", "response" => "There was an error moving the temporary file to its destination.", "data" => []];
+            if ($returnResult) return $result;
+            apiResponse("error", $result["response"]);
         }
 
-        apiResponse(
-            status: "success", 
-            response: "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>", 
-            data: [
+        $result = [
+            "status" => "success",
+            "response" => "The file ". basename($targetFile). " has been uploaded. <a href='' class='btn btn-primary'>Refresh</a>",
+            "data" => [
                 "file"      => basename($targetFile),
                 "fileArray" => $file
             ]
-        );
+        ];
+        if ($returnResult) return $result;
+        apiResponse("success", $result["response"], $result["data"]);
     }
 
     /* ───────────────────────── FUNCTION: createSession ──────────────────────── */

@@ -64,7 +64,11 @@ do {
     }
 
     if ($action == 'upload') {
-        $result = [];
+        $results = [];
+        $hasError = false;
+        $successCount = 0;
+        $errorCount = 0;
+        
         foreach ($_FILES["files"]["name"] as $key => $name) {
             $file = [
                 "name"     => $_FILES["files"]["name"][$key],
@@ -73,11 +77,32 @@ do {
                 "error"    => $_FILES["files"]["error"][$key],
                 "size"     => $_FILES["files"]["size"][$key]
             ];
-            uploadFile($file); // This will call apiResponse() and die(), so $result won't be used
-            // If we get here, the upload succeeded, but apiResponse() should have been called
+            $fileResult = uploadFile($file, true); // Return result instead of calling apiResponse()
+            $results[] = $fileResult;
+            
+            if ($fileResult["status"] === "error") {
+                $hasError = true;
+                $errorCount++;
+            } else {
+                $successCount++;
+            }
         }
-        // This code should never be reached since uploadFile() calls apiResponse() which dies
-        $res = $result;
+        
+        // Build combined response message
+        $totalFiles = count($results);
+        if ($hasError) {
+            $message = "Upload completed with errors: {$successCount} succeeded, {$errorCount} failed.";
+            $status = "error";
+        } else {
+            $message = "All {$totalFiles} file(s) uploaded successfully. <a href='' class='btn btn-primary'>Refresh</a>";
+            $status = "success";
+        }
+        
+        apiResponse(
+            $status,
+            $message,
+            ["results" => $results, "total" => $totalFiles, "succeeded" => $successCount, "failed" => $errorCount]
+        );
         break;
     }
 
