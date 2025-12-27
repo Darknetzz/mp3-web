@@ -25,10 +25,7 @@ RUN { \
 
 RUN set -eux; \
     rm -rf /var/www/html/*; \
-    git clone --depth=1 https://github.com/Darknetzz/mp3-web.git /var/www/html && \
-    cd /var/www/html && \
-    git checkout dev && \
-    git pull --recurse-submodules; \
+    git clone --depth=1 --branch main --recurse-submodules https://github.com/Darknetzz/mp3-web.git /var/www/html && \
     chown -R www-data:www-data /var/www/html
 
 # Install composer (global)
