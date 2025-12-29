@@ -12,3 +12,5 @@ deleted
 scripts
 session/*
 debug.log
+.env
+config.local.php

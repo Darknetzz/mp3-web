@@ -9,7 +9,23 @@ if (empty(getConfig("audio_path"))) {
     apiResponse("error", "The audio path is not set.");
 }
 
+/**
+ * Require a valid CSRF token for state-changing POST requests.
+ */
+function require_csrf_token(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        apiResponse("error", "Invalid request method for this action.");
+    }
 
+    if (
+        empty($_SESSION['csrf_token']) ||
+        empty($_POST['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], (string) $_POST['csrf_token'])
+    ) {
+        apiResponse("error", "Invalid CSRF token.");
+    }
+}
 
 do {
 
@@ -35,6 +51,7 @@ do {
     }
 
     if ($action === "rm") {
+        require_csrf_token();
         $res = remove($_POST["file"]);
         break;
     }
@@ -53,9 +70,10 @@ do {
         break;
     }
 
-    # REVIEW: 
+    # REVIEW:
     if ($action === 'setconfig') {
-        $postConfig = $_POST['config'];
+        require_csrf_token();
+        $postConfig = $_POST['config'] ?? [];
         if (!isset($postConfig['key']) || !isset($postConfig['value'])) {
             apiResponse("error", "Key or value not set: " . json_encode($_POST));
         }
@@ -64,6 +82,7 @@ do {
     }
 
     if ($action == 'upload') {
+        require_csrf_token();
         $results = [];
         $hasError = false;
         $successCount = 0;
@@ -107,11 +126,13 @@ do {
     }
 
     if ($action == 'createSession') {
+        require_csrf_token();
         createSession(); // This will call apiResponse() and die()
         break;
     }
 
     if ($action == 'joinSession') {
+        require_csrf_token();
         $sessionId = $_POST['sessionCode'] ?? $_POST['id'] ?? null;
         if (empty($sessionId)) {
             apiResponse("error", "Session ID is required.");
@@ -125,9 +146,8 @@ do {
 if (empty($res)) {
     apiResponse("error", "Invalid response (empty). Probably the endpoint doesn't exist: " . $action);
 }
-if (!json_validate($res)) {
-    apiResponse("error", "Invalid response: " . $res);
-}
+
+// $res may already be a structured value or string; it is wrapped once here.
 apiResponse("success", $res);
 
 ?>

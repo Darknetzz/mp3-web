@@ -20,6 +20,7 @@
   var activeClass           = "table-active text-success";
   var warningClass          = "text-warning border border-warning is-warning";
   var successClass          = "text-success border border-success is-valid";
+  var csrfToken             = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>';
 
   /* ────────────────────────── FUNCTION: setWarning ────────────────────────── */
   function setWarning(selectorOrElement) {
@@ -305,7 +306,7 @@
     $.ajax({
       url: apiURL,
       type: method,
-      data: { action: action, ...data },
+      data: { action: action, csrf_token: csrfToken, ...data },
       success: function(response) {
         console.log("API Response: ", response);
         statusCode = response.statuscode;
@@ -363,6 +364,7 @@
       parallelUploads: 1,
       dictDefaultMessage: "Drag and drop MP3 files here or click to upload",
       clickable: ".dropzoneSelect",
+      params: { csrf_token: csrfToken },
       disablePreviews: true,
       init: function() {
         var res = {};
@@ -459,7 +461,7 @@
         $.ajax({
           url: apiURL,
           type: 'POST',
-          data: { action: 'rm', file: file },
+          data: { action: 'rm', file: file, csrf_token: csrfToken },
           success: function(response) {
             if (response.success) {
               showToast(response.success, "success");

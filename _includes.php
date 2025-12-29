@@ -2,7 +2,12 @@
 
     session_start();
 
-    /* ───────────────────────────────── Composer ──────────────────────────────── */
+    /* ───────────────────────────── CSRF Protection ──────────────────────────── */
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    /* ───────────────────────────────── Composer ─────────────────────────────── */
     if (!file_exists('vendor/autoload.php')) {
         die("The Composer autoload file is missing.");
     }
