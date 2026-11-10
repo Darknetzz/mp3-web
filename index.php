@@ -68,7 +68,7 @@ $columns = [
     "align"      => "center",
     "switchable" => false,
     "searchable" => false,
-    "width"      => 56,
+    "width"      => 48,
   ],
   "name" => [
     "name"     => "Name",

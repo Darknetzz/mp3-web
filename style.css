@@ -122,6 +122,33 @@ body {
   width: 32px;
   height: 32px;
 }
+/* In the song table the cover fills its whole cell, edge to edge */
+#playlistTable td.coverCell {
+  position: relative;
+  width: 48px;
+  min-width: 48px;
+  padding: 0 !important;
+}
+#playlistTable td.coverCell .coverThumb {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+/* Keep the selected-row bar visible on top of the cover */
+#playlistTable tr.songSelected > td.coverCell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--tblr-primary, #206bc4);
+  z-index: 2;
+}
 /* Play button over the cover: on hover, and always on the selected row (touch) */
 .coverPlay {
   position: absolute;
