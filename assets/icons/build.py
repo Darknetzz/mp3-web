@@ -28,6 +28,7 @@ ICONS = [
     # table rows, playlists, menus
     "list-music", "plus", "circle-plus", "list-ordered", "arrow-up",
     "arrow-down", "circle-minus", "pencil", "download", "upload", "trash-2",
+    "list-plus", "copy", "chevron-right", "chevron-left",
 ]
 
 # bootstrap-table option name -> Lucide icon (see the icons config in index.php)

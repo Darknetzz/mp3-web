@@ -28,6 +28,7 @@
   var successClass          = "text-success border border-success is-valid";
   var csrfToken             = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>';
   var audioPath             = <?= json_encode(getConfig("audio_path")) ?>;
+  var demoMode              = <?= json_encode(getConfig("env") === "demo") ?>; // file and playlist actions are disabled
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
   // Autoplay (play the next song when one ends): the playbar toggle is remembered
@@ -459,6 +460,57 @@
     if (selectedId === null) return;
     setContextFromView();
     playSong(selectedId);
+  }
+
+  /* ─────────────────────────── Song file actions ──────────────────────────── */
+  // Shared by the table cells and the song menu (playlists.js).
+  // Display name of a song as shown in the table.
+  function songTitle(id) {
+    var row = getSongByIndex(id);
+    if (!row) return "";
+    var text = new DOMParser().parseFromString(String(row.name || ""), "text/html").body.textContent.trim();
+    return text || row._song;
+  }
+  function downloadSong(id) {
+    var file = getSongNameByIndex(id);
+    if (file) window.open(songUrl(file), '_blank');
+  }
+  // Removes the file from the music folder (the server moves it aside).
+  function deleteSong(id) {
+    id = String(id);
+    var file = getSongNameByIndex(id);
+    if (!file) return;
+    $.ajax({
+      url: apiURL,
+      type: 'POST',
+      dataType: 'json',
+      data: { action: 'rm', file: file, csrf_token: csrfToken },
+      success: function(res) {
+        if (res && res.status === "success") {
+          showToast(res.response, "success");
+          forgetSong(id);
+        } else {
+          showToast("Error deleting file: " + ((res && res.response) || "unknown error"), "danger");
+        }
+      },
+      error: function() {
+        showToast("An error occurred while deleting the file.", "danger");
+      }
+    });
+  }
+  // Drop a deleted song from the library, queue, selection and table.
+  function forgetSong(id) {
+    initLibrary();
+    var row = libraryById[id];
+    if (!row) return;
+    library = library.filter(function(r) { return r !== row; });
+    delete libraryById[id];
+    delete libraryByName[row._song];
+    queue = queue.filter(function(q) { return String(q) !== id; });
+    if (selectedId === id) selectedId = null;
+    playlistTable.bootstrapTable('removeByUniqueId', id);
+    if (getQueuedSong() === null) $("#nextInQueueText").parent().hide();
+    else $("#nextInQueueText").text(getSongNameByIndex(getQueuedSong()));
   }
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
@@ -902,7 +954,6 @@
       // $element: The jQuery object of the clicked cell element
 
       var rowid = String(row.id).trim();
-      var file = getSongNameByIndex(rowid);
 
       // Heart and ⋯ menu are handled by playlists.js and never start playback
       if (field === 'favorite' || field === 'more') {
@@ -911,24 +962,9 @@
       }
 
       if (field === 'delete') {
-        $.ajax({
-          url: apiURL,
-          type: 'POST',
-          data: { action: 'rm', file: file, csrf_token: csrfToken },
-          success: function(response) {
-            if (response.success) {
-              showToast(response.success, "success");
-              $("tr.songrow[data-filename='"+file+"']").remove();
-            } else {
-              showToast("Error deleting file: " + response.error, "danger");
-            }
-          },
-          error: function(error) {
-            showToast("An error occurred while deleting the file: "+error, "danger");
-          }
-        });
+        deleteSong(rowid);
       } else if (field === 'download') {
-        window.open(songUrl(file), '_blank');
+        downloadSong(rowid);
       } else if (field === 'queue') {
         queueSong(rowid);
       } else if (field === 'cover') {

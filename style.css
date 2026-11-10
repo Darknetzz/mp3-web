@@ -704,7 +704,7 @@ body.player-top .toast-container {
 
 /* Popup menu */
 .popMenu {
-  position: absolute;
+  position: fixed; /* viewport coordinates; the menu closes on scroll */
   z-index: 1200;
   min-width: 220px;
   max-width: 300px;
@@ -741,9 +741,34 @@ body.player-top .toast-container {
   opacity: 0.8;
 }
 .popItem:hover:not([disabled]),
-.popItem:focus-visible {
+.popItem:focus {
   background: rgba(127, 127, 127, 0.15);
   outline: none;
+}
+.popItem:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--tblr-border-color-active, rgba(127, 127, 127, 0.5));
+}
+.popItem .popLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.popItem .popChevron {
+  opacity: 0.5;
+  margin-left: auto;
+}
+.popItem.popBack {
+  font-weight: 600;
+}
+.popMenu:focus {
+  outline: none;
+}
+/* Long-press opens the song menu on touch screens: no text selection or iOS callout */
+@media (hover: none) {
+  #playlistTable tbody tr[data-uniqueid] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 .popItem[disabled] {
   opacity: 0.4;

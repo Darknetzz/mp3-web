@@ -341,55 +341,164 @@ function moreFormatter(value, row) {
   }
 
   /* ─────────────────────────────── Popup menu ────────────────────────────── */
-  var menu = $('<div class="popMenu" role="menu" style="display:none;"></div>').appendTo(document.body);
-  var menuActions = [];
-  var menuAnchor = null;
+  // One menu element serves the ⋯ buttons, the playlist menus and the song
+  // context menu (right-click, long-press, context-menu key / Shift+F10).
+  // Items: "-" (divider), { header }, or { label, icon, filled, danger,
+  // disabled, run } or { label, icon, submenu: fn → items } (a second panel).
+  var menu = $('<div class="popMenu" role="menu" tabindex="-1" style="display:none;"></div>').appendTo(document.body);
+  var menuItems = [];       // actionable items of the shown panel, by data-i
+  var menuAnchor = null;    // element the menu belongs to; focus returns here
+  var menuAt = null;        // {x, y} for a menu opened at a point, else null
+  var menuPanel = [];       // items of the shown panel
+  var menuStack = [];       // parent panels while a submenu is shown
+  var menuOpenedAt = 0;
+  var ignoreScrollUntil = 0;
 
-  function openMenu(anchor, items) {
-    menuActions = [];
+  function menuItemHtml(item, i) {
+    var cls = "popItem" + (item.danger ? " text-danger" : "") + (item.back ? " popBack" : "");
+    return '<button type="button" class="' + cls + '" role="menuitem" tabindex="-1" data-i="' + i + '"' +
+           (item.submenu ? ' aria-haspopup="menu"' : "") + (item.disabled ? ' disabled aria-disabled="true"' : "") + '>' +
+           (item.icon ? lucideIcon(item.icon, item.filled ? 'filled' : '') : '<span class="lucide"></span>') +
+           '<span class="popLabel">' + esc(item.label) + '</span>' +
+           (item.submenu ? lucideIcon('chevron-right', 'popChevron') : "") + '</button>';
+  }
+
+  function renderMenu(items, focusIndex) {
+    menuPanel = items;
+    menuItems = [];
     var html = "";
     items.forEach(function (item) {
       if (item === "-") {
         html += '<div class="popDivider" role="separator"></div>';
       } else if (item.header) {
-        html += '<div class="popHeader">' + esc(item.header) + '</div>';
+        html += '<div class="popHeader" role="presentation">' + esc(item.header) + '</div>';
       } else {
-        menuActions.push(item.run);
-        html += '<button type="button" class="popItem' + (item.danger ? " text-danger" : "") + '" role="menuitem" data-i="' + (menuActions.length - 1) + '"' + (item.disabled ? " disabled" : "") + '>' +
-                (item.icon ? lucideIcon(item.icon, item.filled ? 'filled' : '') : '<span class="lucide"></span>') + '<span>' + esc(item.label) + '</span></button>';
+        menuItems.push(item);
+        html += menuItemHtml(item, menuItems.length - 1);
       }
     });
     menu.html(html).show();
-    menuAnchor = anchor;
-    var rect = anchor.getBoundingClientRect();
-    var mw = menu.outerWidth(), mh = menu.outerHeight();
-    var left = Math.min(rect.right - mw, window.innerWidth - mw - 8);
-    var top = rect.bottom + 4;
-    if (top + mh > window.innerHeight - 8) top = Math.max(8, rect.top - mh - 4);
-    menu.css({ left: Math.max(8, left) + window.scrollX, top: top + window.scrollY });
-    menu.find(".popItem:not([disabled])").first().trigger("focus");
+    placeMenu();
+    var enabled = menu.find(".popItem:not([disabled])");
+    var target = focusIndex != null ? menu.find('.popItem[data-i="' + focusIndex + '"]') : enabled.first();
+    (target.length ? target : enabled.first()).trigger("focus");
   }
 
-  function closeMenu() {
+  // The visible area the menu may use: the viewport minus the fixed playbar.
+  function menuBounds() {
+    var b = { left: 8, top: 8, right: window.innerWidth - 8, bottom: window.innerHeight - 8 };
+    var bar = $(".audio-player-container:visible")[0];
+    if (bar) {
+      var r = bar.getBoundingClientRect();
+      if (r.top <= 1) b.top = Math.max(b.top, r.bottom + 8); else b.bottom = Math.min(b.bottom, r.top - 8);
+    }
+    return b;
+  }
+
+  function placeMenu() {
+    var b = menuBounds();
+    menu.css({ left: 0, top: 0, maxHeight: Math.max(120, Math.min(420, b.bottom - b.top)) + "px" });
+    var mw = menu.outerWidth(), mh = menu.outerHeight();
+    var left, top;
+    if (menuAt) {
+      // Open down-right of the point; flip at the right and bottom edges.
+      left = menuAt.x + 2;
+      top = menuAt.y + 2;
+      if (left + mw > b.right) left = menuAt.x - mw - 2;
+      if (top + mh > b.bottom) top = menuAt.y - mh - 2;
+    } else {
+      var rect = menuAnchor.getBoundingClientRect();
+      left = rect.right - mw;
+      top = rect.bottom + 4;
+      if (top + mh > b.bottom) top = rect.top - mh - 4;
+    }
+    left = Math.max(b.left, Math.min(left, b.right - mw));
+    top = Math.max(b.top, Math.min(top, b.bottom - mh));
+    menu.css({ left: left, top: top });
+  }
+
+  // opts.at: {x, y} viewport point (context menu); opts.label: aria-label
+  function openMenu(anchor, items, opts) {
+    opts = opts || {};
+    if (!items || !items.length) return;
+    menuAnchor = anchor;
+    menuAt = opts.at || null;
+    menuStack = [];
+    menuOpenedAt = Date.now();
+    menu.attr("aria-label", opts.label || null);
+    renderMenu(items);
+  }
+
+  function openSubmenu(i) {
+    var item = menuItems[i];
+    if (!item || !item.submenu) return;
+    menuStack.push({ items: menuPanel, focus: i });
+    var back = { label: item.label, icon: "chevron-left", back: true };
+    renderMenu([back, "-"].concat(item.submenu()));
+  }
+
+  function menuBack() {
+    var prev = menuStack.pop();
+    if (prev) renderMenu(prev.items, prev.focus);
+  }
+
+  function closeMenu(refocus) {
     if (!menu.is(":visible")) return;
     menu.hide().empty();
-    if (menuAnchor && document.body.contains(menuAnchor)) menuAnchor.focus();
+    menuItems = [];
+    menuStack = [];
+    if (refocus !== false && menuAnchor && document.body.contains(menuAnchor)) menuAnchor.focus({ preventScroll: true });
     menuAnchor = null;
   }
 
-  menu.on("click", ".popItem", function () {
-    var run = menuActions[$(this).data("i")];
+  function activate(i) {
+    var item = menuItems[i];
+    if (!item || item.disabled) return;
+    if (item.submenu) return openSubmenu(i);
+    if (item.back) return menuBack();
     closeMenu();
-    if (run) run();
+    if (item.run) item.run();
+  }
+
+  menu.on("click", ".popItem", function () {
+    activate($(this).data("i"));
   });
+  menu.on("mousemove", ".popItem:not([disabled])", function () {
+    if (document.activeElement !== this) this.focus({ preventScroll: true });
+  });
+  menu.on("contextmenu", function (e) { e.preventDefault(); });
   menu.on("keydown", function (e) {
+    // Keys pressed in the menu belong to it, not to the player shortcuts.
+    e.stopPropagation();
     var items = menu.find(".popItem:not([disabled])");
     var i = items.index(document.activeElement);
-    if (e.key === "ArrowDown") { e.preventDefault(); items.eq((i + 1) % items.length).trigger("focus"); }
-    if (e.key === "ArrowUp")   { e.preventDefault(); items.eq((i - 1 + items.length) % items.length).trigger("focus"); }
+    var current = i >= 0 ? $(items[i]).data("i") : null;
+    switch (e.key) {
+      case "ArrowDown": e.preventDefault(); items.eq((i + 1) % items.length).trigger("focus"); break;
+      case "ArrowUp":   e.preventDefault(); items.eq((i - 1 + items.length) % items.length).trigger("focus"); break;
+      case "Home":      e.preventDefault(); items.first().trigger("focus"); break;
+      case "End":       e.preventDefault(); items.last().trigger("focus"); break;
+      case "ArrowRight":
+        if (current !== null && menuItems[current].submenu) { e.preventDefault(); openSubmenu(current); }
+        break;
+      case "ArrowLeft":
+      case "Backspace":
+        if (menuStack.length) { e.preventDefault(); menuBack(); }
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (current !== null) activate(current);
+        break;
+      case "Escape":    e.preventDefault(); closeMenu(); break;
+      case "Tab":       e.preventDefault(); closeMenu(); break;
+    }
   });
   $(document).on("mousedown", function (e) {
-    if (menu.is(":visible") && !$(e.target).closest(".popMenu").length && e.target !== menuAnchor && !$(e.target).closest(menuAnchor).length) closeMenu();
+    if (!menu.is(":visible") || $(e.target).closest(".popMenu").length) return;
+    // A ⋯ button handles clicks on itself; a context menu closes on any outside click
+    if (!menuAt && (e.target === menuAnchor || $(e.target).closest(menuAnchor).length)) return;
+    closeMenu(false);
   });
   $(document).on("keydown", function (e) {
     if (e.key === "Escape") {
@@ -397,14 +506,20 @@ function moreFormatter(value, row) {
       closeDialog();
     }
   });
-  $(window).on("resize", closeMenu);
+  $(window).on("resize", function () { closeMenu(false); });
+  window.addEventListener("scroll", function (e) {
+    if (!menu.is(":visible") || Date.now() < ignoreScrollUntil) return;
+    if (e.target !== document && menu[0].contains(e.target)) return; // the menu's own scrolling
+    closeMenu(false);
+  }, true);
 
   function addToPlaylistItems(songs) {
-    var items = [{ header: "Add to playlist" }];
+    var items = [];
     lists.forEach(function (p) {
       if (p.id === FAVORITES) return;
       items.push({ label: p.name, icon: "list-video", run: function () { addSongs(p.id, songs); } });
     });
+    if (items.length) items.push("-");
     items.push({ label: "New playlist…", icon: "plus", run: function () {
       askName("New playlist", "", "Create", function (name) {
         createPlaylist(name, songs).then(function (p) { if (p) renderBar(); });
@@ -413,30 +528,156 @@ function moreFormatter(value, row) {
     return items;
   }
 
-  function rowMenu(anchor, id) {
-    var song = songOf(id);
-    if (!song) return;
-    var fav = favorites.has(song);
-    var items = [
-      { label: "Play next", icon: "list-start", run: function () { queueSong(id, { next: true }); } },
-      { label: "Add to queue", icon: "list-ordered", run: function () { queueSong(id); } },
-      { label: fav ? "Remove from Favorites" : "Add to Favorites", icon: "heart", filled: fav, run: function () { toggleFavorite(song); } },
-      "-",
-    ].concat(addToPlaylistItems([song]));
+  function copyText(text) {
+    var done = function () { showToast("Copied: " + esc(text), "success"); };
+    var fallback = function () {
+      var ta = $("<textarea readonly>").val(text).css({ position: "fixed", top: 0, left: "-9999px" }).appendTo(document.body);
+      ta[0].select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      ta.remove();
+      if (ok) done(); else showToast("Could not copy to the clipboard.", "danger");
+    };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  }
 
-    if (view.type === "playlist" && cache[view.id]) {
+  // Everything you can do with one song. Shared by the ⋯ button and the
+  // context menu so they always match. Items the user can't use are left out:
+  // playback in a listening session they don't control, edits in demo mode.
+  function songMenuItems(id) {
+    var song = songOf(id);
+    if (!song) return null;
+    var canPlay = !(window.sessionSync && sessionSync.blocks());
+    var canEdit = !window.demoMode;
+    var items = [];
+    if (canPlay) {
+      items.push(
+        { label: "Play", icon: "play", run: function () { selectSong(id); playSelected(); } },
+        { label: "Play next", icon: "list-start", run: function () { queueSong(id, { next: true }); } },
+        { label: "Add to queue", icon: "list-ordered", run: function () { queueSong(id); } },
+        "-"
+      );
+    }
+    if (canEdit) {
+      var fav = favorites.has(song);
+      items.push(
+        { label: "Add to playlist", icon: "list-plus", submenu: function () { return addToPlaylistItems([song]); } },
+        { label: fav ? "Remove from Favorites" : "Add to Favorites", icon: "heart", filled: fav, run: function () { toggleFavorite(song); } },
+        "-"
+      );
+    }
+    items.push(
+      { label: "Download", icon: "download", run: function () { downloadSong(id); } },
+      { label: "Copy song name", icon: "copy", run: function () { copyText(songTitle(id)); } }
+    );
+
+    if (canEdit && view.type === "playlist" && cache[view.id]) {
       var p = cache[view.id];
       var pos = p.songs.indexOf(song);
       var sorted = !!playlistTable.bootstrapTable("getOptions").sortName;
       items.push("-", { header: "This playlist" });
       items.push({ label: "Move up", icon: "arrow-up", disabled: pos <= 0 || sorted, run: function () { move(p.id, song, -1); } });
       items.push({ label: "Move down", icon: "arrow-down", disabled: pos === -1 || pos >= p.songs.length - 1 || sorted, run: function () { move(p.id, song, 1); } });
-      items.push({ label: p.id === FAVORITES ? "Remove from Favorites" : "Remove from " + p.name, icon: "circle-minus", danger: true, run: function () {
-        if (p.id === FAVORITES) toggleFavorite(song); else removeSong(p.id, song);
+      if (p.id !== FAVORITES) {
+        items.push({ label: "Remove from this playlist", icon: "circle-minus", run: function () { removeSong(p.id, song); } });
+      }
+    }
+    if (canEdit) {
+      items.push("-", { label: "Delete…", icon: "trash-2", danger: true, run: function () {
+        confirmDialog("Delete “" + songTitle(id) + "”?", "The file is removed from the music folder for everyone.", "Delete", function () {
+          deleteSong(id);
+        });
       } });
     }
-    openMenu(anchor, items);
+    return items;
   }
+
+  function rowMenu(anchor, id) {
+    openMenu(anchor, songMenuItems(id), { label: "Actions for " + songTitle(id) });
+  }
+
+  // Open the song menu at a viewport point, selecting the row first.
+  function contextMenuAt(id, x, y) {
+    if (!songOf(id)) return;
+    selectSong(id);
+    openMenu(playlistTable[0], songMenuItems(id), { at: { x: x, y: y }, label: "Actions for " + songTitle(id) });
+  }
+
+  // Keyboard: open for the selected row, just below its title.
+  function contextMenuForSelected() {
+    var row = $("#playlistTable > tbody > tr.songSelected[data-uniqueid]")[0];
+    if (!row) return false;
+    var before = window.scrollY;
+    ensureRowVisible(row);
+    var open = function () {
+      var cell = $(row).children('td[data-field="name"], td.cursor-pointer')[0] || row;
+      var r = cell.getBoundingClientRect();
+      contextMenuAt($(row).attr("data-uniqueid"), r.left + 16, r.bottom - 4);
+    };
+    if (window.scrollY !== before) {
+      ignoreScrollUntil = Date.now() + 700; // let a smooth scroll finish first
+      setTimeout(open, 350);
+    } else {
+      open();
+    }
+    return true;
+  }
+
+  var rowSelector = "tbody > tr[data-uniqueid]";
+  var press = null; // touch long-press in progress
+
+  function cancelPress() {
+    if (press) clearTimeout(press.timer);
+    press = null;
+  }
+
+  $("#playlistTable")
+    .on("contextmenu", function (e) {
+      var row = $(e.target).closest("#playlistTable > " + rowSelector);
+      cancelPress();
+      // Already opened by a long-press or the keyboard for this same gesture
+      if (menu.is(":visible") && Date.now() - menuOpenedAt < 700) return e.preventDefault();
+      if (!row.length) {
+        // Context-menu key / Shift+F10 while the table itself has focus
+        if (e.target === playlistTable[0] && contextMenuForSelected()) e.preventDefault();
+        return; // elsewhere: the browser's own menu
+      }
+      e.preventDefault();
+      var x = e.clientX, y = e.clientY;
+      if (!x && !y) { // keyboard-invoked on a focused cell
+        var r = row[0].getBoundingClientRect();
+        x = r.left + 16; y = r.bottom - 4;
+      }
+      contextMenuAt(row.attr("data-uniqueid"), x, y);
+    })
+    .on("keydown", function (e) {
+      if (e.key !== "ContextMenu" && !(e.shiftKey && e.key === "F10")) return;
+      var row = $(e.target).closest(rowSelector);
+      if (row.length) selectSong(row.attr("data-uniqueid"));
+      if (contextMenuForSelected()) { e.preventDefault(); e.stopPropagation(); }
+    })
+    .on("touchstart", rowSelector, function (e) {
+      var touches = e.originalEvent.touches;
+      cancelPress();
+      if (touches.length !== 1) return;
+      var id = $(this).attr("data-uniqueid");
+      var p = press = { x: touches[0].clientX, y: touches[0].clientY, fired: false };
+      p.timer = setTimeout(function () {
+        p.fired = true;
+        contextMenuAt(id, p.x, p.y);
+        try { if (navigator.vibrate) navigator.vibrate(10); } catch (err) {}
+      }, 500);
+    })
+    .on("touchmove", rowSelector, function (e) {
+      var t = e.originalEvent.touches[0];
+      if (press && !press.fired && t && Math.hypot(t.clientX - press.x, t.clientY - press.y) > 10) cancelPress();
+    })
+    .on("touchend touchcancel", rowSelector, function (e) {
+      // After a long-press, don't let the lift turn into a click (which plays from the cover)
+      if (press && press.fired && e.cancelable) e.preventDefault();
+      cancelPress();
+    });
 
   function playlistMenu(anchor) {
     var p = cache[view.id];
@@ -492,7 +733,7 @@ function moreFormatter(value, row) {
     if (!dialog.is(":visible")) return;
     dialog.hide();
     dialogSubmit = null;
-    if (dialogReturnFocus && document.body.contains(dialogReturnFocus)) dialogReturnFocus.focus();
+    if (dialogReturnFocus && document.body.contains(dialogReturnFocus)) dialogReturnFocus.focus({ preventScroll: true });
   }
   dialog.on("submit", ".plDialog", function (e) {
     e.preventDefault();

@@ -21,6 +21,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Cast** to Google Cast / Nest speakers from the playbar (playbar controls, queue and auto-next keep working on the speaker); AirPlay in Safari
 - [x] **Cover art** from each song's embedded ID3v2 picture: a thumbnail per row, a larger cover in the playbar, and artwork in the OS media overlay and on Cast speakers (a neutral placeholder when a song has none; see below)
 - [x] **Click to select, double-click to play**: a single click selects a song, a double-click (or Enter, or the play button on its cover) plays it
+- [x] **Song menu** on right-click, long-press (touch), the context-menu key or <kbd>Shift</kbd>+<kbd>F10</kbd>, and the ⋯ button: play, play next, add to queue, add to a playlist, favorite, download, copy the song name, remove from the shown playlist and delete (with a confirmation). Items you can't use (demo mode, or a listening session you don't control) are hidden
 - [x] Live waveform in the playbar that follows the music and freezes when paused
 - [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
 - [x] Keyboard shortcuts (see below)
@@ -55,6 +56,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 | --- | --- |
 | <kbd>↑</kbd> / <kbd>↓</kbd> | Move the selection up / down |
 | <kbd>Enter</kbd> | Play the selected song |
+| <kbd>☰ Menu</kbd> / <kbd>Shift</kbd>+<kbd>F10</kbd> | Open the song menu for the selected song (<kbd>↑</kbd> / <kbd>↓</kbd> to move, <kbd>Enter</kbd> to choose, <kbd>→</kbd> / <kbd>←</kbd> into and out of "Add to playlist", <kbd>Esc</kbd> to close) |
 | <kbd>Esc</kbd> | Leave the list (<kbd>↑</kbd> / <kbd>↓</kbd> control the volume again) |
 
 Clicking anywhere outside the list also gives <kbd>↑</kbd> / <kbd>↓</kbd> back to the volume. Double-click a song to
