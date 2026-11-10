@@ -1,9 +1,10 @@
 <?php 
 require_once('_includes.php');
+$theme = themeSetup();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?= $theme["attributes"] ?>>
   <head>
 
     <meta charset="utf-8">
@@ -24,8 +25,11 @@ require_once('_includes.php');
     <link href="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone.css" rel="stylesheet" type="text/css">
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="themes.css">
+    <?php if ($theme["css"] !== "") { echo "<style>" . $theme["css"] . "</style>"; } ?>
+    <?= $theme["script"] ?>
   </head>
-<body data-bs-theme="<?= getConfig('player_theme') ?>">
+<body class="<?= getConfig('player_position') === 'top' ? 'player-top' : 'player-bottom' ?>">
 <?php
 
 
@@ -64,6 +68,7 @@ $columns = [
     "name"     => "Duration",
     "sortable" => true,
     "field"    => "duration",
+    "sorter"   => "durationSorter",
     "visible"  => true,
     "align"    => null,
   ],
@@ -71,6 +76,7 @@ $columns = [
     "name"     => "Size",
     "sortable" => true,
     "field"    => "size",
+    "sorter"   => "sizeSorter",
     "visible"  => false,
     "align"    => null,
   ],
@@ -135,10 +141,11 @@ if (getConfig('fluid-container')) {
 // }
 
 echo '
-<div class="audio-player-container px-3" style="opacity: '.getConfig('player_opacity').';">
+<div class="audio-player-container px-3" style="opacity: '.(float) getConfig('player_opacity').';">
   <div class="d-flex align-items-center card border border-success">
       <div class="card-header playerHeader">
-        <canvas class="waveform" aria-hidden="true"></canvas>
+        '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
+
         <div class="text-center">
           <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
           <small class="castStatus text-muted" style="display:none;"></small>
@@ -182,7 +189,7 @@ echo '
           <div class="btn-group mx-2 castGroup" style="display:none;">
             <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
           </div>
-          <div class="btn-group mx-2">
+          <div class="btn-group mx-2 quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong()">'.icon('dice-'.mt_rand(1,6)).' Random Song</button>
           </div>
@@ -208,7 +215,10 @@ echo '
     </div>
   </div>
 <div class="card-body">
+';
 
+if (getConfig('show_upload')) {
+  echo '
 <div id="musicDropzone" class="border border-secondary align-items-center p-3">
       <h3>Upload Music</h3>
       <a href="javascript:void(0);" class="dropzoneSelect text-muted">Drag and drop MP3 files here or click to upload.</a>
@@ -217,6 +227,13 @@ echo '
   <!-- Response from Dropzone will be displayed here -->
 </div>
 ';
+}
+
+$sortColumn = getConfig('default_sort');
+$sortAttrs  = '';
+if (in_array($sortColumn, ['name', 'duration', 'size', 'date'], true)) {
+  $sortAttrs = ' data-sort-name="'.$sortColumn.'" data-sort-order="'.(getConfig('default_sort_order') === 'desc' ? 'desc' : 'asc').'"';
+}
 
 
 
@@ -226,7 +243,7 @@ if (empty($musicFiles)) {
 }
 echo '
 <div id="toolbar"></div>
-<table id="playlistTable" data-toolbar="#toolbar" class="table table-striped" 
+<table id="playlistTable" data-toolbar="#toolbar" class="table table-striped'.(getConfig('compact_rows') ? ' table-sm' : '').'"'.$sortAttrs.'
   data-toggle="table" 
   data-search="true"  
   data-show-refresh="true"
@@ -245,10 +262,11 @@ echo '
     $sortable = isset($column['sortable']) && $column['sortable'] ? 'true' : '';
     $align    = isset($column['align']) ? $column['align'] : '';
     $name     = isset($column['name']) ? htmlspecialchars($column['name']) : '';
+    $sorter   = isset($column['sorter']) ? ' data-sorter="'.$column['sorter'].'"' : '';
     echo '<th 
       data-sortable="'.$sortable.'"
       data-align="'.$align.'"
-      data-field="'.$key.'"
+      data-field="'.$key.'"'.$sorter.'
       data-visible="'.$visible.'"
       data-sortable="'.$sortable.'"
       data-align="'.$align.'">

@@ -86,13 +86,373 @@ body {
   opacity: 0.35;
 }
 
-/* Settings modal: category header rows */
-#configModal .configCategory th {
-  background: var(--tblr-bg-surface-secondary, rgba(127, 127, 127, 0.12));
+/* Player position */
+body.player-bottom .container,
+body.player-bottom .container-fluid {
+  padding-bottom: 260px;
+}
+body.player-top .audio-player-container {
+  top: 0;
+  bottom: auto;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+body.player-top .container,
+body.player-top .container-fluid {
+  padding-top: 260px;
+}
+body.player-top .toast-container {
+  top: auto !important;
+  bottom: 0;
+}
+
+/* ────────────────────────────── Settings modal ───────────────────────────── */
+.settingsModal .modal-content {
+  background: var(--tblr-body-bg);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 16px;
+  overflow: hidden;
+}
+@media (min-width: 992px) {
+  .settingsModal .modal-dialog.modal-xl {
+    max-width: min(1100px, calc(100vw - 2rem));
+  }
+}
+@media (max-width: 991.98px) {
+  .settingsModal .modal-content {
+    border-radius: 0;
+    border: 0;
+  }
+}
+.settingsHeader {
+  border-bottom: 0;
+  padding: 1.5rem 1.75rem 0.75rem;
+}
+.settingsTitle {
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin: 0;
+}
+.settingsSearch {
+  position: relative;
+  max-width: 420px;
+  margin-top: 0.9rem;
+}
+.settingsSearch .bi {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.settingsSearchInput {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.5rem 1rem 0.5rem 2.4rem;
+  background: var(--tblr-bg-surface);
   color: var(--tblr-body-color);
+  outline: none;
+}
+.settingsSearchInput:focus {
+  border-color: var(--tblr-border-color);
+}
+.settingsBody {
+  padding: 0.5rem 1.75rem 1.5rem;
+}
+.settingsLayout {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+.settingsNav {
+  position: sticky;
+  top: 0;
+  flex: 0 0 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 0.75rem;
+}
+.settingsNavLink {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  color: var(--tblr-secondary-color, var(--tblr-body-color));
+  text-decoration: none;
+  font-weight: 500;
+}
+.settingsNavLink:hover {
+  background: var(--tblr-bg-surface);
+  color: var(--tblr-body-color);
+  text-decoration: none;
+}
+.settingsNavLink.active {
+  background: var(--tblr-bg-surface);
+  color: var(--tblr-body-color);
+}
+.settingsNav.searching {
+  opacity: 0.5;
+}
+.settingsContent {
+  flex: 1;
+  min-width: 0;
+  max-width: 820px;
+}
+.settingsSection {
+  scroll-margin-top: 0.5rem;
+}
+.settingsSectionTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 1.1rem 0 0.7rem;
+}
+.settingsCard {
+  background: var(--tblr-bg-surface);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 12px;
+  padding: 0.6rem 1.25rem;
+}
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.7rem 0;
+}
+.settingRow.settingSearchHidden,
+.settingRow.settingCondHidden {
+  display: none;
+}
+.searchActive .settingRow.settingCondHidden:not(.settingSearchHidden) {
+  display: flex;
+}
+.settingText {
+  min-width: 0;
+}
+.settingName {
+  font-weight: 600;
+  color: var(--tblr-body-color);
+}
+.settingDesc {
   font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding-top: 0.6rem;
-  padding-bottom: 0.6rem;
+  color: var(--tblr-secondary-color, var(--tblr-muted));
+  margin-top: 2px;
+}
+.settingSaved {
+  color: var(--tblr-success);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.settingRow.justSaved .settingSaved {
+  opacity: 1;
+}
+.settingControl {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  max-width: 55%;
+}
+.settingControl .form-control,
+.settingControl .form-select {
+  min-width: 220px;
+  border-radius: 8px;
+}
+.settingControl .form-control-color {
+  min-width: 0;
+  width: 3rem;
+  height: 2rem;
+  padding: 0.2rem;
+}
+
+/* Toggle switch */
+.settingSwitch {
+  padding-left: 0;
+  min-height: 0;
+}
+.settingSwitch .form-check-input {
+  float: none;
+  width: 2.6rem;
+  height: 1.4rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Segmented pills */
+.settingSegmented {
+  display: flex;
+  gap: 0.35rem;
+}
+.settingSegmented .segBtn {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--tblr-body-color);
+  background: var(--tblr-secondary-bg, transparent);
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+.settingSegmented .segBtn:hover {
+  border-color: var(--tblr-border-color);
+}
+.settingSegmented .btn-check:checked + .segBtn {
+  background: var(--tblr-body-color);
+  color: var(--tblr-bg-surface);
+}
+.settingSegmented .btn-check:focus-visible + .segBtn {
+  outline: 2px solid var(--tblr-success);
+  outline-offset: 2px;
+}
+.settingMulti {
+  max-width: 360px;
+}
+
+/* Range with value */
+.settingRangeWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 260px;
+}
+.settingRangeValue {
+  min-width: 3.2rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Number with unit */
+.settingNumber {
+  width: 150px;
+  flex-wrap: nowrap;
+}
+.settingControl .settingNumber .form-control {
+  min-width: 0;
+}
+
+/* Chips */
+.settingChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 360px;
+  cursor: text;
+}
+.settingChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: var(--tblr-secondary-bg, rgba(127, 127, 127, 0.15));
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.chipRemove {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+}
+.chipRemove:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.2);
+}
+.chipAdd {
+  border: 1px dashed var(--tblr-border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tblr-body-color);
+  padding: 0.2rem 0.75rem;
+  font-size: 0.85rem;
+  width: 6.5rem;
+  outline: none;
+}
+.chipAdd:focus {
+  border-style: solid;
+}
+
+.accentDot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 2px var(--tblr-bg-surface), 0 0 0 3px var(--tblr-border-color);
+}
+.settingsEmpty {
+  padding: 2rem 0;
+  text-align: center;
+}
+.settingsFile {
+  margin-top: 1.25rem;
+}
+.settingsFooter {
+  border-top: 1px solid var(--tblr-border-color);
+  background: var(--tblr-bg-surface);
+}
+
+/* Narrow screens: nav becomes a pill row, rows stack */
+@media (max-width: 991.98px) {
+  .settingsLayout {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .settingsNav {
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    width: 100%;
+    background: var(--tblr-body-bg);
+    z-index: 2;
+    padding: 0.5rem 0;
+  }
+  .settingsNavLink {
+    white-space: nowrap;
+    border-radius: 999px;
+    background: var(--tblr-bg-surface);
+  }
+  .settingsContent {
+    max-width: none;
+    width: 100%;
+  }
+}
+@media (max-width: 575.98px) {
+  .settingsHeader,
+  .settingsBody {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .settingRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+  .settingControl {
+    max-width: none;
+    justify-content: flex-start;
+  }
+  .settingControl .form-control,
+  .settingControl .form-select,
+  .settingRangeWrap {
+    width: 100%;
+    min-width: 0;
+  }
+  .settingSegmented,
+  .settingChips {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    max-width: none;
+  }
 }

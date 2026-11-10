@@ -24,6 +24,11 @@
   var audioPath             = <?= json_encode(getConfig("audio_path")) ?>;
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
+  var autoplayNext          = <?= json_encode((bool) getConfig("autoplay_next")) ?>;
+  var seekStep              = <?= json_encode(max(1, (int) getConfig("seek_step"))) ?>;
+  var startShuffle          = <?= json_encode((bool) getConfig("start_shuffle")) ?>;
+  var startLoop             = <?= json_encode((bool) getConfig("start_loop")) ?>;
+  var rememberPosition      = <?= json_encode((bool) getConfig("remember_position")) ?>;
   var stateKey              = "playerState";
   var songName              = null;
   var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
@@ -42,6 +47,13 @@
   }
   // Called when the current song finishes (locally or on a Cast speaker).
   function onSongEnded() {
+    if (!autoplayNext && !loop) {
+      // Stop at the end of the song instead of moving on.
+      if (window.sessionSync && sessionSync.active() && !sessionSync.canControl()) return;
+      setPlayingUI(false);
+      sessionChanged({ playing: false });
+      return;
+    }
     if (window.sessionSync && sessionSync.active()) {
       sessionSync.songEnded();
       return;
@@ -51,6 +63,18 @@
       return;
     }
     nextSong();
+  }
+
+  /* ───────────────────────── Table sorters (bootstrap-table) ──────────────── */
+  function durationSorter(a, b) {
+    var secs = function(v) {
+      var parts = String(v).replace(/<[^>]*>/g, "").trim().split(":").map(Number);
+      return parts.reduce(function(acc, n) { return acc * 60 + (isNaN(n) ? 0 : n); }, 0);
+    };
+    return secs(a) - secs(b);
+  }
+  function sizeSorter(a, b) {
+    return (parseFloat(String(a).replace(/<[^>]*>/g, "")) || 0) - (parseFloat(String(b).replace(/<[^>]*>/g, "")) || 0);
   }
 
   /* ─────────────────────────── FUNCTION: songUrl ──────────────────────────── */
@@ -178,6 +202,7 @@
 
   /* ─────────────────────────── FUNCTION: saveState ────────────────────────── */
   function saveState() {
+    if (!rememberPosition) return;
     try {
       localStorage.setItem(stateKey, JSON.stringify({
         filename: songName,
@@ -191,11 +216,22 @@
   /* ────────────────────────── FUNCTION: restoreState ──────────────────────── */
   function restoreState() {
     if (sessionCode) return; // the session's state wins
+    var applyStartToggles = function() {
+      if (startLoop && !loop) toggleLoop();
+      if (startShuffle && !shuffle) toggleShuffle();
+    };
     var state = null;
-    try {
-      state = JSON.parse(localStorage.getItem(stateKey) || "null");
-    } catch (e) {}
-    if (!state) return;
+    if (rememberPosition) {
+      try {
+        state = JSON.parse(localStorage.getItem(stateKey) || "null");
+      } catch (e) {}
+    } else {
+      try { localStorage.removeItem(stateKey); } catch (e) {}
+    }
+    if (!state) {
+      applyStartToggles();
+      return;
+    }
     if (state.loop && !loop) toggleLoop();
     if (state.shuffle && !shuffle) toggleShuffle();
     if (!state.filename) return;
@@ -805,8 +841,8 @@
       });
       var seekHandlers = {
         seekto:       function(d) { if (sessionBlocked()) return; player.seek(d.seekTime); updateTime(); sessionChanged({ position: d.seekTime }); },
-        seekbackward: function(d) { seekBy(-(d.seekOffset || 10)); },
-        seekforward:  function(d) { seekBy(d.seekOffset || 10); },
+        seekbackward: function(d) { seekBy(-(d.seekOffset || seekStep)); },
+        seekforward:  function(d) { seekBy(d.seekOffset || seekStep); },
       };
       $.each(seekHandlers, function(action, handler) {
         try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
@@ -827,8 +863,8 @@
       var handled = true;
       switch (e.code) {
         case 'Space':      toggleSong(); break;
-        case 'ArrowLeft':  e.shiftKey ? prevSong() : seekBy(-5); break;
-        case 'ArrowRight': e.shiftKey ? nextSong() : seekBy(5); break;
+        case 'ArrowLeft':  e.shiftKey ? prevSong() : seekBy(-seekStep); break;
+        case 'ArrowRight': e.shiftKey ? nextSong() : seekBy(seekStep); break;
         case 'ArrowUp':    changeVolume(0.05); break;
         case 'ArrowDown':  changeVolume(-0.05); break;
         case 'KeyM':       $(".volumeIcon").first().trigger('click'); break;
@@ -842,99 +878,199 @@
     /* ─────────────────────────── NOTE: Restore state ────────────────────────── */
     restoreState();
 
-    // Helper function to collect array values for a given base key within a container
-    function collectArrayValues(baseKey, container) {
-      var values = [];
-      var selector = container ? container.find(".settingInput[data-key^='" + baseKey + "-']") : $(".settingInput[data-key^='" + baseKey + "-']");
-      selector.each(function() {
-        var value = $(this).val();
-        if (value && value.trim() !== "") {
-          values.push(value.trim());
-        }
-      });
-      return values;
+    /* ────────────────────────────────────────────────────────────────────────── */
+    /*                                Settings modal                              */
+    /* ────────────────────────────────────────────────────────────────────────── */
+    var settingsModal = $("#configModal");
+    var previewAccents = ["green", "blue", "purple", "pink", "orange", "red", "teal", "yellow"];
+    var previewThemes  = { light: "light", arctic: "light", dark: "dark", oled: "dark", midnight: "dark", forest: "dark", sunset: "dark" };
+
+    function settingValue(key) {
+      var inputs = settingsModal.find(".settingInput[data-key='" + key + "']");
+      if (!inputs.length) return undefined;
+      if (inputs.is(":radio")) return inputs.filter(":checked").val();
+      if (inputs.is(":checkbox")) return inputs.is(":checked");
+      return inputs.val();
     }
 
-    // settingInput
-    $(document)
-      .on("keydown", ".settingInput", function() {
-        setWarning($(this));
-        $(".reloadCfgBtn").show();
-        $(".resetCfgBtn").show();
-      })
-      .on("change", ".settingInput", function() {
-        $(".reloadCfgBtn").show();
-        $(".resetCfgBtn").show();
-        var key   = $(this).data("key");
-        if (typeof(key) === "undefined") {
-          console.log("Key is undefined.", key);
+    // Live preview for preset themes and accents (custom ones need a reload).
+    function previewSetting(key, value) {
+      var root = document.documentElement;
+      if (key === "player_theme" && previewThemes[value]) {
+        root.setAttribute("data-app-theme", value);
+        root.setAttribute("data-bs-theme", previewThemes[value]);
+      }
+      if (key === "accent_color" && previewAccents.indexOf(value) !== -1) {
+        root.setAttribute("data-accent", value);
+        var dot = settingsModal.find(".accentDot");
+        var swatches = { green: "#2fb344", blue: "#3b82f6", purple: "#a855f7", pink: "#ec4899", orange: "#f97316", red: "#ef4444", teal: "#14b8a6", yellow: "#eab308" };
+        dot.css("background", swatches[value]);
+      }
+    }
+
+    function updateConditionalRows() {
+      settingsModal.find(".settingRow[data-show-when]").each(function() {
+        var rule = String($(this).data("show-when"));
+        var show;
+        if (rule.indexOf("!=") !== -1) {
+          var parts = rule.split("!=");
+          show = String(settingValue(parts[0]) || "").trim() !== parts[1];
+        } else {
+          var eq = rule.split("=");
+          show = String(settingValue(eq[0])) === eq[1];
+        }
+        $(this).toggleClass("settingCondHidden", !show);
+      });
+      updateSearch();
+    }
+
+    function saveSetting(key, value, row) {
+      $.ajax({
+        url: apiURL,
+        type: "POST",
+        dataType: "json",
+        data: { action: "setconfig", csrf_token: csrfToken, config: { key: key, value: value } },
+      }).then(function(res) {
+        if (res.status !== "success") {
+          showToast(res.response || "Could not save the setting.", "danger");
           return;
         }
-        
-        // Check if this is an array item (key contains a dash followed by number or "new")
-        var arrayMatch = key.match(/^(.+)-(\d+|new)$/);
-        if (arrayMatch) {
-          // This is an array item - collect all array values from the same config list
-          var baseKey = arrayMatch[1];
-          var container = $(this).closest(".configList");
-          var values = collectArrayValues(baseKey, container);
-          console.log("Array key: " + baseKey + ", Values: " + JSON.stringify(values));
-          api("setconfig", { config: { key: baseKey, value: values } }, "POST");
-          setSuccess($(this));
-        } else {
-          // Regular (non-array) config item
-          if ($(this).is(":checkbox")) {
-            var value = ($(this).is(":checked") ? true : false);
-          } else {
-            var value = $(this).val();
-          }
-          console.log("Key: " + key + ", Value: " + value);
-          api("setconfig", { config: { key: key, value: value } }, "POST");
-          setSuccess($(this));
+        if (res.response === "No change.") return;
+        settingsModal.find(".settingsFooter").show();
+        if (row && row.length) {
+          row.addClass("justSaved");
+          setTimeout(function() { row.removeClass("justSaved"); }, 1500);
         }
+        previewSetting(key, value);
+      }, function() {
+        showToast("Could not reach the server to save the setting.", "danger");
+      });
+    }
+
+    function chipValues(chips) {
+      return chips.find(".chipText").map(function() { return $(this).text(); }).get();
+    }
+
+    function addChip(input) {
+      var chips = input.closest(".settingChips");
+      var text = input.val().trim().replace(/^\./, "");
+      if (!text) return;
+      if (chipValues(chips).indexOf(text) === -1) {
+        var chip = $('<span class="settingChip"><span class="chipText"></span><button type="button" class="chipRemove">&times;</button></span>');
+        chip.find(".chipText").text(text);
+        chip.find(".chipRemove").attr("aria-label", "Remove " + text);
+        chip.insertBefore(input);
+        saveSetting(chips.data("key"), chipValues(chips), chips.closest(".settingRow"));
+      }
+      input.val("");
+    }
+
+    settingsModal
+      // Plain controls: switches, pills, selects, ranges, numbers, colors, text
+      .on("change", ".settingInput", function() {
+        var el  = $(this);
+        var key = el.data("key");
+        if (!key) return;
+        var value;
+        if (el.is(":radio")) {
+          if (!el.is(":checked")) return;
+          value = el.val();
+        } else if (el.is(":checkbox")) {
+          value = el.is(":checked");
+        } else {
+          value = el.val();
+        }
+        if (el.is("[type=color]")) {
+          el.closest(".settingControl").find(".settingColorHex").text(value);
+        }
+        saveSetting(key, value, el.closest(".settingRow"));
+        updateConditionalRows();
+      })
+      .on("keydown", "input[type=text].settingInput", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          $(this).trigger("blur");
+        }
+      })
+      // Range value label while dragging
+      .on("input", ".settingRange", function() {
+        var v = parseFloat($(this).val());
+        var label = $(this).data("format") === "px" ? Math.round(v) + " px" : Math.round(v * 100) + "%";
+        $(this).siblings(".settingRangeValue").text(label);
+      })
+      // Chips (array settings)
+      .on("click", ".chipRemove", function() {
+        var chips = $(this).closest(".settingChips");
+        $(this).closest(".settingChip").remove();
+        saveSetting(chips.data("key"), chipValues(chips), chips.closest(".settingRow"));
+      })
+      .on("keydown", ".chipAdd", function(e) {
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault();
+          addChip($(this));
+        } else if (e.key === "Backspace" && !$(this).val()) {
+          $(this).prev(".settingChip").find(".chipRemove").trigger("click");
+        }
+      })
+      .on("blur", ".chipAdd", function() {
+        addChip($(this));
+      })
+      .on("click", ".settingChips", function(e) {
+        if (e.target === this) $(this).find(".chipAdd").trigger("focus");
+      })
+      // Multi-select pills
+      .on("change", ".multiOpt", function() {
+        var group = $(this).closest(".settingMulti");
+        var values = group.find(".multiOpt:checked").map(function() { return this.value; }).get();
+        saveSetting(group.data("key"), values, group.closest(".settingRow"));
       });
 
-    // Setting Range
-    $(".settingRange").on("input", function() {
-      var key      = $(this).attr("id");
-      var value    = $(this).val();
-      var valueObj = $(this).attr("data-valueobject");
-      $("#" + valueObj).text(Math.round(value * 100) + "%");
-    });
+    /* ──────────────────────────────── Search ─────────────────────────────────── */
+    function updateSearch() {
+      var q = String(settingsModal.find(".settingsSearchInput").val() || "").trim().toLowerCase();
+      var anyVisible = false;
+      settingsModal.find(".settingRow").each(function() {
+        var match = !q || String($(this).data("search")).indexOf(q) !== -1;
+        $(this).toggleClass("settingSearchHidden", !match);
+      });
+      // While searching, rows that are normally hidden (e.g. custom colors) are shown if they match.
+      settingsModal.find(".settingsContent").toggleClass("searchActive", !!q);
+      settingsModal.find(".settingsSection").each(function() {
+        var rows = $(this).find(".settingRow:not(.settingSearchHidden)");
+        var visible = (q ? rows : rows.not(".settingCondHidden")).length > 0;
+        $(this).toggle(visible);
+        if (visible) anyVisible = true;
+      });
+      settingsModal.find(".settingsEmpty").toggle(!anyVisible);
+      settingsModal.find(".settingsNav").toggleClass("searching", !!q);
+    }
+    settingsModal.on("input", ".settingsSearchInput", updateSearch);
 
-    // Settings reset
-    $(".resetCfgBtn").on("click", function() {
-      $(".resetCfgBtn").hide();
-      $(".reloadCfgBtn").hide();
+    /* ─────────────────────────── Section navigation ──────────────────────────── */
+    settingsModal.on("click", ".settingsNavLink", function(e) {
+      e.preventDefault();
+      var target = document.getElementById($(this).data("target"));
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-
-    $(document).on("click", ".array-minus", function() {
-      var key = $(this).data("key");
-      var inputGroup = $(this).closest(".configListItem");
-      var container = $(this).closest(".configList");
-      inputGroup.remove();
-      
-      // Rebuild and save the array after removal
-      var values = collectArrayValues(key, container);
-      console.log("Array key after removal: " + key + ", Values: " + JSON.stringify(values));
-      api("setconfig", { config: { key: key, value: values } }, "POST");
-      
-      if (container.find(".configListItem").length === 0) {
-        container.append('<div class="text-muted">No items in array</div>');
+    settingsModal.find(".settingsBody").on("scroll", function() {
+      var bodyTop = this.getBoundingClientRect().top;
+      var current = null;
+      settingsModal.find(".settingsSection:visible").each(function() {
+        if (this.getBoundingClientRect().top - bodyTop <= 120) current = this.id;
+      });
+      if (this.scrollTop + this.clientHeight >= this.scrollHeight - 4) {
+        current = settingsModal.find(".settingsSection:visible").last().attr("id");
       }
+      if (!current) current = settingsModal.find(".settingsSection:visible").first().attr("id");
+      settingsModal.find(".settingsNavLink").each(function() {
+        $(this).toggleClass("active", $(this).data("target") === current);
+      });
+    });
+    settingsModal.on("shown.bs.modal", function() {
+      settingsModal.find(".settingsBody").trigger("scroll");
     });
 
-    $(".array-plus").on("click", function() {
-      var key = $(this).data("key");
-      var newItem = `
-        <div class='input-group m-2 configListItem'>
-          <input type='text' class='form-control settingInput' placeholder='New item' data-key='` + key + `-new'>
-          <button type='button' class='btn btn-outline-danger btn-sm array-minus' data-key='` + key + `'>
-            <span aria-hidden='true'>&minus;</span>
-          </button>
-        </div>`;
-      $(".configList").append(newItem);
-    });
+    updateConditionalRows();
 
 });
 </script>

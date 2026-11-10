@@ -25,14 +25,35 @@
     $version = $_ENV['VERSION'];
 
     /* ────────────────────────────── Configuration ───────────────────────────── */
+    # config.default.php defines every setting (name, type, options, default value).
+    # config.local.php (or config.php) only overrides values; metadata always comes
+    # from the defaults, so new settings and options appear without a migration.
+    $config = [];
+    include('config.default.php');
+    $defaultConfig = $config;
+
     if (file_exists('config.local.php')) {
         $configFile = 'config.local.php';
-        include_once($configFile);
     } elseif (file_exists('config.php')) {
         $configFile = 'config.php';
-        include_once($configFile);
     } else {
         die(json_encode("The configuration file is missing."));
+    }
+    $config = [];
+    include($configFile);
+    $activeConfig = is_array($config) ? $config : [];
+
+    $config = [];
+    foreach ($defaultConfig as $key => $setting) {
+        if (isset($activeConfig[$key]) && is_array($activeConfig[$key]) && array_key_exists('value', $activeConfig[$key])) {
+            $setting['value'] = $activeConfig[$key]['value'];
+        }
+        $config[$key] = $setting;
+    }
+    foreach ($activeConfig as $key => $setting) {
+        if (!isset($config[$key])) {
+            $config[$key] = $setting;
+        }
     }
 
     # Save the configuration to a constant

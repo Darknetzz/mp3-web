@@ -27,7 +27,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] Upload files (multiple at once) directly from the web UI
 - [x] Track durations (via [`wapmorgan/mp3info`](https://github.com/wapmorgan/Mp3Info))
 - [x] Change settings from the GUI (persisted to the config file)
-- [x] Dark/light player theme, configurable table columns, remembered volume
+- [x] Seven themes (plus Follow system and custom colors), accent colors, background image, and layout options (see [Settings](#settings))
 - [x] Demo mode that disables all file actions
 - [x] CSRF protection on state-changing API requests
 
@@ -135,31 +135,59 @@ services:
 
 ## Configuration
 
-### Settings (`config.php`)
+### Settings
 
-Settings are loaded from the first file that exists:
+Open **Settings** (gear button) to change everything from the browser: settings are grouped into General, Library,
+Playback, Appearance, Layout and Background, with a search box. Changes are saved immediately; most apply after a reload.
 
-1. `config.local.php` (ignored by git, use this for your own overrides)
-2. `config.php`
+Where settings live:
 
-`config.default.php` holds the reference defaults and should not be edited. Settings changed through the GUI are written
-back to whichever config file is active, so that file must be writable by the web server.
+- `config.default.php` defines every setting (name, type, options, default). Don't edit it to change settings.
+- `config.local.php` (git-ignored), or `config.php` if there is no local file, holds your values. Only the values are
+  read from it, so new settings and options added in updates show up automatically with their defaults.
+- The settings dialog writes to that active file, so it must be writable by the web server.
 
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `env` | selection | `dev` | `dev`, `prod` or `demo` (demo disables all file actions in the API) |
-| `player_theme` | selection | `dark` | `dark` or `light` |
-| `default_table_cols` | multiselect | `name, duration, queue` | Columns shown in the song table (`#`, `filename`, `size`, `date`, `name`, `duration`, `queue`, `delete`) |
-| `site_title` | string | `Music Player` | Page title |
-| `allowed_types` | array | `mp3, ogg, wav` | File extensions that are listed and accepted for upload |
-| `audio_path` | string | `music` | Folder containing the audio files |
-| `use_legacy_player` | bool | `false` | Use the old player layout |
-| `include_file_extension` | bool | `true` | Show file extensions in song names |
-| `default_volume` | range 0–1 | `0.5` | Initial volume (the last used volume is remembered in the browser) |
-| `no_song_text` | string | `No song selected` | Text shown when nothing is playing |
-| `auto_scroll` | bool | `true` | Scroll to the currently playing song |
-| `fluid-container` | bool | `false` | Use a full-width layout |
-| `player_opacity` | range 0–1 | `0.95` | Opacity of the player bar |
+| Key | Default | Description |
+| --- | --- | --- |
+| **General** | | |
+| `site_title` | `Music Player` | Header and browser tab title |
+| `no_song_text` | `No song selected` | Player text when nothing is selected |
+| `env` | `dev` | `dev`, `prod` or `demo` (demo disables uploads, deletes, settings and sessions) |
+| **Library** | | |
+| `audio_path` | `music` | Folder containing the audio files |
+| `allowed_types` | `mp3, ogg, wav` | Extensions that are listed and accepted for upload |
+| `include_file_extension` | `true` | Show file extensions in song names |
+| `default_sort` / `default_sort_order` | `none` / `asc` | Initial sort of the song list (name, duration, size, date added) |
+| `default_table_cols` | `name, duration, queue` | Columns shown in the song table |
+| **Playback** | | |
+| `autoplay_next` | `true` | Play the next song automatically; when off, playback stops after each song |
+| `default_volume` | `0.5` | Starting volume (the last used volume is remembered per browser) |
+| `seek_step` | `5` | Seconds jumped by ←/→ and media seek buttons |
+| `start_shuffle` / `start_loop` | `false` | Turn shuffle / loop on when the page loads |
+| `remember_position` | `true` | Restore song, position, loop and shuffle after a refresh |
+| `auto_scroll` | `true` | Keep the playing song in view |
+| `use_legacy_player` | `false` | Use the browser's built-in audio controls |
+| **Appearance** | | |
+| `player_theme` | `dark` | See [Themes](#themes) |
+| `accent_color` | `green` | green, blue, purple, pink, orange, red, teal, yellow or `custom` |
+| `custom_accent` | `#1db954` | Accent when `accent_color` is `custom` |
+| `custom_base`, `custom_background`, `custom_surface`, `custom_text` | dark, `#121212`, `#1e1e1e`, `#f0f0f0` | Colors for the `custom` theme |
+| **Layout** | | |
+| `player_position` | `bottom` | Player bar at the `bottom` or `top` |
+| `player_opacity` | `0.95` | Opacity of the player bar |
+| `show_waveform`, `show_quick_buttons`, `show_upload` | `true` | Show the waveform, Play first/Random buttons, upload box |
+| `compact_rows` | `false` | Tighter song list rows |
+| `fluid-container` | `false` | Full-width layout |
+| **Background** | | |
+| `background_image` | empty | Image URL (`https://…`) or relative path (`img/bg.jpg`) |
+| `background_dim` / `background_blur` | `0.6` / `0` | Darken (or lighten, on light themes) and blur the image |
+
+### Themes
+
+`player_theme` offers **Follow system** (switches between Light and Dark with your device), **Light**, **Arctic**
+(cool light), **Dark**, **OLED black**, **Midnight** (navy), **Forest** (deep green), **Sunset** (warm plum) and
+**Custom colors**, where you pick the background, surface and text colors and whether they build on the light or dark
+look. Combine any theme with an accent color, and optionally a background image.
 
 ### Environment (`.env`)
 

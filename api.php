@@ -63,21 +63,23 @@ do {
 
     if ($action === 'getconfig') {
         if (isset($_GET['key'])) {
-            $res = getConfig($_GET['key']);
-            break;
+            $value = getConfig((string) $_GET['key']);
+            // "response" keeps the old string form; "data.value" has the real type.
+            $text  = is_bool($value) ? ($value ? 'true' : 'false') : (is_scalar($value) ? (string) $value : json_encode($value));
+            apiResponse("success", $text, ["value" => $value]);
         }
-        $res = getConfig();
-        break;
+        apiResponse("success", "ok", ["config" => getConfig()]);
     }
 
     # REVIEW:
     if ($action === 'setconfig') {
         require_csrf_token();
         $postConfig = $_POST['config'] ?? [];
-        if (!isset($postConfig['key']) || !isset($postConfig['value'])) {
-            apiResponse("error", "Key or value not set: " . json_encode($_POST));
+        if (!isset($postConfig['key'])) {
+            apiResponse("error", "No setting key was sent.");
         }
-        $res = setConfig($postConfig['key'], $postConfig['value']);
+        // An emptied array is omitted by jQuery's serializer, so a missing value means "empty".
+        $res = setConfig((string) $postConfig['key'], $postConfig['value'] ?? '');
         break;
     }
 
