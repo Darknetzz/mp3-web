@@ -22,6 +22,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Cover art** from each song's embedded ID3v2 picture: a thumbnail per row, a larger cover in the playbar, and artwork in the OS media overlay and on Cast speakers (a neutral placeholder when a song has none; see below)
 - [x] **Click to select, double-click to play**: a single click selects a song, a double-click (or Enter, or the play button on its cover) plays it
 - [x] **Song menu** on right-click, long-press (touch), the context-menu key or <kbd>Shift</kbd>+<kbd>F10</kbd>, and the ⋯ button: play, play next, add to queue, add to a playlist, favorite, download, copy the song name, remove from the shown playlist and delete (with a confirmation). Items you can't use (demo mode, or a listening session you don't control) are hidden
+- [x] **Phone layout**: on narrow screens the playbar is a compact bar (cover, title, play/pause, next) over the progress slider; the chevron expands the full controls, and the choice is remembered. The song table fits the screen: names wrap to at most two lines and are trimmed with "…" (the full name is the tooltip), and the Queue column is hidden (it is in the ⋯ and long-press menus)
 - [x] Live waveform in the playbar that follows the music and freezes when paused
 - [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
 - [x] Keyboard shortcuts (see below)
@@ -71,7 +72,7 @@ favorite, ⋯, download and delete buttons work with a single click, as before.
 - Extracted covers are cached in `cache/covers/` (git-ignored; created automatically if the web server can write to
   the app folder). Responses carry `ETag`/`Last-Modified` headers and are versioned by the file's modification time,
   so a retagged file shows its new cover.
-- Songs without a cover show a placeholder based on the logo, tinted to match the current theme. The OS media
+- Songs without a cover show a music-note placeholder in the current accent colour. The OS media
   overlay and Cast speakers show `assets/branding/logo.png` instead.
 
 Shortcuts are ignored while typing in a text field.

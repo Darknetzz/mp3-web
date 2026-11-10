@@ -918,6 +918,31 @@
     audioElement.volume = initialVolume;
     updateVolumeIcon(initialVolume);
 
+    /* ───────────────────────── NOTE: Playbar size / phones ─────────────────── */
+    // On phones the playbar is a compact bar; the chevron shows the full controls.
+    var playerBar = $(".audio-player-container");
+    function setPlayerExpanded(on) {
+      playerBar.toggleClass("expanded", on);
+      $(".playerExpandBtn").attr("aria-expanded", on ? "true" : "false")
+        .attr("title", on ? "Fewer controls" : "More controls")
+        .attr("aria-label", on ? "Fewer player controls" : "More player controls");
+    }
+    var savedExpanded = false;
+    try { savedExpanded = localStorage.getItem("playerExpanded") === "1"; } catch (e) {}
+    setPlayerExpanded(savedExpanded);
+    $(".playerExpandBtn").on("click", function() {
+      var on = !playerBar.hasClass("expanded");
+      setPlayerExpanded(on);
+      try { localStorage.setItem("playerExpanded", on ? "1" : "0"); } catch (e) {}
+    });
+    // Pad the page by the playbar's real height so it never covers the last songs
+    function syncPlayerHeight() {
+      if (!playerBar[0]) return;
+      document.documentElement.style.setProperty("--player-h", Math.ceil(playerBar[0].getBoundingClientRect().height) + "px");
+    }
+    if (window.ResizeObserver && playerBar[0]) new ResizeObserver(syncPlayerHeight).observe(playerBar[0]);
+    syncPlayerHeight();
+
     /* ──────────────────────────── NOTE: sessionBtn ──────────────────────────── */
     $(".sessionBtn").on("click", function() {
       $(".sessionForm").hide();
@@ -975,7 +1000,12 @@
         if (lastCoverPlay.id === rowid && now - lastCoverPlay.at < 500) return;
         lastCoverPlay = { id: rowid, at: now };
         setContextFromView();
-        playSong(rowid);
+        // The loaded song, paused: carry on from where it stopped
+        if (String(currentIndex) === rowid && songName && !playing && songName === getSongNameByIndex(rowid)) {
+          resumeSong();
+        } else {
+          playSong(rowid);
+        }
       } else {
         // Single click only selects; focus the table so ↑/↓/Enter act on it
         selectSong(rowid);

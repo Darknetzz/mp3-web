@@ -79,8 +79,8 @@ body {
   gap: 1rem;
 }
 /* ─────────────────────────────── Cover art ──────────────────────────────── */
-/* .coverThumb draws a neutral placeholder (the logo glyph, tinted with theme
-   colours); the cover <img> sits on top and is hidden when there is none. */
+/* .coverThumb draws a placeholder (a music note on a soft gradient in the
+   accent colour); the cover <img> sits on top and is hidden when there is none. */
 .coverThumb {
   position: relative;
   display: inline-block;
@@ -90,17 +90,19 @@ body {
   border-radius: 6px;
   overflow: hidden;
   vertical-align: middle;
-  background: var(--tblr-bg-surface-tertiary, rgba(128,128,128,.15));
+  background:
+    linear-gradient(135deg, rgba(var(--tblr-success-rgb, 47, 179, 68), .32), rgba(var(--tblr-success-rgb, 47, 179, 68), .08)),
+    var(--tblr-bg-surface-tertiary, rgba(128,128,128,.15));
   box-shadow: inset 0 0 0 1px var(--tblr-border-color-translucent, rgba(128,128,128,.2));
 }
 .coverThumb::before {
   content: "";
   position: absolute;
-  inset: 18%;
-  background-color: var(--tblr-secondary, #8a94a6);
-  opacity: .55;
-  -webkit-mask: url("assets/branding/cover-placeholder.svg") center / contain no-repeat;
-          mask: url("assets/branding/cover-placeholder.svg") center / contain no-repeat;
+  inset: 26%;
+  background-color: var(--tblr-success, #2fb344);
+  opacity: .85;
+  -webkit-mask: url("assets/branding/cover-placeholder.svg?v=2") center / contain no-repeat;
+          mask: url("assets/branding/cover-placeholder.svg?v=2") center / contain no-repeat;
 }
 .coverThumb .coverImg {
   position: absolute;
@@ -185,6 +187,51 @@ tr.songSelected .coverPlay {
   }
 }
 
+/* Song names: at most two lines, then trimmed with "…" */
+#playlistTable .songName {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* …and the name column takes the width left over by the other columns */
+#playlistTable > thead > tr > th[data-field="name"] {
+  width: 100%;
+}
+/* Phones: fit the song table to the screen so names get the room */
+@media (max-width: 576px) {
+  .container > .card.m-3 {
+    margin: .5rem 0 !important;
+  }
+  .container > .card.m-3 > .card-body {
+    padding: .75rem .5rem;
+  }
+  #playlistTable > tbody > tr > td:not(.coverCell),
+  #playlistTable > thead > tr > th > .th-inner {
+    padding-left: .4rem;
+    padding-right: .4rem;
+  }
+  /* Size the duration column by the times, not by its header (which trims) */
+  #playlistTable > thead > tr > th[data-field="duration"] > .th-inner {
+    width: 0;
+    min-width: 100%;
+    box-sizing: border-box;
+  }
+  #playlistTable > thead > tr > th[data-field="duration"] > .th-inner.sortable {
+    padding-right: 1.4rem;
+  }
+  #playlistTable td.durationCol {
+    white-space: nowrap;
+  }
+  /* Queue is in the ⋯ menu, the right-click menu and the long-press menu */
+  #playlistTable > thead > tr > th[data-field="queue"],
+  #playlistTable > tbody > tr > td:has(> .queueBtn) {
+    display: none;
+  }
+}
+
 /* ───────────────────────────── Selected row ────────────────────────────── */
 /* Separate from the "now playing" highlight (.table-active.text-success). */
 #playlistTable:focus {
@@ -208,6 +255,106 @@ tr.songSelected .coverPlay {
     width: 72px;
   }
 }
+/* Phone playbar: a compact bar (cover, title, play/pause, next, expand) over
+   the progress slider; the expand button shows the full controls. */
+.playerMini {
+  display: none;
+}
+.playerExpandBtn .lucide {
+  transition: transform .15s;
+}
+.audio-player-container.expanded .playerExpandBtn .lucide {
+  transform: rotate(180deg);
+}
+@media (max-width: 576px) {
+  .audio-player-container {
+    padding: 6px !important;
+  }
+  .audio-player-container > .card {
+    align-items: stretch !important;
+    margin: 0;
+  }
+  .playerHeader {
+    justify-content: flex-start;
+    gap: .6rem;
+    padding: .5rem .6rem;
+  }
+  .playerHeader .waveform {
+    display: none;
+  }
+  .playerTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left !important;
+  }
+  .playerTitle > .d-flex {
+    justify-content: flex-start !important;
+    min-width: 0;
+  }
+  #songtitle {
+    font-size: .95rem;
+    line-height: 1.3;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .playerMini {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    flex-shrink: 0;
+  }
+  .playerMini .btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .playerMini .btn .lucide {
+    font-size: 1.15rem;
+    margin: 0 !important;
+  }
+  #playerBody {
+    padding: 0 .75rem .5rem;
+  }
+  .playerProgress {
+    font-size: .75rem;
+  }
+  .audio-player-container .btn-group {
+    margin-top: 8px;
+  }
+  .audio-player-container h5.card-header {
+    font-size: .8rem;
+    padding: .4rem .75rem;
+  }
+  /* Collapsed: only the bar and the progress slider */
+  .audio-player-container:not(.expanded) h5.card-header,
+  .audio-player-container:not(.expanded) #playerBody > .btn-group {
+    display: none !important;
+  }
+  /* Expanded: the full controls take over play/pause and next, packed in rows */
+  .audio-player-container.expanded .playerMini .ctrlBtn {
+    display: none;
+  }
+  .audio-player-container.expanded #playerBody {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+  .audio-player-container.expanded #playerBody > .playerProgress,
+  .audio-player-container.expanded #playerBody > .volumeGroup {
+    flex: 1 1 100%;
+  }
+  .audio-player-container.expanded #playerBody > .btn-group {
+    margin: 0 !important;
+  }
+  .audio-player-container.expanded #volumeSlider {
+    flex: 1 1 auto;
+  }
+}
 .castBtn:disabled {
   pointer-events: auto; /* keep the explanatory tooltip on hover */
   cursor: not-allowed;
@@ -222,10 +369,11 @@ tr.songSelected .coverPlay {
   opacity: 0.35;
 }
 
-/* Player position */
+/* Player position. --player-h is the playbar's measured height (set in js.php),
+   so the end of the song list is never hidden behind it. */
 body.player-bottom .container,
 body.player-bottom .container-fluid {
-  padding-bottom: 260px;
+  padding-bottom: calc(var(--player-h, 244px) + 16px);
 }
 body.player-top .audio-player-container {
   top: 0;
@@ -234,7 +382,7 @@ body.player-top .audio-player-container {
 }
 body.player-top .container,
 body.player-top .container-fluid {
-  padding-top: 260px;
+  padding-top: calc(var(--player-h, 244px) + 16px);
 }
 body.player-top .toast-container {
   top: auto !important;

@@ -71,11 +71,12 @@ $columns = [
     "width"      => 48,
   ],
   "name" => [
-    "name"     => "Name",
-    "sortable" => true,
-    "field"    => "name",
-    "visible"  => true,
-    "align"    => null,
+    "name"          => "Name",
+    "sortable"      => true,
+    "field"         => "name",
+    "visible"       => true,
+    "align"         => null,
+    "textFormatter" => "nameFormatter",
   ],
   "filename" => [
     "name"     => "Filename",
@@ -181,7 +182,7 @@ echo '
         <span class="coverThumb playerCover"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
         '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
 
-        <div class="text-center">
+        <div class="text-center playerTitle">
           <div class="d-flex align-items-center justify-content-center gap-2">
           <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
           <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
@@ -189,9 +190,14 @@ echo '
           <small class="castStatus text-muted" style="display:none;"></small>
           <div class="sessionStatus text-muted small" style="display:none;"></div>
         </div>
+        <div class="playerMini">
+          <button type="button" class="btn btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled aria-label="Play or pause">'.icon("play", filled: true).'</button>
+          <button type="button" class="btn btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled aria-label="Next song">'.icon("skip-forward", filled: true).'</button>
+          <button type="button" class="btn btn-pill btn-ghost-secondary playerExpandBtn" aria-expanded="false" aria-controls="playerBody" aria-label="More player controls" title="More controls">'.icon("chevron-up").'</button>
+        </div>
       </div>
       <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
-      <div class="card-body">
+      <div class="card-body" id="playerBody">
           <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
           <source id="audioSource" src="" type="audio/mpeg">
           Your browser does not support the audio element.
@@ -199,13 +205,13 @@ echo '
 
           if (!getConfig('use_legacy_player')) {
             echo '
-            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center playerProgress">
               <span class="audioCurrentTime">0:00</span>
               <input type="range" class="form-range audioSlider mx-2" min="0" max="0" step="1" value="0" style="flex: 3;">
               <span class="audioDuration">0:00</span>
             </div>
             
-            <div class="btn-group mx-2 align-items-center">
+            <div class="btn-group mx-2 align-items-center volumeGroup">
               <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-1", 2).'</label>
               <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.getConfig('default_volume').'">
             </div>
@@ -308,6 +314,8 @@ echo '
     $sorter  .= isset($column['switchable']) && !$column['switchable'] && !isset($column['formatter']) ? ' data-switchable="false"' : '';
     $sorter  .= isset($column['searchable']) && !$column['searchable'] ? ' data-searchable="false"' : '';
     $sorter  .= isset($column['width']) ? ' data-width="'.(int) $column['width'].'"' : '';
+    // A formatter for a text column: search still matches the plain value, not the markup
+    $sorter  .= isset($column['textFormatter']) ? ' data-formatter="'.$column['textFormatter'].'" data-search-formatter="false"' : '';
     echo '<th 
       data-sortable="'.$sortable.'"
       data-align="'.$align.'"

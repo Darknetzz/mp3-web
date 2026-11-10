@@ -16,6 +16,12 @@ function favoriteFormatter(value, row) {
          'title="' + (on ? 'Remove from Favorites' : 'Add to Favorites') + '" aria-label="' + (on ? 'Remove from Favorites' : 'Add to Favorites') + '">' +
          lucideIcon('heart', on ? 'filled' : '') + '</button>';
 }
+// Song names wrap to at most two lines and are trimmed with "…"; the full name is the tooltip.
+// value is the server-rendered cell, already HTML-escaped.
+function nameFormatter(value) {
+  var html = String(value == null ? "" : value).trim();
+  return '<span class="songName" title="' + html.replace(/"/g, "&quot;") + '">' + html + '</span>';
+}
 function moreFormatter(value, row) {
   return '<button type="button" class="moreBtn" data-song-id="' + String(row.id).trim() + '" title="More" aria-label="More actions" aria-haspopup="menu">' +
          lucideIcon('ellipsis') + '</button>';
