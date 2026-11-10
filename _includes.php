@@ -65,4 +65,5 @@
     /* ──────────────────────────────── Functions ─────────────────────────────── */
     include_once('functions.php');
     include_once('sessions.php');
+    include_once('playlists.php');
 ?>

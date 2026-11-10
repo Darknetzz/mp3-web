@@ -91,12 +91,51 @@
     $("#sessionAllowAll").prop("checked", !!view.allow_all);
     $(".sessionBadge").text(view.listening).show();
 
+    renderMembers(view.members || []);
+
     var status = "Session: " + esc(view.name) + " · " + view.listening + " listening · " + role;
     if (!$(".sessionStatus .tapToListen").length || !$(".sessionStatus").is(":visible")) {
       $(".sessionStatus").html(status).show();
     } else {
       $(".sessionStatus .sessionStatusText").html(status);
     }
+  }
+
+  function renderMembers(members) {
+    var html = "";
+    members.forEach(function (m) {
+      html += '<div class="list-group-item d-flex align-items-center gap-2' + (m.active ? '' : ' text-muted') + '">' +
+        '<span class="status-dot ' + (m.active ? 'status-dot-animated bg-green' : 'bg-secondary') + '"></span>' +
+        '<span class="text-truncate flex-fill">' + esc(m.name) + (m.me ? ' <small class="text-muted">(you)</small>' : '') + '</span>' +
+        (m.host ? '<span class="badge bg-green text-green-fg">Host</span>' : '') +
+        (m.active ? '' : '<small>away</small>') +
+        '</div>';
+    });
+    $(".sessionMembers").html(html);
+  }
+
+  /* ──────────────────────────── Display name ──────────────────────────────── */
+  var NAME_KEY = "displayName";
+
+  function storedName() {
+    try { return localStorage.getItem(NAME_KEY) || ""; } catch (e) { return ""; }
+  }
+
+  function saveDisplayName(name, quiet) {
+    return request("POST", "setDisplayName", { name: name }).then(function (res) {
+      if (res.status !== "success") {
+        if (!quiet) showToast(res.response, "danger");
+        return;
+      }
+      displayName = res.data.name;
+      try { localStorage.setItem(NAME_KEY, displayName); } catch (e) {}
+      $("#displayNameInput").val(displayName);
+      if (!quiet) showToast(res.response, "success");
+      if (res.data.session && isActive()) {
+        view = res.data.session;
+        renderUI();
+      }
+    });
   }
 
   /* ─────────────────────────── Apply remote state ─────────────────────────── */
@@ -365,6 +404,18 @@
   }
 
   $(function () {
+    $("#displayNameInput").val(displayName);
+    // The PHP session may be newer than this browser's saved name: restore it.
+    var saved = storedName();
+    if (saved && saved !== displayName) saveDisplayName(saved, true);
+
+    $(".displayNameForm").on("submit", function (e) {
+      e.preventDefault();
+      var name = $("#displayNameInput").val().trim();
+      if (!name || name === displayName) return;
+      saveDisplayName(name, false);
+    });
+
     $("#createSessionForm").on("submit", function (e) {
       e.preventDefault();
       var form = $(this);

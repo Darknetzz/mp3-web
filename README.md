@@ -67,6 +67,8 @@ Click the people button in the header to **create** or **join** a session.
   picking a **public** session from the list in the Join card.
 - **The host controls playback** (play/pause, seek, skip, queue, loop, shuffle). Listeners' controls are dimmed.
   The host can switch on *Let everyone control playback* to make the session a shared jukebox.
+- Set **your name** at the top of the dialog (it is remembered in this browser and can be changed at any time, even
+  mid-session). The session card lists every member by name, with the host marked and idle members shown as *away*.
 - Volume is per device and is never synced. Casting works inside a session too.
 - If the host leaves or goes quiet for a minute, the longest-joined listener becomes host. Sessions with no activity
   for 24 hours are deleted.
@@ -239,6 +241,7 @@ The action is passed as `action` in the query string or POST body. State-changin
 | `listSessions` | Public sessions with active listeners |
 | `sessionState` | Current session state (polled by members) |
 | `sessionUpdate` | Publish playback state (`state` JSON, optional `if_version` for compare-and-swap) |
+| `setDisplayName` | Set your display name (`name`, max 30 characters); also updates it in your current session |
 | `sessionSettings` | Host only: `allow_all` lets everyone control playback |
 
 > **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,

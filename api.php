@@ -34,7 +34,8 @@ do {
         break;
     }
 
-    if (!empty($_FILES)) {
+    // Music uploads (Dropzone) send files without an action; other file posts name their action.
+    if (!empty($_FILES) && empty($_POST['action'])) {
         $action = "upload";
     } elseif (array_key_exists("action", $_GET)) {
         $action = $_GET["action"];
@@ -127,6 +128,49 @@ do {
         break;
     }
 
+    /* ─────────────────────────────── Playlists ──────────────────────────── */
+    if ($action === 'listPlaylists') {
+        listPlaylists();
+    }
+    if ($action === 'getPlaylist') {
+        getPlaylist($_GET['id'] ?? '');
+    }
+    if ($action === 'exportPlaylist') {
+        exportPlaylist($_GET['id'] ?? '');
+    }
+    if ($action === 'createPlaylist') {
+        require_csrf_token();
+        createPlaylist($_POST['name'] ?? '', $_POST['songs'] ?? []);
+    }
+    if ($action === 'renamePlaylist') {
+        require_csrf_token();
+        renamePlaylist($_POST['id'] ?? '', $_POST['name'] ?? '');
+    }
+    if ($action === 'deletePlaylist') {
+        require_csrf_token();
+        deletePlaylist($_POST['id'] ?? '');
+    }
+    if ($action === 'addToPlaylist') {
+        require_csrf_token();
+        addToPlaylist($_POST['id'] ?? '', $_POST['songs'] ?? []);
+    }
+    if ($action === 'removeFromPlaylist') {
+        require_csrf_token();
+        removeFromPlaylist($_POST['id'] ?? '', $_POST['song'] ?? '');
+    }
+    if ($action === 'reorderPlaylist') {
+        require_csrf_token();
+        reorderPlaylist($_POST['id'] ?? '', $_POST['songs'] ?? [], $_POST['if_version'] ?? '');
+    }
+    if ($action === 'toggleFavorite') {
+        require_csrf_token();
+        toggleFavorite($_POST['song'] ?? '');
+    }
+    if ($action === 'importPlaylist') {
+        require_csrf_token();
+        importPlaylist($_FILES['playlist'] ?? []);
+    }
+
     /* ─────────────────────────── Listening sessions ─────────────────────── */
     if ($action === 'createSession') {
         require_csrf_token();
@@ -154,6 +198,11 @@ do {
     if ($action === 'sessionUpdate') {
         require_csrf_token();
         sessionUpdate($_POST['state'] ?? null, $_POST['if_version'] ?? null);
+    }
+
+    if ($action === 'setDisplayName') {
+        require_csrf_token();
+        setDisplayName($_POST['name'] ?? '');
     }
 
     if ($action === 'sessionSettings') {

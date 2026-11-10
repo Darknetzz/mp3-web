@@ -12,6 +12,17 @@ echo '
       </div>
       <div class="modal-body">
 
+      <!-- # NOTE: Your display name (shown to others in a session) -->
+      <form class="displayNameForm mx-2 mb-2" autocomplete="off">
+        <label class="form-label" for="displayNameInput">Your name</label>
+        <div class="input-group" style="max-width: 420px;">
+          <span class="input-group-text">'.icon("person-fill", 1.2, 0).'</span>
+          <input type="text" class="form-control" id="displayNameInput" name="name" maxlength="30" required
+                 placeholder="What others in the session see">
+          <button type="submit" class="btn btn-outline-primary">Save</button>
+        </div>
+      </form>
+
       <!-- # NOTE: Not in a session: create / join -->
       <div class="sessionLobby">
       <div class="d-flex flex-column flex-md-row justify-content-around">
@@ -79,6 +90,10 @@ echo '
             <div class="input-group mb-3 mx-auto" style="max-width: 520px;">
               <input type="text" class="form-control sessionInviteLink" readonly aria-label="Invite link">
               <button type="button" class="btn btn-outline-primary copyInviteBtn">'.icon("link-45deg", 1.2, 0).' Copy invite link</button>
+            </div>
+            <div class="mx-auto mb-3 text-start" style="max-width: 520px;">
+              <div class="text-muted small mb-1">Members</div>
+              <div class="list-group sessionMembers"></div>
             </div>
             <div class="sessionHostOnly mb-3" style="display:none;">
               <label class="form-check form-switch d-inline-flex align-items-center gap-2">

@@ -14,6 +14,7 @@ const SESSION_HOST_STALE     = 60;     // hand over host after this much host in
 const SESSION_FILE_TTL       = 86400;  // delete sessions idle this long
 const SESSION_NAME_MAX       = 40;
 const SESSION_QUEUE_MAX      = 200;
+const SESSION_DISPLAY_MAX    = 30;     // member display names
 
 /* ─────────────────────────────── Helpers ────────────────────────────────── */
 function sessionMemberId(): string {
@@ -21,6 +22,21 @@ function sessionMemberId(): string {
         $_SESSION['member_id'] = bin2hex(random_bytes(8));
     }
     return $_SESSION['member_id'];
+}
+
+/** This browser's display name in sessions (defaults to "Guest XXXX"). */
+function sessionDisplayName(): string {
+    $name = $_SESSION['display_name'] ?? '';
+    if (!is_string($name) || $name === '') {
+        $name = "Guest " . strtoupper(substr(sessionMemberId(), 0, 4));
+    }
+    return $name;
+}
+
+function sessionCleanDisplayName($name): string {
+    $name = trim(preg_replace('/\s+/u', ' ', (string) $name));
+    $name = preg_replace('/[\x00-\x1F\x7F]/u', '', $name);
+    return mb_substr($name, 0, SESSION_DISPLAY_MAX);
 }
 
 function sessionValidCode($code): bool {
@@ -145,6 +161,23 @@ function sessionCleanup(): void {
 /** Public view of a session for the current member. */
 function sessionView(array $s, string $member): array {
     $canControl = ($s['host'] === $member) || !empty($s['allow_all']);
+    $now = time();
+    $members = [];
+    foreach ($s['members'] as $id => $m) {
+        $members[] = [
+            "name"   => $m['name'] ?? "Guest",
+            "host"   => $id === $s['host'],
+            "me"     => $id === $member,
+            "active" => $now - ($m['last_seen'] ?? 0) <= SESSION_ACTIVE_SECS,
+            "joined" => $m['joined'] ?? 0,
+        ];
+    }
+    // Host first, then by join time. Member ids are never exposed.
+    usort($members, function ($a, $b) {
+        return [$b['host'], $a['joined']] <=> [$a['host'], $b['joined']];
+    });
+    foreach ($members as &$m) unset($m['joined']);
+    unset($m);
     return [
         "code"        => $s['code'],
         "name"        => $s['name'],
@@ -155,6 +188,8 @@ function sessionView(array $s, string $member): array {
         "is_host"     => $s['host'] === $member,
         "can_control" => $canControl,
         "listening"   => sessionActiveCount($s),
+        "members"     => $members,
+        "me"          => sessionDisplayName(),
         "server_ms"   => sessionNowMs(),
     ];
 }
@@ -222,7 +257,8 @@ function createSession(string $name = "", bool $public = false): void {
     }
 
     $now = time();
-    [$data] = sessionWithLock($code, function ($existing) use ($code, $name, $public, $member, $now) {
+    $displayName = sessionDisplayName();
+    [$data] = sessionWithLock($code, function ($existing) use ($code, $name, $public, $member, $now, $displayName) {
         return [
             "code"      => $code,
             "name"      => $name,
@@ -235,7 +271,7 @@ function createSession(string $name = "", bool $public = false): void {
                 "song" => null, "position" => 0, "playing" => false,
                 "updated_ms" => sessionNowMs(), "queue" => [], "loop" => false, "shuffle" => false,
             ],
-            "members"   => [$member => ["joined" => $now, "last_seen" => $now]],
+            "members"   => [$member => ["name" => $displayName, "joined" => $now, "last_seen" => $now]],
         ];
     }, true);
 
@@ -252,12 +288,14 @@ function joinSession($code): void {
         sessionLeaveCurrent();
     }
     $member = sessionMemberId();
-    [$data] = sessionWithLock($code, function ($s) use ($member) {
+    $displayName = sessionDisplayName();
+    [$data] = sessionWithLock($code, function ($s) use ($member, $displayName) {
         if ($s === null) return null;
         $now = time();
         if (!isset($s['members'][$member])) {
             $s['members'][$member] = ["joined" => $now, "last_seen" => $now];
         }
+        $s['members'][$member]['name'] = $displayName;
         return sessionHousekeep($s, $member);
     });
     if (!is_array($data)) {
@@ -385,4 +423,27 @@ function sessionSettings($allowAll): void {
     }
     $msg = $data['allow_all'] ? "Everyone can now control playback." : "Only the host can control playback now.";
     apiResponse("success", $msg, sessionView($data, $member));
+}
+
+/** Set this browser's display name, and update it in the current session. */
+function setDisplayName($name): void {
+    $name = sessionCleanDisplayName($name);
+    if ($name === '') {
+        apiResponse("error", "Your name can't be empty.");
+    }
+    $_SESSION['display_name'] = $name;
+    $member = sessionMemberId();
+    $code   = $_SESSION['session_code'] ?? null;
+    $view   = null;
+    if (sessionValidCode($code)) {
+        [$data] = sessionWithLock($code, function ($s) use ($member, $name) {
+            if ($s === null || !isset($s['members'][$member])) return null;
+            $s['members'][$member]['name'] = $name;
+            return sessionHousekeep($s, $member);
+        });
+        if (is_array($data) && isset($data['members'][$member])) {
+            $view = sessionView($data, $member);
+        }
+    }
+    apiResponse("success", "You're now <strong>" . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "</strong>.", ["name" => $name, "session" => $view]);
 }

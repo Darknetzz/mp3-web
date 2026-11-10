@@ -32,6 +32,7 @@
   var stateKey              = "playerState";
   var songName              = null;
   var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
+  var displayName           = <?= json_encode(sessionDisplayName()) ?>;
 
   /* ───────────────────────── Listening session hooks ──────────────────────── */
   // session.js defines window.sessionSync. These stay no-ops outside a session.
@@ -189,15 +190,55 @@
     navigator.mediaSession.metadata = new MediaMetadata({ title: title, artist: siteTitle });
   }
 
+  /* ───────────────────────────── Library model ───────────────────────────── */
+  // Every song in the music folder, captured once from the server-rendered table.
+  // The table itself may show a playlist, so songs are always looked up here.
+  var library     = null;   // rows in folder order
+  var libraryById = {};     // String(id) -> row
+  var libraryByName = {};   // file name -> String(id)
+  function initLibrary() {
+    if (library) return;
+    library = playlistTable.bootstrapTable('getData').slice();
+    library.forEach(function(row) {
+      row.id = String(row.id).trim();
+      var name = urldecode(row.filename).trim();
+      row._song = name;
+      libraryById[row.id] = row;
+      libraryByName[name] = row.id;
+    });
+  }
+
   /* ──────────────────────── FUNCTION: findIndexByFilename ─────────────────── */
   function findIndexByFilename(name) {
-    var rows = playlistTable.bootstrapTable('getData');
-    for (var i = 0; i < rows.length; i++) {
-      if (urldecode(rows[i].filename).trim() === name) {
-        return rows[i].id;
-      }
+    initLibrary();
+    return Object.prototype.hasOwnProperty.call(libraryByName, name) ? libraryByName[name] : null;
+  }
+
+  /* ──────────────────────────── Playback context ──────────────────────────── */
+  // Where playback was started from: the library or a playlist. Next/previous/
+  // shuffle stay inside it, even if another view is shown in the table.
+  var playContext = { type: "library", id: null };
+  function currentView() {
+    return window.playlistsUI ? playlistsUI.currentView() : { type: "library", id: null };
+  }
+  function sameContext(a, b) {
+    return a.type === b.type && (a.type === "library" || a.id === b.id);
+  }
+  function setContextFromView() {
+    var view = currentView();
+    playContext = { type: view.type, id: view.id };
+  }
+  // Song ids of the current context, in play order.
+  function contextOrder() {
+    initLibrary();
+    if (sameContext(playContext, currentView())) {
+      return playlistTable.bootstrapTable('getData').map(function(r) { return String(r.id); });
     }
-    return null;
+    if (playContext.type === "playlist" && window.playlistsUI) {
+      var ids = playlistsUI.orderFor(playContext.id);
+      if (ids && ids.length) return ids;
+    }
+    return library.map(function(r) { return r.id; });
   }
 
   /* ─────────────────────────── FUNCTION: saveState ────────────────────────── */
@@ -207,6 +248,7 @@
       localStorage.setItem(stateKey, JSON.stringify({
         filename: songName,
         time:     songName ? player.getTime() : 0,
+        context:  playContext,
         loop:     loop,
         shuffle:  shuffle,
       }));
@@ -239,6 +281,9 @@
     if (index === null) {
       try { localStorage.removeItem(stateKey); } catch (e) {}
       return;
+    }
+    if (state.context && (state.context.type === "library" || state.context.type === "playlist")) {
+      playContext = { type: state.context.type, id: state.context.id || null };
     }
     playSong(index, { autoplay: false, startTime: +state.time || 0 });
   }
@@ -276,16 +321,14 @@
 
   /* ─────────────────────────── FUNCTION: getSongNameByIndex ─────────────────── */
   function getSongNameByIndex(index) {
-    var songName_decoded = urldecode(playlistTable.bootstrapTable('getRowByUniqueId', index).filename);
-    console.log("getSongNameByIndex: " + index + " => " + songName_decoded);
-    return songName_decoded;
+    var row = getSongByIndex(index);
+    return row ? row._song : null;
   }
 
   /* ──────────────────────── FUNCTION: getSongByIndex ──────────────────────── */
   function getSongByIndex(index) {
-    var row = playlistTable.bootstrapTable('getRowByUniqueId', index);
-    console.log("getSongByIndex: " + index + " => " + row.name);
-    return row;
+    initLibrary();
+    return libraryById[String(index)] || null;
   }
 
   /* ────────────────────────── FUNCTION: updateTitle ───────────────────────── */
@@ -311,7 +354,8 @@
     if (!autoScroll) {
         return;
     }
-    $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    var row = $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0];
+    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
@@ -319,23 +363,13 @@
     opts = opts || {};
     if (sessionBlocked()) return;
     console.log("Playing song at index: " + index);
-    $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
-    var tableData  = playlistTable.bootstrapTable('getData');
-    var firstIndex = tableData[0].id;
-    var lastIndex  = tableData.slice(-1)[0].id;
-    console.log("firstIndex: " + firstIndex + ", lastIndex: " + lastIndex);
-    if (+index < +firstIndex) {
-      console.log("(" + index + "<" + firstIndex + ") Playing last row: " + lastIndex);
-      index = lastIndex; // Play the last song if we are at the first
-    } else if (+index > +lastIndex) {
-      console.log("(" + index + ">" + lastIndex + ") Playing first row: " + firstIndex);
-      index = firstIndex; // Play the first song if we are at the last
-    }
-    var playingRow = playlistTable.bootstrapTable('getRowByUniqueId', index);
+    index = String(index);
+    var playingRow = getSongByIndex(index);
     if (!playingRow) {
-      showToast("Invalid row: " + index, "danger");
+      showToast("That song is no longer in the library.", "danger");
       return;
     }
+    $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
 
     // Update next in queue text
     $("#nextInQueueText").parent().hide();
@@ -357,6 +391,7 @@
     window.currentIndex = index;
     activeRow.addClass(activeClass).children().addClass(activeClass);
     scrollToActiveSong();
+    if (window.playlistsUI) playlistsUI.songChanged();
     sessionChanged({ position: opts.startTime || 0, playing: opts.autoplay !== false });
   }
 
@@ -387,12 +422,24 @@
   }
 
   /* ────────────────────────── FUNCTION: randomSong ────────────────────────── */
-  function randomSong() {
+  function randomSong(fromView) {
     if (sessionBlocked()) return;
-    var rowCount = playlistTable.bootstrapTable('getData').length;
-    var randomIndex = Math.floor(Math.random() * rowCount);
-    console.log("Playing random row: " + randomIndex);
-    playSong(randomIndex);
+    if (fromView) setContextFromView();
+    var order = contextOrder();
+    if (!order.length) return;
+    if (order.length > 1) {
+      order = order.filter(function(id) { return id !== String(currentIndex); });
+    }
+    playSong(order[Math.floor(Math.random() * order.length)]);
+  }
+
+  /* ─────────────────────────── FUNCTION: playFirst ────────────────────────── */
+  // Play the first song of the view on screen (library or playlist).
+  function playFirst() {
+    if (sessionBlocked()) return;
+    setContextFromView();
+    var order = contextOrder();
+    if (order.length) playSong(order[0]);
   }
 
   /* ─────────────────────────── FUNCTION: stopSong ─────────────────────────── */
@@ -420,17 +467,14 @@
       sessionChanged({ position: 0 });
       return;
     }
-    var prevIndex = parseInt(currentIndex) - 1;
     if (shuffle) {
       randomSong();
       return;
     }
-    var prevSongItem = playlistTable.bootstrapTable('getData')[prevIndex];
-    console.log("Playing previous row: " + prevIndex);
-    if (!prevSongItem) {
-      prevIndex = playlistTable.bootstrapTable('getData').length - 1;
-    }
-    playSong(prevIndex);
+    var order = contextOrder();
+    if (!order.length) return;
+    var pos = order.indexOf(String(currentIndex));
+    playSong(order[pos <= 0 ? order.length - 1 : pos - 1]);
   }
 
   /* ─────────────────────────── FUNCTION: nextSong ─────────────────────────── */
@@ -441,17 +485,14 @@
       playSong(nextQueueIndex);
       return;
     }
-    var nextIndex = parseInt(currentIndex) + 1;
     if (shuffle) {
       randomSong();
       return;
     }
-    var nextSongItem = playlistTable.bootstrapTable('getData')[nextIndex];
-    console.log("Playing next row: " + nextIndex);
-    if (!nextSongItem) {
-      nextIndex = 0;
-    }
-    playSong(nextIndex);
+    var order = contextOrder();
+    if (!order.length) return;
+    var pos = order.indexOf(String(currentIndex));
+    playSong(order[(pos + 1) % order.length]);
   }
 
   /* ───────────────────────── FUNCTION: getQueuedSong ──────────────────────── */
@@ -463,11 +504,22 @@
   }
 
   /* ─────────────────────────── FUNCTION: queueSong ────────────────────────── */
-  function queueSong(index) {
+  // opts.next: insert at the front ("Play next"); opts.silent: no toast
+  function queueSong(index, opts) {
+    opts = opts || {};
     if (sessionBlocked()) return;
-    queue.push(index);
+    var ids = (Array.isArray(index) ? index : [index]).map(String).filter(function(id) { return !!getSongByIndex(id); });
+    if (!ids.length) return;
+    if (opts.next) {
+      queue.unshift.apply(queue, ids);
+    } else {
+      queue.push.apply(queue, ids);
+    }
     sessionChanged();
-    showToast("Added to queue: " + getSongNameByIndex(index), "success");
+    if (!opts.silent) {
+      var label = ids.length === 1 ? getSongNameByIndex(ids[0]) : ids.length + " songs";
+      showToast((opts.next ? "Playing next: " : "Added to queue: ") + $("<div>").text(label).html(), "success");
+    }
     $("#nextInQueueText").parent().show();
     $("#nextInQueueText").text(getSongNameByIndex(getQueuedSong()));
   }
