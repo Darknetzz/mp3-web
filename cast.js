@@ -14,21 +14,38 @@
   var warnedLocalhost  = false;
   var initialized      = false;
   var watchedMedia     = null;
+  var lastDuration     = 0;     // last known duration; remotePlayer resets it at idle
+  var wasPlaying       = false; // speaker was playing/buffering before the last state change
+  var loadingMedia     = false; // a load is in flight (the old track goes IDLE/INTERRUPTED)
+  var userStopped      = false; // Stop was pressed (the track goes IDLE/CANCELLED)
 
-  // getMediaSession() hides media once it has an idleReason, so it can never
-  // report FINISHED. Keep our own reference to the media we loaded (or adopted)
-  // and advance when it ends.
+  // Advance to the next song exactly once per track, whichever signal comes first.
+  function trackFinished(source) {
+    if (finishedHandled || !player.remote || loadingMedia || userStopped) return;
+    finishedHandled = true;
+    console.log("Cast: track finished (" + source + "), advancing");
+    onSongEnded();
+  }
+
+  // Signal 1: the media session reports idleReason FINISHED. getMediaSession()
+  // hides media once it has an idleReason, so keep our own reference to it.
   function watchMedia(media) {
     if (!media || media === watchedMedia) return;
     watchedMedia = media;
-    media.addUpdateListener(function (isAlive) {
-      if (isAlive || media !== watchedMedia || !player.remote) return;
-      watchedMedia = null;
-      if (media.idleReason === chrome.cast.media.IdleReason.FINISHED && !finishedHandled) {
-        finishedHandled = true;
-        onSongEnded();
+    media.addUpdateListener(function () {
+      if (media !== watchedMedia || !player.remote) return;
+      if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
+        watchedMedia = null;
+        if (media.idleReason === chrome.cast.media.IdleReason.FINISHED) {
+          trackFinished("idleReason FINISHED");
+        }
       }
     });
+  }
+
+  // Signal 2 (fallback): the speaker went idle right at the end of the track.
+  function nearEnd() {
+    return lastDuration > 0 && lastRemoteTime >= lastDuration - 5;
   }
 
   var MIME_TYPES = {
@@ -72,7 +89,10 @@
       // gets real artwork, or the app logo when the song has none.
       var token = ++loadToken;
       finishedHandled = false;
+      userStopped     = false;
+      loadingMedia    = true;
       lastRemoteTime  = startTime || 0;
+      lastDuration    = 0;
       resolveCover(name, function (art) {
         if (token !== loadToken) return; // a newer song was loaded meanwhile
         remote.loadWithArt(url, name, startTime, autoplay, art || fallbackArtwork);
@@ -80,7 +100,7 @@
     },
     loadWithArt: function (url, name, startTime, autoplay, art) {
       var session = currentSession();
-      if (!session) return;
+      if (!session) { loadingMedia = false; return; }
       var info        = new chrome.cast.media.MediaInfo(url, mimeFor(name));
       info.streamType = chrome.cast.media.StreamType.BUFFERED;
       var metadata       = new chrome.cast.media.MusicTrackMediaMetadata();
@@ -98,9 +118,11 @@
       session.loadMedia(request).then(
         function () {
           console.log("Cast: loaded " + name);
+          loadingMedia = false;
           watchMedia(session.getMediaSession());
         },
         function (err) {
+          loadingMedia = false;
           console.error("Cast: load failed", err);
           showToast("Could not cast this song: " + (err && err.code ? err.code : err), "danger");
         }
@@ -113,6 +135,7 @@
       if (!remotePlayer.isPaused) controller.playOrPause();
     },
     stop: function () {
+      userStopped = true;
       controller.stop();
     },
     seek: function (t) {
@@ -177,6 +200,10 @@
     var resumeAt = lastRemoteTime;
     player.remote = null;
     watchedMedia  = null;
+    loadingMedia  = false;
+    userStopped   = false;
+    wasPlaying    = false;
+    lastDuration  = 0;
     if (window.waveform) window.waveform.setRemote(false);
     $(".castStatus").hide().text("");
     castBtn().removeClass("btn-primary").addClass("btn-outline-primary");
@@ -199,12 +226,21 @@
     controller.addEventListener(E.PLAYER_STATE_CHANGED, function () {
       if (!player.remote) return;
       var state = remotePlayer.playerState;
-      if (state === chrome.cast.media.PlayerState.PLAYING) {
+      var S = chrome.cast.media.PlayerState;
+      if (state === S.PLAYING) {
+        wasPlaying = true;
         setPlayingUI(true);
-      } else if (state === chrome.cast.media.PlayerState.PAUSED) {
+      } else if (state === S.BUFFERING) {
+        wasPlaying = true;
+      } else if (state === S.PAUSED) {
+        wasPlaying = false;
         setPlayingUI(false);
-      } else if (state === chrome.cast.media.PlayerState.IDLE || state === null) {
-        setPlayingUI(false); // song end is handled by watchMedia()
+      } else if (state === S.IDLE || state === null) {
+        setPlayingUI(false);
+        if (wasPlaying && nearEnd()) {
+          trackFinished("went idle at " + Math.round(lastRemoteTime) + "/" + Math.round(lastDuration) + "s");
+        }
+        wasPlaying = false;
       }
     });
 
@@ -216,6 +252,7 @@
 
     controller.addEventListener(E.DURATION_CHANGED, function () {
       if (!player.remote || !remotePlayer.duration) return;
+      lastDuration = remotePlayer.duration;
       duration = remotePlayer.duration;
       $(".audioDuration").text(formatTime(duration));
       $(".ctrlBtn").prop("disabled", false);
