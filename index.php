@@ -87,11 +87,25 @@ $columns = [
     "visible"  => false,
     "align"    => null,
   ],
+  "favorite" => [
+    "name"      => "",
+    "field"     => "favorite",
+    "visible"   => true,
+    "align"     => "center",
+    "formatter" => "favoriteFormatter",
+  ],
   "queue" => [
     "name"    => "Queue",
     "field"   => "queue",
     "visible" => true,
     "align"   => "center",
+  ],
+  "more" => [
+    "name"      => "",
+    "field"     => "more",
+    "visible"   => true,
+    "align"     => "center",
+    "formatter" => "moreFormatter",
   ],
   "download" => [
     "name"    => "Download",
@@ -147,7 +161,10 @@ echo '
         '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
 
         <div class="text-center">
+          <div class="d-flex align-items-center justify-content-center gap-2">
+          <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
           <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
+          </div>
           <small class="castStatus text-muted" style="display:none;"></small>
           <div class="sessionStatus text-muted small" style="display:none;"></div>
         </div>
@@ -190,8 +207,8 @@ echo '
             <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
           </div>
           <div class="btn-group mx-2 quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
-            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
-            <button class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong()">'.icon('dice-'.mt_rand(1,6)).' Random Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playFirst()">'.icon('play-fill').' Play First Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong(true)">'.icon('dice-'.mt_rand(1,6)).' Random Song</button>
           </div>
         </div>
   </div>
@@ -242,6 +259,8 @@ if (empty($musicFiles)) {
     echo '<p>Upload some music files to the <code>'.getConfig("audio_path").'/</code> directory.</p>';
 }
 echo '
+<div id="playlistBar" class="playlistBar" aria-label="Playlists"></div>
+<div id="playlistHeader" class="playlistHeader" style="display:none;"></div>
 <div id="toolbar"></div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped'.(getConfig('compact_rows') ? ' table-sm' : '').'"'.$sortAttrs.'
   data-toggle="table" 
@@ -263,6 +282,7 @@ echo '
     $align    = isset($column['align']) ? $column['align'] : '';
     $name     = isset($column['name']) ? htmlspecialchars($column['name']) : '';
     $sorter   = isset($column['sorter']) ? ' data-sorter="'.$column['sorter'].'"' : '';
+    $sorter  .= isset($column['formatter']) ? ' data-formatter="'.$column['formatter'].'" data-switchable="false" data-width="44"' : '';
     echo '<th 
       data-sortable="'.$sortable.'"
       data-align="'.$align.'"
@@ -312,7 +332,9 @@ foreach ($musicFiles as $file) {
       <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="sizeCol">'.round(filesize($filePath) / 1024 / 1024).'MB</td>
       <td class="dateCol">'.date("Y-m-d H:i:s", filemtime($filePath)).'</td>
+      <td class="action"></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('plus-circle', margin: 0).'</a></td>
+      <td class="action"></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-fill', margin: 0).'</a></td>
     </tr>';
@@ -331,6 +353,7 @@ echo '</div></div>';
 <script src="waveform.js"></script>
 <script src="cast.js"></script>
 <script src="session.js"></script>
+<script src="playlists.js"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

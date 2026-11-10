@@ -29,6 +29,8 @@ function playlistEnsureDir(): void {
             apiResponse("error", "The playlists folder could not be created. Check that the app folder is writable.");
         }
         @chmod(PLAYLIST_DIR, 0775); // group-writable regardless of umask
+    } elseif ((fileperms(PLAYLIST_DIR) & 0020) === 0) {
+        @chmod(PLAYLIST_DIR, 0775); // fix folders created before this (owner only)
     }
     if (!is_writable(PLAYLIST_DIR)) {
         apiResponse("error", "The folder <code>playlists/</code> is not writable by the web server.");

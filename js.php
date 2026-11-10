@@ -679,7 +679,8 @@
   /* ───────────────────────────── NOTE: Document Ready ───────────────────────────── */
   $(document).ready(function() {
 
-  // showToast("Welcome to the Music Player!", "success");
+    // Capture the full library before anything can load a playlist into the table
+    initLibrary();
 
     /* ────────────────────── NOTE: autoheight ───────────────────── */
     $(".autoheight").each(function() {
@@ -779,8 +780,14 @@
       // row: The entire row data object
       // $element: The jQuery object of the clicked cell element
 
-      var rowid = row.id;
+      var rowid = String(row.id).trim();
       var file = getSongNameByIndex(rowid);
+
+      // Heart and ⋯ menu are handled by playlists.js and never start playback
+      if (field === 'favorite' || field === 'more') {
+        if (window.playlistsUI) playlistsUI.cellClicked(field, rowid, $element, e);
+        return;
+      }
 
       if (field === 'delete') {
         $.ajax({
@@ -804,7 +811,7 @@
       } else if (field === 'queue') {
         queueSong(rowid);
       } else {
-        window.currentIndex = row.id;
+        setContextFromView();
         playSong(rowid);
       }
     });

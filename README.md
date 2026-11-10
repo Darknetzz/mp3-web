@@ -22,8 +22,9 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] Keyboard shortcuts (see below)
 - [x] Remembers the current song, position, loop and shuffle across page refreshes
 - [x] **Listen together**: shared sessions where every device plays the same song in sync (see below)
-- [x] Queue, shuffle and loop
-- [x] Download and delete songs from the playlist
+- [x] **Playlists** and **Favorites**, shared on the server, with drag-to-reorder and M3U import/export (see below)
+- [x] Queue ("Add to queue" and "Play next"), shuffle and loop
+- [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
 - [x] Track durations (via [`wapmorgan/mp3info`](https://github.com/wapmorgan/Mp3Info))
 - [x] Change settings from the GUI (persisted to the config file)
@@ -76,9 +77,20 @@ Click the people button in the header to **create** or **join** a session.
   under the song title.
 - Session state is stored as JSON files in `session/`, which must be writable by the web server.
 
-### Planned
-- [ ] Favorites
-- [ ] Multiple playlists (create/join session codes exist, syncing is still work in progress)
+### Playlists
+
+The pills above the song list switch between **All songs**, **Favorites** and your playlists.
+
+- **Create** a playlist with *New playlist*, or **import** an `.m3u` / `.m3u8` file. Songs are matched to your library
+  by file name, and any that aren't found are listed.
+- **Add songs** from a song's ⋯ menu (*Add to playlist*), which also has *Play next*, *Add to queue* and
+  *Add to Favorites*. The heart next to a song, or next to the title in the player, toggles Favorites.
+- **Play** or **Shuffle** a playlist from its header, or add all of it to the queue. Next, previous and shuffle stay
+  inside the playlist you started from, even if you switch the list to another view.
+- **Reorder** by dragging songs (when the list isn't sorted or searched), or with *Move up* / *Move down* in the ⋯ menu.
+- **Rename**, **export** (`.m3u` with links to the songs, playable in e.g. VLC) or **delete** from the playlist's ⋯ menu.
+- Playlists are stored as JSON files in `playlists/` and shared by everyone using this server. If a song file is
+  removed, it stays in the playlist (shown as "not in library") and comes back if the file returns.
 
 ## Requirements
 
@@ -211,15 +223,18 @@ VERSION  = "vX.Y.Z"                                 # shown next to the site tit
 | `_includes.php` | Bootstrap: session + CSRF token, Composer autoload, `.env`, config loading, constants |
 | `functions.php` | Helpers: config read/write, listing, upload, delete, durations, `apiResponse()` |
 | `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
+| `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |
 | `cast.js` | Google Cast sender + AirPlay fallback |
 | `waveform.js` | Playbar waveform (Web Audio analyser) |
 | `session.js` | Listening session sync and session modal |
+| `playlists.js` | Playlist bar and views, ⋯ song menu, favorites, drag-to-reorder |
 | `style.css` | Custom styles |
 | `music/` | Default audio folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
+| `playlists/` | Playlist JSON files (created at runtime, git-ignored) |
 | `Dockerfile` | Container image definition |
 | `IMPROVEMENTS.md` | Notes on known issues and suggested improvements |
 
@@ -243,6 +258,12 @@ The action is passed as `action` in the query string or POST body. State-changin
 | `sessionUpdate` | Publish playback state (`state` JSON, optional `if_version` for compare-and-swap) |
 | `setDisplayName` | Set your display name (`name`, max 30 characters); also updates it in your current session |
 | `sessionSettings` | Host only: `allow_all` lets everyone control playback |
+| `listPlaylists` / `getPlaylist` | Playlist summaries; one playlist's songs (`id`; `favorites` is built in) |
+| `createPlaylist` / `renamePlaylist` / `deletePlaylist` | Manage playlists (`name`, `id`, optional `songs[]`) |
+| `addToPlaylist` / `removeFromPlaylist` | Add `songs[]` / remove `song` |
+| `reorderPlaylist` | New order (`songs[]`, `if_version`); returns `conflict` if the playlist changed meanwhile |
+| `toggleFavorite` | Add or remove `song` from Favorites |
+| `exportPlaylist` / `importPlaylist` | Download as `.m3u` (GET `id`); create from an uploaded `playlist` file |
 
 > **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,
 > so don't expose it to the internet without putting it behind auth (reverse proxy, VPN, etc.), or set `env` to `demo`.
