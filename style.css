@@ -85,3 +85,14 @@ body {
 .session-readonly .queueBtn {
   opacity: 0.35;
 }
+
+/* Settings modal: category header rows */
+#configModal .configCategory th {
+  background: var(--tblr-bg-surface-secondary, rgba(127, 127, 127, 0.12));
+  color: var(--tblr-body-color);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+}

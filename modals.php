@@ -117,7 +117,40 @@ echo '
           </tr>
         </thead>
         <tbody>';
+
+      # Settings are grouped by key; anything not listed here ends up under "Other".
+      $configCategories = [
+        "general" => [
+          "name" => "General", "icon" => "sliders",
+          "keys" => ["site_title", "env", "no_song_text"],
+        ],
+        "library" => [
+          "name" => "Library", "icon" => "collection-play",
+          "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_table_cols"],
+        ],
+        "player" => [
+          "name" => "Player", "icon" => "play-circle",
+          "keys" => ["default_volume", "auto_scroll", "use_legacy_player"],
+        ],
+        "appearance" => [
+          "name" => "Appearance", "icon" => "palette",
+          "keys" => ["player_theme", "player_opacity", "fluid-container"],
+        ],
+        "other" => [
+          "name" => "Other", "icon" => "three-dots",
+          "keys" => [],
+        ],
+      ];
+      $categoryOf = [];
+      foreach ($configCategories as $catKey => $cat) {
+        foreach ($cat["keys"] as $settingKey) {
+          $categoryOf[$settingKey] = $catKey;
+        }
+      }
+      $categoryRows = array_fill_keys(array_keys($configCategories), []);
+
       foreach (CONFIG as $key => $values) {
+        $input         = '<span class="text-muted">This setting can\'t be edited here.</span>';
         $name          = $values["name"];
         $value         = $values["value"];
         $description   = $values["description"];
@@ -202,7 +235,7 @@ echo '
           }
           $input .= '</select>';
         }
-        echo '
+        $categoryRows[$categoryOf[$key] ?? "other"][$key] = '
         <tr>
             <td class="text-primary">
             <div class="d-flex justify-content-between">
@@ -219,6 +252,23 @@ echo '
             '.$input.'
           </td>
         </tr>';
+      }
+
+      foreach ($configCategories as $catKey => $cat) {
+        $rows = $categoryRows[$catKey];
+        if (empty($rows)) continue;
+        # Keep the order the category lists, then any extras in config-file order
+        $ordered = [];
+        foreach ($cat["keys"] as $settingKey) {
+          if (isset($rows[$settingKey])) {
+            $ordered[] = $rows[$settingKey];
+            unset($rows[$settingKey]);
+          }
+        }
+        echo '
+        <tr class="configCategory">
+          <th colspan="2">'.icon($cat["icon"], 1.1, 0).'<span class="ms-2">'.$cat["name"].'</span></th>
+        </tr>'.implode("", $ordered).implode("", $rows);
       }
 echo '</tbody>
       </table>
