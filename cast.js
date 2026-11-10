@@ -19,13 +19,8 @@
   var loadingMedia     = false; // a load is in flight (the old track goes IDLE/INTERRUPTED)
   var userStopped      = false; // Stop was pressed (the track goes IDLE/CANCELLED)
 
-  // TEMPORARY: Cast debugging. Logs to the console and to debug.log on the server
-  // (api.php action "clientLog") so end-of-track behaviour on real speakers can be read.
   function castLog(msg) {
     console.log("Cast: " + msg);
-    try {
-      $.post(apiURL, { action: "clientLog", csrf_token: csrfToken, msg: "cast " + msg });
-    } catch (e) {}
   }
 
   function flags() {
@@ -51,9 +46,7 @@
   function watchMedia(media) {
     if (!media || media === watchedMedia) return;
     watchedMedia = media;
-    media.addUpdateListener(function (isAlive) {
-      castLog("media update: isAlive=" + isAlive + " state=" + media.playerState + " idleReason=" + media.idleReason +
-        " watched=" + (media === watchedMedia) + " " + flags());
+    media.addUpdateListener(function () {
       if (media !== watchedMedia || !player.remote) return;
       if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
         watchedMedia = null;
@@ -139,9 +132,7 @@
       session.loadMedia(request).then(
         function () {
           loadingMedia = false;
-          var media = session.getMediaSession();
-          castLog("loaded " + name + " mediaSession=" + !!media);
-          watchMedia(media);
+          watchMedia(session.getMediaSession());
         },
         function (err) {
           loadingMedia = false;
@@ -178,7 +169,6 @@
 
   /* ─────────────────────────── Session lifecycle ──────────────────────────── */
   function onConnected(session, resumed) {
-    castLog((resumed ? "session resumed" : "session started") + " song=" + songName);
     if (player.remote) return;
     var audio      = player.audio();
     var wasPlaying = !audio.paused;
@@ -250,8 +240,6 @@
       if (!player.remote) return;
       var state = remotePlayer.playerState;
       var S = chrome.cast.media.PlayerState;
-      castLog("player state " + state + " mediaLoaded=" + remotePlayer.isMediaLoaded +
-        " rpTime=" + Math.round(remotePlayer.currentTime) + "/" + Math.round(remotePlayer.duration) + " " + flags());
       if (state === S.PLAYING) {
         wasPlaying = true;
         setPlayingUI(true);
@@ -282,11 +270,6 @@
       $(".audioDuration").text(formatTime(duration));
       $(".ctrlBtn").prop("disabled", false);
       updateTime();
-    });
-
-    controller.addEventListener(E.IS_MEDIA_LOADED_CHANGED, function () {
-      if (!player.remote) return;
-      castLog("media loaded changed: " + remotePlayer.isMediaLoaded + " " + flags());
     });
 
     controller.addEventListener(E.VOLUME_LEVEL_CHANGED, function () {
