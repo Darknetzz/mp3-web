@@ -1,3 +1,5 @@
+![mp3-web](assets/branding/banner.svg)
+
 # mp3-web
 
 A lightweight, self-hosted music player for local audio files, written in PHP with a jQuery/Bootstrap frontend.
