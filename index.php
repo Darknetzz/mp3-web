@@ -11,18 +11,29 @@ $theme = themeSetup();
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title><?= getConfig("site_title") ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha384-fgGyf7Mo7DURSOMnOy7ed+dkq5Job205Gnzu6QIg0BOHKaqt4D76Dt8VlDCzcMHV" crossorigin="anonymous"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.7.4/dist/js/tabler.min.js" integrity="sha384-kpYFZpKE7QEV4IYuIatS6xC/fQcrKph3wb7YPoOznHj5g5Kwa+RhX+/zrGUmm9k/" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.7.4/dist/css/tabler.min.css" integrity="sha384-+YtspJF2L+4VLu1yrWfgSSmCUujhd1W+ji1C5TxKZeErkdVQQVTgKFBXiMcDf7VO" crossorigin="anonymous">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.28.0/dist/bootstrap-table.min.js" integrity="sha384-8rz2EDULrxGjqTDNDyKc9zEpyD/RthtjiBdE5Prl4FF0Qdevv//gAu603sSFABcK" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.28.0/dist/bootstrap-table.min.css" integrity="sha384-0sajwRCyTnwBOV6ttb9YAE5jXLlpx/g/XFmbZmz3nGaTSdo0vx0i4i8K60gPnIAy" crossorigin="anonymous">
+    <script>
+      // Lucide icons for bootstrap-table's toolbar (masks defined in assets/icons/table.css)
+      $.extend($.fn.bootstrapTable.defaults, {
+        iconsPrefix: "lucide-i",
+        icons: {
+          refresh: "icon-refresh-cw", toggleOff: "icon-toggle-left", toggleOn: "icon-toggle-right",
+          columns: "icon-columns-3", search: "icon-search", clearSearch: "icon-trash-2",
+          detailOpen: "icon-plus", detailClose: "icon-minus", fullscreen: "icon-maximize",
+          paginationSwitchDown: "icon-chevron-down", paginationSwitchUp: "icon-chevron-up"
+        }
+      });
+    </script>
+    <link rel="stylesheet" href="assets/icons/table.css?v=1.71.0">
 
-    <script src=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.24.1/dist/bootstrap-table.min.js "></script>
-    <link href=" https://cdn.jsdelivr.net/npm/bootstrap-table@1.24.1/dist/bootstrap-table.min.css " rel="stylesheet">
-
-    <script src="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone-min.js"></script>
-    <link href="https://unpkg.com/dropzone@6.0.0-beta.2/dist/dropzone.css" rel="stylesheet" type="text/css">
+    <script src="https://unpkg.com/dropzone@6.3.5/dist/dropzone-min.js" integrity="sha384-wHTterC8uaPhGVKg8kmSlqcmI8CCFkOI+Mn51O3udobTBX0vQLs6a18vJqh0AnW3" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@6.3.5/dist/dropzone.css" integrity="sha384-asD8pW//1IYJd67ZZn/Eyo31U/YtixrhsNyn90jnZTEIgTpYfE2mkwGYVWHwg2vD" crossorigin="anonymous">
 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="themes.css">
@@ -49,6 +60,15 @@ $columns = [
     "field"    => "id",
     "visible"  => false,
     "align"    => null,
+  ],
+  "cover" => [
+    "name"       => "",
+    "field"      => "cover",
+    "visible"    => true,
+    "align"      => "center",
+    "switchable" => false,
+    "searchable" => false,
+    "width"      => 56,
   ],
   "name" => [
     "name"     => "Name",
@@ -158,6 +178,7 @@ echo '
 <div class="audio-player-container px-3" style="opacity: '.(float) getConfig('player_opacity').';">
   <div class="d-flex align-items-center card border border-success">
       <div class="card-header playerHeader">
+        <span class="coverThumb playerCover"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
         '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
 
         <div class="text-center">
@@ -185,29 +206,29 @@ echo '
             </div>
             
             <div class="btn-group mx-2 align-items-center">
-              <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-down-fill", 2).'</label>
+              <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-1", 2).'</label>
               <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.getConfig('default_volume').'">
             </div>
             ';
           }
 echo '
           <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled>'.icon("play").'</button>
-            <button class="btn btn-sm btn-pill btn-outline-danger ctrlBtn stopBtn" onclick="stopSong()" disabled>'.icon('stop-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled>'.icon("play", filled: true).'</button>
+            <button class="btn btn-sm btn-pill btn-outline-danger ctrlBtn stopBtn" onclick="stopSong()" disabled>'.icon('square', filled: true).'</button>
           </div>
           <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="prevSong()" disabled>'.icon('skip-backward-fill').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled>'.icon('skip-forward-fill').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="prevSong()" disabled>'.icon('skip-back', filled: true).'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled>'.icon('skip-forward', filled: true).'</button>
           </div>
           <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('arrow-repeat').'</button>
+            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('repeat').'</button>
             <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn" onclick="toggleShuffle()">'.icon('shuffle').'</button>
           </div>
           <div class="btn-group mx-2 castGroup" style="display:none;">
             <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
           </div>
           <div class="btn-group mx-2 quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
-            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playFirst()">'.icon('play-fill').' Play First Song</button>
+            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playFirst()">'.icon('play', filled: true).' Play First Song</button>
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong(true)">'.icon('dice-'.mt_rand(1,6)).' Random Song</button>
           </div>
         </div>
@@ -223,10 +244,10 @@ echo '
       </div>
       <div class="btn-group">
         <button type="button" class="btn btn-sm btn-pill btn-primary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
-          '.icon("gear").'
+          '.icon("settings").'
         </button>
         <button type="button" class="btn btn-sm btn-pill btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal" title="Listen together">
-          '.icon("people").'
+          '.icon("users").'
           <span class="badge bg-green text-green-fg sessionBadge ms-1" style="display:none;"></span>
         </button>
     </div>
@@ -283,6 +304,9 @@ echo '
     $name     = isset($column['name']) ? htmlspecialchars($column['name']) : '';
     $sorter   = isset($column['sorter']) ? ' data-sorter="'.$column['sorter'].'"' : '';
     $sorter  .= isset($column['formatter']) ? ' data-formatter="'.$column['formatter'].'" data-switchable="false" data-width="44"' : '';
+    $sorter  .= isset($column['switchable']) && !$column['switchable'] && !isset($column['formatter']) ? ' data-switchable="false"' : '';
+    $sorter  .= isset($column['searchable']) && !$column['searchable'] ? ' data-searchable="false"' : '';
+    $sorter  .= isset($column['width']) ? ' data-width="'.(int) $column['width'].'"' : '';
     echo '<th 
       data-sortable="'.$sortable.'"
       data-align="'.$align.'"
@@ -317,12 +341,16 @@ foreach ($musicFiles as $file) {
     } else {
       $audioName = pathinfo($file, PATHINFO_FILENAME) . "." . pathinfo($file, PATHINFO_EXTENSION);
     }
+    # Cover thumbnails are fetched lazily from cover.php; nothing is extracted here.
+    $mtime    = filemtime($filePath);
+    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.$mtime;
     # TODO: Fix `data-value` attribute
     echo '
     <tr class="songrow hover-pointer" data-filename="'.$audioName.'">
       <td class="text-muted">
         '.($i).'
       </td>
+      <td class="coverCell"><span class="coverThumb"><img class="coverImg" src="'.$coverSrc.'" alt="" width="40" height="40" loading="lazy" decoding="async" onerror="this.hidden=true"><span class="coverPlay" aria-hidden="true">'.icon('play', margin: 0, filled: true).'</span></span></td>
       <td>
         '.htmlspecialchars($audioName).'
       </td>
@@ -331,12 +359,12 @@ foreach ($musicFiles as $file) {
       </td>
       <td class="durationCol">'.getDuration($filePath).'</td>
       <td class="sizeCol">'.round(filesize($filePath) / 1024 / 1024).'MB</td>
-      <td class="dateCol">'.date("Y-m-d H:i:s", filemtime($filePath)).'</td>
+      <td class="dateCol">'.date("Y-m-d H:i:s", $mtime).'</td>
       <td class="action"></td>
-      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('plus-circle', margin: 0).'</a></td>
+      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('circle-plus', margin: 0).'</a></td>
       <td class="action"></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
-      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-fill', margin: 0).'</a></td>
+      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-2', margin: 0).'</a></td>
     </tr>';
     $i++;
 }

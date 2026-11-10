@@ -19,6 +19,8 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 
 - [x] Plays `mp3`, `ogg` and `wav` files from a configurable folder (allowed types are configurable)
 - [x] **Cast** to Google Cast / Nest speakers from the playbar (playbar controls, queue and auto-next keep working on the speaker); AirPlay in Safari
+- [x] **Cover art** from each song's embedded ID3v2 picture: a thumbnail per row, a larger cover in the playbar, and artwork in the OS media overlay and on Cast speakers (a neutral placeholder when a song has none; see below)
+- [x] **Click to select, double-click to play**: a single click selects a song, a double-click (or Enter, or the play button on its cover) plays it
 - [x] Live waveform in the playbar that follows the music and freezes when paused
 - [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
 - [x] Keyboard shortcuts (see below)
@@ -41,10 +43,33 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 | <kbd>Space</kbd> | Play / pause |
 | <kbd>←</kbd> / <kbd>→</kbd> | Seek back / forward 5 seconds |
 | <kbd>Shift</kbd>+<kbd>←</kbd> / <kbd>Shift</kbd>+<kbd>→</kbd> | Previous / next song |
-| <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down (moves the selection while the song list has focus) |
 | <kbd>M</kbd> | Mute / unmute |
 | <kbd>L</kbd> | Toggle loop |
 | <kbd>S</kbd> | Toggle shuffle |
+
+**In the song list.** Clicking a song selects it and gives the list keyboard focus. While the list has focus:
+
+| Key | Action |
+| --- | --- |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Move the selection up / down |
+| <kbd>Enter</kbd> | Play the selected song |
+| <kbd>Esc</kbd> | Leave the list (<kbd>↑</kbd> / <kbd>↓</kbd> control the volume again) |
+
+Clicking anywhere outside the list also gives <kbd>↑</kbd> / <kbd>↓</kbd> back to the volume. Double-click a song to
+play it. On touch screens, double-tap it, or tap the play button shown on the cover of the selected song. The queue,
+favorite, ⋯, download and delete buttons work with a single click, as before.
+
+### Cover art
+
+- Covers are read from the ID3v2 `APIC` frame of each file by `cover.php?file=<name>&size=sm|lg`
+  (96 px thumbnails and 512 px covers, resized with GD when available). Nothing is read while the page renders, and
+  thumbnails are lazy-loaded, so large libraries stay fast.
+- Extracted covers are cached in `cache/covers/` (git-ignored; created automatically if the web server can write to
+  the app folder). Responses carry `ETag`/`Last-Modified` headers and are versioned by the file's modification time,
+  so a retagged file shows its new cover.
+- Songs without a cover show a placeholder based on the logo, tinted to match the current theme. The OS media
+  overlay and Cast speakers show `assets/branding/logo.png` instead.
 
 Shortcuts are ignored while typing in a text field.
 
@@ -98,7 +123,7 @@ The pills above the song list switch between **All songs**, **Favorites** and yo
 
 - PHP 8.x with a web server (Apache, nginx + PHP-FPM, etc.)
 - [Composer](https://getcomposer.org/)
-- Write access for the web server user to the music folder (uploads/deletes), the config file (GUI settings) and `session/`
+- Write access for the web server user to the music folder (uploads/deletes), the config file (GUI settings) and `session/` (and optionally `cache/` for cached cover art)
 
 ## Getting started
 

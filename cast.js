@@ -13,6 +13,23 @@
   var finishedHandled  = false;
   var warnedLocalhost  = false;
   var initialized      = false;
+  var watchedMedia     = null;
+
+  // getMediaSession() hides media once it has an idleReason, so it can never
+  // report FINISHED. Keep our own reference to the media we loaded (or adopted)
+  // and advance when it ends.
+  function watchMedia(media) {
+    if (!media || media === watchedMedia) return;
+    watchedMedia = media;
+    media.addUpdateListener(function (isAlive) {
+      if (isAlive || media !== watchedMedia || !player.remote) return;
+      watchedMedia = null;
+      if (media.idleReason === chrome.cast.media.IdleReason.FINISHED && !finishedHandled) {
+        finishedHandled = true;
+        onSongEnded();
+      }
+    });
+  }
 
   var MIME_TYPES = {
     mp3:  "audio/mpeg",
@@ -42,6 +59,7 @@
   }
 
   /* ─────────────────────────── Remote player impl ─────────────────────────── */
+  var loadToken = 0;
   var remote = {
     load: function (url, name, startTime, autoplay) {
       var session = currentSession();
@@ -50,11 +68,25 @@
         warnedLocalhost = true;
         showToast("The speaker can't reach <code>localhost</code>. Open this page via your LAN address to cast.", "warning");
       }
+      // Look up the cover first (cached after the first time) so the speaker
+      // gets real artwork, or the app logo when the song has none.
+      var token = ++loadToken;
+      finishedHandled = false;
+      lastRemoteTime  = startTime || 0;
+      resolveCover(name, function (art) {
+        if (token !== loadToken) return; // a newer song was loaded meanwhile
+        remote.loadWithArt(url, name, startTime, autoplay, art || fallbackArtwork);
+      });
+    },
+    loadWithArt: function (url, name, startTime, autoplay, art) {
+      var session = currentSession();
+      if (!session) return;
       var info        = new chrome.cast.media.MediaInfo(url, mimeFor(name));
       info.streamType = chrome.cast.media.StreamType.BUFFERED;
       var metadata       = new chrome.cast.media.MusicTrackMediaMetadata();
       metadata.title     = name;
       metadata.albumName = siteTitle;
+      metadata.images    = [new chrome.cast.Image(art)];  // absolute URL
       info.metadata      = metadata;
 
       var request         = new chrome.cast.media.LoadRequest(info);
@@ -64,7 +96,10 @@
       finishedHandled = false;
       lastRemoteTime  = startTime || 0;
       session.loadMedia(request).then(
-        function () { console.log("Cast: loaded " + name); },
+        function () {
+          console.log("Cast: loaded " + name);
+          watchMedia(session.getMediaSession());
+        },
         function (err) {
           console.error("Cast: load failed", err);
           showToast("Could not cast this song: " + (err && err.code ? err.code : err), "danger");
@@ -114,6 +149,7 @@
     // Reloaded the page while already casting: adopt what the speaker is playing.
     var media = session.getMediaSession();
     if (resumed && media && media.media) {
+      watchMedia(media);
       var title = media.media.metadata && media.media.metadata.title;
       if (title) {
         var index = findIndexByFilename(title);
@@ -140,6 +176,7 @@
     if (!player.remote) return;
     var resumeAt = lastRemoteTime;
     player.remote = null;
+    watchedMedia  = null;
     if (window.waveform) window.waveform.setRemote(false);
     $(".castStatus").hide().text("");
     castBtn().removeClass("btn-primary").addClass("btn-outline-primary");
@@ -167,13 +204,7 @@
       } else if (state === chrome.cast.media.PlayerState.PAUSED) {
         setPlayingUI(false);
       } else if (state === chrome.cast.media.PlayerState.IDLE || state === null) {
-        setPlayingUI(false);
-        var session = currentSession();
-        var media   = session && session.getMediaSession();
-        if (media && media.idleReason === chrome.cast.media.IdleReason.FINISHED && !finishedHandled) {
-          finishedHandled = true;
-          onSongEnded();
-        }
+        setPlayingUI(false); // song end is handled by watchMedia()
       }
     });
 

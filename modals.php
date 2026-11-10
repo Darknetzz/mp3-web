@@ -16,7 +16,7 @@ echo '
       <form class="displayNameForm mx-2 mb-2" autocomplete="off">
         <label class="form-label" for="displayNameInput">Your name</label>
         <div class="input-group" style="max-width: 420px;">
-          <span class="input-group-text">'.icon("person-fill", 1.2, 0).'</span>
+          <span class="input-group-text">'.icon("user", 1.2, 0).'</span>
           <input type="text" class="form-control" id="displayNameInput" name="name" maxlength="30" required
                  placeholder="What others in the session see">
           <button type="submit" class="btn btn-outline-primary">Save</button>
@@ -33,7 +33,7 @@ echo '
           <div class="card-body text-center">
             <p class="text-muted">Start a session and invite others. Everyone hears the same song, in sync.</p>
             <a href="javascript:void(0);" class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
-                '.icon("person-plus-fill", 2).'
+                '.icon("user-plus", 2).'
             </a>
             <form class="sessionForm" id="createSessionForm" style="display:none;" method="POST">
               <input type="text" class="form-control m-1 w-100" name="name" maxlength="40" placeholder="Session name (optional)">
@@ -57,7 +57,7 @@ echo '
           <div class="card-body text-center">
             <p class="text-muted">Join with a code, or pick a public session below.</p>
             <a href="javascript:void(0);" class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
-                '.icon("people-fill", 2).'
+                '.icon("users", 2).'
             </a>
             <form class="sessionForm" id="joinSessionForm" style="display:none;" method="POST">
               <input type="text" class="form-control m-1 w-100 font-monospace" name="sessionCode" maxlength="8"
@@ -89,7 +89,7 @@ echo '
             <div class="sessionCodeText font-monospace fs-1 mb-3"></div>
             <div class="input-group mb-3 mx-auto" style="max-width: 520px;">
               <input type="text" class="form-control sessionInviteLink" readonly aria-label="Invite link">
-              <button type="button" class="btn btn-outline-primary copyInviteBtn">'.icon("link-45deg", 1.2, 0).' Copy invite link</button>
+              <button type="button" class="btn btn-outline-primary copyInviteBtn">'.icon("link", 1.2, 0).' Copy invite link</button>
             </div>
             <div class="mx-auto mb-3 text-start" style="max-width: 520px;">
               <div class="text-muted small mb-1">Members</div>
@@ -101,7 +101,7 @@ echo '
                 <span>Let everyone control playback</span>
               </label>
             </div>
-            <button type="button" class="btn btn-danger leaveSessionBtn">'.icon("box-arrow-right", 1.2, 0).' Leave session</button>
+            <button type="button" class="btn btn-danger leaveSessionBtn">'.icon("log-out", 1.2, 0).' Leave session</button>
           </div>
         </div>
       </div>
@@ -116,13 +116,13 @@ echo '
 
 # Settings are grouped by key; anything not listed here ends up under "Other".
 $settingsCategories = [
-  "general"    => ["name" => "General",    "icon" => "sliders",         "keys" => ["site_title", "no_song_text", "env"]],
-  "library"    => ["name" => "Library",    "icon" => "collection-play", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
-  "playback"   => ["name" => "Playback",   "icon" => "play-circle",     "keys" => ["autoplay_next", "default_volume", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "use_legacy_player"]],
+  "general"    => ["name" => "General",    "icon" => "sliders-horizontal", "keys" => ["site_title", "no_song_text", "env"]],
+  "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
+  "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "use_legacy_player"]],
   "appearance" => ["name" => "Appearance", "icon" => "palette",         "keys" => ["player_theme", "custom_base", "custom_background", "custom_surface", "custom_text", "accent_color", "custom_accent"]],
-  "layout"     => ["name" => "Layout",     "icon" => "layout-text-window-reverse", "keys" => ["player_position", "player_opacity", "show_waveform", "show_quick_buttons", "show_upload", "compact_rows", "fluid-container"]],
+  "layout"     => ["name" => "Layout",     "icon" => "panels-top-left", "keys" => ["player_position", "player_opacity", "show_waveform", "show_quick_buttons", "show_upload", "compact_rows", "fluid-container"]],
   "background" => ["name" => "Background", "icon" => "image",           "keys" => ["background_image", "background_dim", "background_blur"]],
-  "other"      => ["name" => "Other",      "icon" => "three-dots",      "keys" => []],
+  "other"      => ["name" => "Other",      "icon" => "ellipsis", "keys" => []],
 ];
 
 # Rows that only make sense for a particular value of another setting.
@@ -254,7 +254,7 @@ foreach (CONFIG as $key => $setting) {
   $categoryRows[$categoryOf[$key] ?? "other"][$key] = '
             <div class="settingRow" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.'>
               <div class="settingText">
-                <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).' <span class="settingSaved">'.icon("check-circle-fill", 0.9, 0).'</span></div>
+                <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).' <span class="settingSaved">'.icon("circle-check", 0.9, 0).'</span></div>
                 <div class="settingDesc">'.settingsEsc($desc).'</div>
               </div>
               <div class="settingControl">'.renderSettingControl($key, $setting).'</div>
@@ -308,7 +308,7 @@ echo '
         </div>
       </div>
       <div class="modal-footer settingsFooter" style="display:none;">
-        <span class="text-secondary me-auto">'.icon("info-circle", 1, 0).' Some changes apply after a reload.</span>
+        <span class="text-secondary me-auto">'.icon("info", 1, 0).' Some changes apply after a reload.</span>
         <button type="button" class="btn btn-success reloadCfgBtn" onclick="window.location.reload()">Reload to apply</button>
       </div>
     </div>

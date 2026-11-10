@@ -7,8 +7,14 @@
   var playlistTable         = $('#playlistTable');
   // var pauseIcon             = "⏸ ";
   // var playIcon              = "⏵ ";
-  var pauseIconHTML         = '<?= icon('pause-fill') ?>';
-  var playIconHTML          = '<?= icon('play-fill') ?>';
+  // Same markup as icon() in functions.php; name must be in assets/icons/build.py
+  var ICON_SPRITE           = <?= json_encode(ICON_SPRITE) ?>;
+  function lucideIcon(name, cls) {
+    return '<svg class="lucide icon-' + name + (cls ? ' ' + cls : '') + '" aria-hidden="true" focusable="false">' +
+           '<use href="' + ICON_SPRITE + '#' + name + '"></use></svg>';
+  }
+  var pauseIconHTML         = '<?= icon('pause', filled: true) ?>';
+  var playIconHTML          = '<?= icon('play', filled: true) ?>';
   var playing               = false;
   var shuffle               = false;
   var loop                  = false;
@@ -175,19 +181,67 @@
   /* ───────────────────────── FUNCTION: updateVolumeIcon ───────────────────── */
   function updateVolumeIcon(v) {
     if (v == 0) {
-      $(".volumeIcon").html('<?= icon("volume-mute-fill", 2) ?>');
+      $(".volumeIcon").html('<?= icon("volume-x", 2) ?>');
     } else if (v <= 0.5) {
-      $(".volumeIcon").html('<?= icon("volume-down-fill", 2) ?>');
+      $(".volumeIcon").html('<?= icon("volume-1", 2) ?>');
     } else {
-      $(".volumeIcon").html('<?= icon("volume-up-fill", 2) ?>');
+      $(".volumeIcon").html('<?= icon("volume-2", 2) ?>');
     }
     $(".audioVolume").text(Math.round(v * 100) + "%");
   }
 
   /* ─────────────────────── FUNCTION: updateMediaMetadata ──────────────────── */
+  // Artwork is the song's cover once known (see resolveCover), else the app logo.
   function updateMediaMetadata(title) {
     if (!('mediaSession' in navigator) || typeof MediaMetadata === "undefined") return;
-    navigator.mediaSession.metadata = new MediaMetadata({ title: title, artist: siteTitle });
+    var art = coverKnown(title) ? coverCache[title] : null;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:   title,
+      artist:  siteTitle,
+      artwork: [ art ? { src: art } : { src: fallbackArtwork, sizes: "512x512", type: "image/png" } ],
+    });
+  }
+
+  /* ──────────────────────────────── Cover art ─────────────────────────────── */
+  // Covers come from cover.php (never extracted while rendering the page).
+  // coverCache: song name -> absolute 512px cover URL, or null when it has none.
+  var fallbackArtwork = new URL("assets/branding/logo.png", window.location.href).href;
+  var coverCache      = {};
+  function coverKnown(name) {
+    return Object.prototype.hasOwnProperty.call(coverCache, name);
+  }
+  // Absolute cover URL for a song; reuses the versioned (?v=mtime) URL from its row.
+  function coverUrl(name, size) {
+    var id  = findIndexByFilename(name);
+    var row = id !== null ? getSongByIndex(id) : null;
+    var m   = row && /src="([^"]+)"/.exec(row.cover || "");
+    var url = m ? m[1].replace(/&amp;/g, "&") : "cover.php?file=" + encodeURIComponent(name) + "&size=sm";
+    url = url.replace(/([?&])size=sm\b/, "$1size=" + (size || "sm"));
+    return new URL(url, window.location.href).href;
+  }
+  // Calls cb(url) with the large cover URL, or cb(null) when the song has none.
+  function resolveCover(name, cb) {
+    if (!name) return cb(null);
+    if (coverKnown(name)) return cb(coverCache[name]);
+    var url = coverUrl(name, "lg");
+    var img = new Image();
+    img.onload  = function() { coverCache[name] = url;  cb(url); };
+    img.onerror = function() { coverCache[name] = null; cb(null); };
+    img.src = url;
+  }
+  // Playbar cover + Media Session artwork for the current song.
+  function updateCoverArt(name) {
+    var el = $("#playerCoverImg");
+    if (!name || findIndexByFilename(name) === null) {
+      el.attr("hidden", true).removeAttr("src");
+      return;
+    }
+    resolveCover(name, function(url) {
+      if (name !== songName) return;
+      if (url) el.attr("src", url).removeAttr("hidden");
+      else el.attr("hidden", true).removeAttr("src");
+      updateMediaMetadata(name);
+    });
   }
 
   /* ───────────────────────────── Library model ───────────────────────────── */
@@ -340,6 +394,7 @@
       title = "No song selected";
     }
     $("#songtitle").text(title);
+    updateCoverArt(songName);
     // if (playing) {
     //   title = playIcon + title;
     // } else {
@@ -356,6 +411,46 @@
     }
     var row = $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0];
     if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* ─────────────────────────────── Row selection ──────────────────────────── */
+  // A single click selects a row (.songSelected); a double-click, Enter or the
+  // play button on the cover plays it. Separate from the "now playing" row.
+  var selectedId = null;
+  function songRows() {
+    return $("#playlistTable > tbody > tr[data-uniqueid]");
+  }
+  function selectSong(id, opts) {
+    selectedId = (id === null || id === undefined) ? null : String(id);
+    songRows().filter(".songSelected").removeClass("songSelected");
+    if (selectedId === null) return;
+    var row = songRows().filter("[data-uniqueid='" + selectedId + "']");
+    row.addClass("songSelected");
+    if (opts && opts.scroll && row[0]) ensureRowVisible(row[0]);
+  }
+  function moveSelection(delta) {
+    var rows = songRows();
+    if (!rows.length) return;
+    var idx = rows.index(rows.filter(".songSelected"));
+    idx = idx < 0 ? (delta > 0 ? 0 : rows.length - 1) : Math.max(0, Math.min(rows.length - 1, idx + delta));
+    selectSong(rows.eq(idx).attr("data-uniqueid"), { scroll: true });
+  }
+  // Scroll a row into view, keeping clear of the fixed playbar.
+  function ensureRowVisible(row) {
+    var r = row.getBoundingClientRect();
+    var top = 0, bottom = window.innerHeight;
+    var bar = $(".audio-player-container")[0];
+    if (bar) {
+      var b = bar.getBoundingClientRect();
+      if (b.top <= 1) top = b.bottom; else bottom = b.top;
+    }
+    if (r.top < top) window.scrollBy(0, r.top - top - 8);
+    else if (r.bottom > bottom) window.scrollBy(0, r.bottom - bottom + 8);
+  }
+  function playSelected() {
+    if (selectedId === null) return;
+    setContextFromView();
+    playSong(selectedId);
   }
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
@@ -700,7 +795,9 @@
       parallelUploads: 1,
       dictDefaultMessage: "Drag and drop MP3 files here or click to upload",
       clickable: ".dropzoneSelect",
-      params: { csrf_token: csrfToken },
+      // Must be a function: Dropzone 6.2+ deep-merges an object `params` onto its
+      // default params() function, so a plain object is silently never sent.
+      params: function () { return { csrf_token: csrfToken }; },
       disablePreviews: true,
       init: function() {
         var res = {};
@@ -756,6 +853,7 @@
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
     $('#playlistTable').on('post-body.bs.table', function () {
       $('#playlistTable').find('td[data-field="name"]').addClass('cursor-pointer');
+      if (selectedId !== null) selectSong(selectedId); // keep the selection after re-renders
     });
 
     $(".cancelSessionBtn").on("click", function() {
@@ -810,11 +908,35 @@
         window.open(songUrl(file), '_blank');
       } else if (field === 'queue') {
         queueSong(rowid);
-      } else {
+      } else if (field === 'cover') {
+        // The cover is a play button (also the touch-friendly way to play).
+        // Ignore the second click of a double-click so the song doesn't restart.
+        var now = Date.now();
+        selectSong(rowid);
+        if (lastCoverPlay.id === rowid && now - lastCoverPlay.at < 500) return;
+        lastCoverPlay = { id: rowid, at: now };
         setContextFromView();
         playSong(rowid);
+      } else {
+        // Single click only selects; focus the table so ↑/↓/Enter act on it
+        selectSong(rowid);
+        playlistTable[0].focus({ preventScroll: true });
       }
     });
+    var lastCoverPlay = { id: null, at: 0 };
+
+    // Double-click (double-tap on most touch browsers) plays the song
+    var noDblClick = ['favorite', 'more', 'delete', 'download', 'queue', 'cover'];
+    playlistTable.on('dbl-click-cell.bs.table', function (e, field, value, row) {
+      if (noDblClick.indexOf(field) !== -1) return;
+      selectSong(String(row.id).trim());
+      playSelected();
+    });
+    // Don't select text when double-clicking a row
+    playlistTable.on('mousedown', 'tbody > tr', function (e) {
+      if (e.originalEvent && e.originalEvent.detail > 1) e.preventDefault();
+    });
+    playlistTable.attr('tabindex', '0');
 
     /* ────────────────────────────── NOTE: audioSlider ───────────────────────── */
     $(".audioSlider").on('input', function() {
@@ -910,8 +1032,18 @@
 
     /* ─────────────────────────── NOTE: Keyboard shortcuts ───────────────────── */
     // Space: play/pause · ←/→: seek 5s · Shift+←/→: prev/next · ↑/↓: volume · M: mute · L: loop · S: shuffle
-    $(document).keydown(function(e) {
+    // While the song table has focus (click a row): ↑/↓ move the selection, Enter plays it, Esc leaves the table.
+    $(document).on("keydown", function(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target === playlistTable[0] && !e.shiftKey && !$('.modal.show').length) {
+        switch (e.code) {
+          case 'ArrowUp':     moveSelection(-1); e.preventDefault(); return;
+          case 'ArrowDown':   moveSelection(1);  e.preventDefault(); return;
+          case 'Enter':
+          case 'NumpadEnter': if (selectedId !== null) { playSelected(); e.preventDefault(); } return;
+          case 'Escape':      playlistTable[0].blur(); return;
+        }
+      }
       var target = $(e.target);
       if (target.is('textarea, select, [contenteditable="true"]')) return;
       if (target.is('input') && !target.is('[type="range"], [type="checkbox"], [type="radio"], [type="button"]')) return;

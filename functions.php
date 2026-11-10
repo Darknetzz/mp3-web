@@ -1,8 +1,14 @@
 <?php
 
     /* ───────────────────────────── FUNCTION: icon ───────────────────────────── */
-    function icon(string $icon = "", float $size = 1.5, int $margin = 1): string {
-        return '<i class="bi bi-' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . ' m-' . $margin . '" style="font-size: ' . $size . 'em;"></i>';
+    // Lucide icon from the local sprite (assets/icons/lucide.svg, built by
+    // assets/icons/build.py — add new names there). Sized by font-size (1em
+    // box) and coloured by currentColor; $filled fills solid shapes (play,
+    // heart, ...). lucideIcon() in js.php outputs the same markup.
+    const ICON_SPRITE = 'assets/icons/lucide.svg?v=1.71.0';
+    function icon(string $icon = "", float $size = 1.5, int $margin = 1, bool $filled = false): string {
+        $name = htmlspecialchars($icon, ENT_QUOTES, 'UTF-8');
+        return '<svg class="lucide icon-' . $name . ' m-' . $margin . ($filled ? ' filled' : '') . '" style="font-size: ' . $size . 'em;" aria-hidden="true" focusable="false"><use href="' . ICON_SPRITE . '#' . $name . '"></use></svg>';
     }
 
     /* ─────────────────────────── FUNCTION: themeSetup ───────────────────────── */
@@ -328,7 +334,7 @@
                     "download" => 
                         "<a href='javascript:void(0);' class='link-success downloadBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("download")."</a>",
                     "delete"   => 
-                        "<a href='javascript:void(0);' class='link-danger deleteBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("trash-can")."</a>",
+                        "<a href='javascript:void(0);' class='link-danger deleteBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("trash-2")."</a>",
                 ];
                 $i++;
             }

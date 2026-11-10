@@ -14,11 +14,11 @@ function favoriteFormatter(value, row) {
   var on = !!(song && window.playlistsUI && playlistsUI.isFavorite(song));
   return '<button type="button" class="favBtn' + (on ? ' on' : '') + '" data-song-id="' + id + '" aria-pressed="' + on + '" ' +
          'title="' + (on ? 'Remove from Favorites' : 'Add to Favorites') + '" aria-label="' + (on ? 'Remove from Favorites' : 'Add to Favorites') + '">' +
-         '<i class="bi ' + (on ? 'bi-heart-fill' : 'bi-heart') + '"></i></button>';
+         lucideIcon('heart', on ? 'filled' : '') + '</button>';
 }
 function moreFormatter(value, row) {
   return '<button type="button" class="moreBtn" data-song-id="' + String(row.id).trim() + '" title="More" aria-label="More actions" aria-haspopup="menu">' +
-         '<i class="bi bi-three-dots"></i></button>';
+         lucideIcon('ellipsis') + '</button>';
 }
 
 (function () {
@@ -161,15 +161,15 @@ function moreFormatter(value, row) {
   /* ──────────────────────────────── Bar ──────────────────────────────────── */
   function renderBar() {
     var html = '<button type="button" class="plPill' + (view.type === "library" ? " active" : "") + '" data-view="library">' +
-               '<i class="bi bi-music-note-list"></i><span>All songs</span><span class="plCount">' + (library ? library.length : "") + '</span></button>';
+               lucideIcon('list-music') + '<span>All songs</span><span class="plCount">' + (library ? library.length : "") + '</span></button>';
     lists.forEach(function (p) {
       var active = view.type === "playlist" && view.id === p.id;
-      var icon = p.id === FAVORITES ? "bi-heart-fill" : "bi-collection-play";
+      var icon = p.id === FAVORITES ? lucideIcon("heart", "filled") : lucideIcon("list-video");
       html += '<button type="button" class="plPill' + (active ? " active" : "") + (p.id === FAVORITES ? " plFav" : "") + '" data-view="' + esc(p.id) + '">' +
-              '<i class="bi ' + icon + '"></i><span>' + esc(p.name) + '</span><span class="plCount">' + p.count + '</span></button>';
+              icon + '<span>' + esc(p.name) + '</span><span class="plCount">' + p.count + '</span></button>';
     });
     html += '<button type="button" class="plPill plAdd" data-action="add-menu" aria-haspopup="menu" title="New or import playlist">' +
-            '<i class="bi bi-plus-lg"></i><span>New playlist</span></button>';
+            lucideIcon('plus') + '<span>New playlist</span></button>';
     $("#playlistBar").html(html);
   }
 
@@ -186,14 +186,14 @@ function moreFormatter(value, row) {
     var canDrag = p.count > 1;
     header.html(
       '<div class="plHeaderText">' +
-        '<h3 class="plTitle">' + (isFav ? '<i class="bi bi-heart-fill text-danger me-2"></i>' : "") + esc(p.name) + '</h3>' +
+        '<h3 class="plTitle">' + (isFav ? lucideIcon('heart', 'filled text-danger me-2') : "") + esc(p.name) + '</h3>' +
         '<div class="text-secondary small">' + count + missing + (canDrag ? ' · drag songs to reorder' : '') + '</div>' +
       '</div>' +
       '<div class="plHeaderActions">' +
-        '<button type="button" class="btn btn-success btn-pill" data-action="play"' + (p.count ? "" : " disabled") + '><i class="bi bi-play-fill me-1"></i>Play</button>' +
-        '<button type="button" class="btn btn-outline-secondary btn-pill" data-action="shuffle"' + (p.count ? "" : " disabled") + '><i class="bi bi-shuffle me-1"></i>Shuffle</button>' +
-        '<button type="button" class="btn btn-outline-secondary btn-pill" data-action="queue-all"' + (p.count ? "" : " disabled") + '><i class="bi bi-list-ol me-1"></i>Add to queue</button>' +
-        '<button type="button" class="btn btn-outline-secondary btn-icon btn-pill" data-action="playlist-menu" aria-haspopup="menu" title="More" aria-label="Playlist actions"><i class="bi bi-three-dots"></i></button>' +
+        '<button type="button" class="btn btn-success btn-pill" data-action="play"' + (p.count ? "" : " disabled") + '>' + lucideIcon('play', 'filled me-1') + 'Play</button>' +
+        '<button type="button" class="btn btn-outline-secondary btn-pill" data-action="shuffle"' + (p.count ? "" : " disabled") + '>' + lucideIcon('shuffle', 'me-1') + 'Shuffle</button>' +
+        '<button type="button" class="btn btn-outline-secondary btn-pill" data-action="queue-all"' + (p.count ? "" : " disabled") + '>' + lucideIcon('list-ordered', 'me-1') + 'Add to queue</button>' +
+        '<button type="button" class="btn btn-outline-secondary btn-icon btn-pill" data-action="playlist-menu" aria-haspopup="menu" title="More" aria-label="Playlist actions">' + lucideIcon('ellipsis') + '</button>' +
       '</div>'
     ).show();
   }
@@ -205,7 +205,7 @@ function moreFormatter(value, row) {
       var on = !!song && favorites.has(song);
       $(this).toggleClass("on", on).attr("aria-pressed", on)
         .attr("title", on ? "Remove from Favorites" : "Add to Favorites")
-        .find("i").attr("class", "bi " + (on ? "bi-heart-fill" : "bi-heart"));
+        .find("svg").toggleClass("filled", on);
     });
     updatePlayerHeart();
   }
@@ -219,7 +219,7 @@ function moreFormatter(value, row) {
     var on = favorites.has(songName);
     btn.show().toggleClass("on", on).attr("aria-pressed", on)
       .attr("title", on ? "Remove from Favorites" : "Add to Favorites")
-      .find("i").attr("class", "bi " + (on ? "bi-heart-fill" : "bi-heart"));
+      .find("svg").toggleClass("filled", on);
   }
 
   function toggleFavorite(song) {
@@ -356,7 +356,7 @@ function moreFormatter(value, row) {
       } else {
         menuActions.push(item.run);
         html += '<button type="button" class="popItem' + (item.danger ? " text-danger" : "") + '" role="menuitem" data-i="' + (menuActions.length - 1) + '"' + (item.disabled ? " disabled" : "") + '>' +
-                (item.icon ? '<i class="bi bi-' + item.icon + '"></i>' : '<i class="bi"></i>') + '<span>' + esc(item.label) + '</span></button>';
+                (item.icon ? lucideIcon(item.icon, item.filled ? 'filled' : '') : '<span class="lucide"></span>') + '<span>' + esc(item.label) + '</span></button>';
       }
     });
     menu.html(html).show();
@@ -403,9 +403,9 @@ function moreFormatter(value, row) {
     var items = [{ header: "Add to playlist" }];
     lists.forEach(function (p) {
       if (p.id === FAVORITES) return;
-      items.push({ label: p.name, icon: "collection-play", run: function () { addSongs(p.id, songs); } });
+      items.push({ label: p.name, icon: "list-video", run: function () { addSongs(p.id, songs); } });
     });
-    items.push({ label: "New playlist…", icon: "plus-lg", run: function () {
+    items.push({ label: "New playlist…", icon: "plus", run: function () {
       askName("New playlist", "", "Create", function (name) {
         createPlaylist(name, songs).then(function (p) { if (p) renderBar(); });
       });
@@ -418,9 +418,9 @@ function moreFormatter(value, row) {
     if (!song) return;
     var fav = favorites.has(song);
     var items = [
-      { label: "Play next", icon: "skip-end", run: function () { queueSong(id, { next: true }); } },
-      { label: "Add to queue", icon: "list-ol", run: function () { queueSong(id); } },
-      { label: fav ? "Remove from Favorites" : "Add to Favorites", icon: fav ? "heart-fill" : "heart", run: function () { toggleFavorite(song); } },
+      { label: "Play next", icon: "list-start", run: function () { queueSong(id, { next: true }); } },
+      { label: "Add to queue", icon: "list-ordered", run: function () { queueSong(id); } },
+      { label: fav ? "Remove from Favorites" : "Add to Favorites", icon: "heart", filled: fav, run: function () { toggleFavorite(song); } },
       "-",
     ].concat(addToPlaylistItems([song]));
 
@@ -431,7 +431,7 @@ function moreFormatter(value, row) {
       items.push("-", { header: "This playlist" });
       items.push({ label: "Move up", icon: "arrow-up", disabled: pos <= 0 || sorted, run: function () { move(p.id, song, -1); } });
       items.push({ label: "Move down", icon: "arrow-down", disabled: pos === -1 || pos >= p.songs.length - 1 || sorted, run: function () { move(p.id, song, 1); } });
-      items.push({ label: p.id === FAVORITES ? "Remove from Favorites" : "Remove from " + p.name, icon: "dash-circle", danger: true, run: function () {
+      items.push({ label: p.id === FAVORITES ? "Remove from Favorites" : "Remove from " + p.name, icon: "circle-minus", danger: true, run: function () {
         if (p.id === FAVORITES) toggleFavorite(song); else removeSong(p.id, song);
       } });
     }
@@ -450,7 +450,7 @@ function moreFormatter(value, row) {
       items.unshift({ label: "Rename", icon: "pencil", run: function () {
         askName("Rename playlist", p.name, "Rename", function (name) { renamePlaylist(p.id, name); });
       } });
-      items.push("-", { label: "Delete playlist", icon: "trash", danger: true, run: function () {
+      items.push("-", { label: "Delete playlist", icon: "trash-2", danger: true, run: function () {
         confirmDialog("Delete “" + p.name + "”?", "The songs stay in your library. This can't be undone.", "Delete", function () {
           deletePlaylist(p.id);
         });
@@ -461,7 +461,7 @@ function moreFormatter(value, row) {
 
   function addMenu(anchor) {
     openMenu(anchor, [
-      { label: "New playlist…", icon: "plus-lg", run: function () {
+      { label: "New playlist…", icon: "plus", run: function () {
         askName("New playlist", "", "Create", function (name) {
           createPlaylist(name).then(function (p) { if (p) showPlaylist(p.id); });
         });
