@@ -1,71 +1,221 @@
 # mp3-web
-A cool local music player made in PHP/jQuery.
 
-It can be useful if you have local music files you want to play, 
-especially if you want to cast it to your Google speakers as Spotify does not allow this for local files.
+A lightweight, self-hosted music player for local audio files, written in PHP with a jQuery/Bootstrap frontend.
 
-## Default (new) player
-![image](https://github.com/user-attachments/assets/c09b9566-930b-4e0e-9d4e-759124f956b6)
+It's handy when you have a folder of local music you want to play from any browser, and especially when you want to
+cast it to Google/Nest speakers (Spotify won't cast local files).
 
-## Legacy (old) player
-![image](https://github.com/user-attachments/assets/7a3589a4-34e5-4028-b525-9978008a71ba)
+## Screenshots
 
+### Default (new) player
+![Default player](https://github.com/user-attachments/assets/c09b9566-930b-4e0e-9d4e-759124f956b6)
+
+### Legacy (old) player
+![Legacy player](https://github.com/user-attachments/assets/7a3589a4-34e5-4028-b525-9978008a71ba)
 
 ## Features
-- [x] Supports Windows media keys
-- [x] Download from playlist
-- [x] Delete from playlist
-- [x] Shuffle playlist
-- [x] Loop song
-- [x] Upload files directly from web UI
-- [x] Change settings from GUI
-- [x] Queue
 
-## TBA
+- [x] Plays `mp3`, `ogg` and `wav` files from a configurable folder (allowed types are configurable)
+- [x] **Cast** to Google Cast / Nest speakers from the playbar (playbar controls, queue and auto-next keep working on the speaker); AirPlay in Safari
+- [x] Live waveform in the playbar that follows the music and freezes when paused
+- [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
+- [x] Keyboard shortcuts (see below)
+- [x] Remembers the current song, position, loop and shuffle across page refreshes
+- [x] Queue, shuffle and loop
+- [x] Download and delete songs from the playlist
+- [x] Upload files (multiple at once) directly from the web UI
+- [x] Track durations (via [`wapmorgan/mp3info`](https://github.com/wapmorgan/Mp3Info))
+- [x] Change settings from the GUI (persisted to the config file)
+- [x] Dark/light player theme, configurable table columns, remembered volume
+- [x] Demo mode that disables all file actions
+- [x] CSRF protection on state-changing API requests
+
+### Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| <kbd>Space</kbd> | Play / pause |
+| <kbd>←</kbd> / <kbd>→</kbd> | Seek back / forward 5 seconds |
+| <kbd>Shift</kbd>+<kbd>←</kbd> / <kbd>Shift</kbd>+<kbd>→</kbd> | Previous / next song |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down |
+| <kbd>M</kbd> | Mute / unmute |
+| <kbd>L</kbd> | Toggle loop |
+| <kbd>S</kbd> | Toggle shuffle |
+
+Shortcuts are ignored while typing in a text field.
+
+### Casting
+
+The Cast button sits in the playbar next to loop/shuffle.
+
+- **Google Cast** works in Chrome and Edge. Chrome only enables it on a **secure origin**: serve the app over HTTPS
+  (e.g. behind a reverse proxy), or open it on `localhost`. Over plain HTTP the button is disabled with a tooltip saying so.
+- The speaker fetches the audio itself, so the page must be opened via an address the speaker can reach
+  (your server's LAN IP or hostname, not `localhost`).
+- While casting, play/pause, seek, volume, previous/next, queue, shuffle and loop all control the speaker. Disconnecting
+  continues locally (paused) from where the speaker left off.
+- In Safari the button opens the AirPlay picker instead.
+
+### Planned
 - [ ] Favorites
-- [ ] Support multiple playlists
-- [ ] Browser refresh persistency
-- [ ] Session sharing
+- [ ] Multiple playlists
+- [ ] Session sharing (create/join session codes exist, syncing is still work in progress)
+
+## Requirements
+
+- PHP 8.x with a web server (Apache, nginx + PHP-FPM, etc.)
+- [Composer](https://getcomposer.org/)
+- Write access for the web server user to the music folder (uploads/deletes), the config file (GUI settings) and `session/`
 
 ## Getting started
 
-### Dockerfile (recommended)
-You could build a docker container running `mp3-web` using the [dockerfile](https://raw.githubusercontent.com/Darknetzz/mp3-web/refs/heads/main/Dockerfile).
+### Docker (recommended)
+
+The [Dockerfile](Dockerfile) builds a `php:8.3-apache` image, clones the `main` branch of this repo and runs `composer install`.
+
 ```bash
 # Get the Dockerfile
 curl -O https://raw.githubusercontent.com/Darknetzz/mp3-web/refs/heads/main/Dockerfile
 
-# Build the container
+# Build the image
 docker build -t mp3-web:main .
 
 # Run the container (replace 9096 with any port you want)
 docker run -d -p 9096:80 mp3-web:main
 ```
 
-### Docker compose
+To use your own music, mount it over the music folder:
+
+```bash
+docker run -d -p 9096:80 -v /path/to/your/music:/var/www/html/music mp3-web:main
+```
+
+### Docker Compose
+
 ```yml
 services:
-    image: 
+  mp3-web:
+    build: .            # directory containing the Dockerfile
+    image: mp3-web:main
+    container_name: mp3-web
+    ports:
+      - "9096:80"
+    volumes:
+      - /path/to/your/music:/var/www/html/music
+    restart: unless-stopped
 ```
 
 ### Manual
-* Clone this repo or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest) to your webserver with PHP.
-* Run `composer install` from the directory (optional, but required to display durations)
-* Add some music in the subfolder `music` (or whatever you choose in `config.php`)
-* Open the page in a browser and start listening!
 
-### Troubleshooting
+1. Clone this repo (or download the [latest release](https://github.com/Darknetzz/mp3-web/releases/latest)) into your web root.
+2. Install dependencies (required, the app won't start without `vendor/autoload.php`):
+   ```bash
+   composer install
+   ```
+3. Make sure a `.env` file exists in the project root (see [Environment](#environment-env)).
+4. Put some music in the `music` folder (or whichever folder `audio_path` points to).
+5. Open the page in a browser and start listening.
 
-#### Unable to upload/delete music
-Usually the main reason for this is permissions. You might see error messages similar to this:
-* The directory `<PATH>` is not writable.
-Run the following commands, replacing `<PATH>` with the mp3-web directory:
+## Configuration
+
+### Settings (`config.php`)
+
+Settings are loaded from the first file that exists:
+
+1. `config.local.php` (ignored by git, use this for your own overrides)
+2. `config.php`
+
+`config.default.php` holds the reference defaults and should not be edited. Settings changed through the GUI are written
+back to whichever config file is active, so that file must be writable by the web server.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `env` | selection | `dev` | `dev`, `prod` or `demo` (demo disables all file actions in the API) |
+| `player_theme` | selection | `dark` | `dark` or `light` |
+| `default_table_cols` | multiselect | `name, duration, queue` | Columns shown in the song table (`#`, `filename`, `size`, `date`, `name`, `duration`, `queue`, `delete`) |
+| `site_title` | string | `Music Player` | Page title |
+| `allowed_types` | array | `mp3, ogg, wav` | File extensions that are listed and accepted for upload |
+| `audio_path` | string | `music` | Folder containing the audio files |
+| `use_legacy_player` | bool | `false` | Use the old player layout |
+| `include_file_extension` | bool | `true` | Show file extensions in song names |
+| `default_volume` | range 0–1 | `0.5` | Initial volume (the last used volume is remembered in the browser) |
+| `no_song_text` | string | `No song selected` | Text shown when nothing is playing |
+| `auto_scroll` | bool | `true` | Scroll to the currently playing song |
+| `fluid-container` | bool | `false` | Use a full-width layout |
+| `player_opacity` | range 0–1 | `0.95` | Opacity of the player bar |
+
+### Environment (`.env`)
+
+Loaded with [`vlucas/phpdotenv`](https://github.com/vlucas/phpdotenv). The app refuses to start without it.
+
+```ini
+APP_NAME = "mp3-web"
+AUTHOR   = "..."
+URL      = "https://github.com/Darknetzz/mp3-web"   # linked from the version label in the header
+ENV      = "prod"
+VERSION  = "vX.Y.Z"                                 # shown next to the site title
+```
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| `index.php` | Main page: player, song table, upload form |
+| `_includes.php` | Bootstrap: session + CSRF token, Composer autoload, `.env`, config loading, constants |
+| `functions.php` | Helpers: config read/write, listing, upload, delete, durations, sessions, `apiResponse()` |
+| `api.php` | JSON API used by the frontend |
+| `js.php` | Frontend logic (jQuery), served inline |
+| `modals.php` | Settings and session modals |
+| `cast.js` | Google Cast sender + AirPlay fallback |
+| `waveform.js` | Playbar waveform (Web Audio analyser) |
+| `style.css` | Custom styles |
+| `music/` | Default audio folder (ships with a few sample tracks) |
+| `session/` | Session JSON files (created at runtime, git-ignored) |
+| `Dockerfile` | Container image definition |
+| `IMPROVEMENTS.md` | Notes on known issues and suggested improvements |
+
+## API
+
+All endpoints live in `api.php` and always return JSON shaped like `{ "status": "success" | "error", "response": "...", "data": {...} }`.
+The action is passed as `action` in the query string or POST body. State-changing actions require a POST with a valid
+`csrf_token` (the frontend handles this automatically).
+
+| Action | Description |
+| --- | --- |
+| `ls` | List songs in the audio folder |
+| `dl` | Download a song (`file`) |
+| `rm` | Delete a song |
+| `getconfig` | Read the current configuration |
+| `setconfig` | Update a setting |
+| *(file upload)* | Any request with `$_FILES` is treated as an upload |
+| `createSession` / `joinSession` | Create or join a listening session by 8-character code |
+
+> **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,
+> so don't expose it to the internet without putting it behind auth (reverse proxy, VPN, etc.), or set `env` to `demo`.
+
+## Troubleshooting
+
+### Unable to upload/delete music or save settings
+
+This is almost always file permissions. You may see errors like *The directory `<PATH>` is not writable.*
+Run the following, replacing `<PATH>` with the mp3-web directory:
+
 ```bash
 # Example: chown -R www-data:www-data /var/www/html/mp3-web
 chown -R www-data:www-data <PATH>
+```
 
+```bash
 # Example: chmod -R 775 /var/www/html/mp3-web
 chmod -R 775 <PATH>
 ```
 
-If your music folder is in a remote directory and the ownership can't be changed, you might have to replace `775` with `777`.
+If your music folder is on a remote share where ownership can't be changed, you may have to use `777` instead of `775`.
+
+### Large uploads fail
+
+Raise `upload_max_filesize` and `post_max_size` in your PHP config (the Docker image sets both to `50M`).
+
+### "The Composer autoload file is missing." / "The .env file is missing."
+
+Run `composer install` in the project directory and make sure `.env` exists.

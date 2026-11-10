@@ -55,3 +55,24 @@ body {
 .hover-pointer {
   cursor: pointer;
 }
+/* Playbar header: waveform + title */
+.playerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+.waveform {
+  width: 120px;
+  height: 32px;
+  flex-shrink: 0;
+}
+@media (max-width: 576px) {
+  .waveform {
+    width: 72px;
+  }
+}
+.castBtn:disabled {
+  pointer-events: auto; /* keep the explanatory tooltip on hover */
+  cursor: not-allowed;
+}

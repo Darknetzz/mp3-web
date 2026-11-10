@@ -21,6 +21,161 @@
   var warningClass          = "text-warning border border-warning is-warning";
   var successClass          = "text-success border border-success is-valid";
   var csrfToken             = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>';
+  var audioPath             = <?= json_encode(getConfig("audio_path")) ?>;
+  var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
+  var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
+  var stateKey              = "playerState";
+  var songName              = null;
+
+  /* ─────────────────────────── FUNCTION: songUrl ──────────────────────────── */
+  // Absolute, encoded URL for a song (Cast devices need an absolute URL).
+  function songUrl(name) {
+    return new URL(audioPath.replace(/\/+$/, "") + "/" + encodeURIComponent(name), window.location.href).href;
+  }
+
+  /* ──────────────────────────────── player ────────────────────────────────── */
+  // Routes playback to the local <audio> element, or to `player.remote`
+  // (set by cast.js while a Cast session is active).
+  var player = {
+    remote: null,
+    audio: function() {
+      return $("audio")[0];
+    },
+    isRemote: function() {
+      return this.remote !== null;
+    },
+    load: function(name, opts) {
+      opts = opts || {};
+      var autoplay  = opts.autoplay !== false;
+      var startTime = opts.startTime || 0;
+      if (this.remote) {
+        this.remote.load(songUrl(name), name, startTime, autoplay);
+        return;
+      }
+      var a = this.audio();
+      $("#audioSource").attr("src", songUrl(name));
+      a.load();
+      if (startTime > 0) {
+        $(a).one("loadedmetadata", function() { a.currentTime = startTime; });
+      }
+      if (autoplay) {
+        this.play();
+      }
+    },
+    play: function() {
+      if (this.remote) return this.remote.play();
+      var p = this.audio().play();
+      if (p && p.catch) p.catch(function(e) { console.log("Playback was blocked:", e); });
+    },
+    pause: function() {
+      if (this.remote) return this.remote.pause();
+      this.audio().pause();
+    },
+    stop: function() {
+      if (this.remote) return this.remote.stop();
+      var a = this.audio();
+      a.pause();
+      $("#audioSource").attr("src", "");
+      a.removeAttribute("src");
+      a.load();
+    },
+    seek: function(t) {
+      if (this.remote) return this.remote.seek(t);
+      this.audio().currentTime = t;
+    },
+    setVolume: function(v) {
+      if (this.remote) return this.remote.setVolume(v);
+      this.audio().volume = v;
+    },
+    getTime: function() {
+      if (this.remote) return this.remote.getTime();
+      return this.audio().currentTime;
+    },
+    getDuration: function() {
+      var d = this.remote ? this.remote.getDuration() : this.audio().duration;
+      return (isFinite(d) && d > 0) ? d : 0;
+    },
+  };
+
+  /* ────────────────────────── FUNCTION: setPlayingUI ──────────────────────── */
+  function setPlayingUI(isPlaying) {
+    playing = isPlaying;
+    var playPauseBtn = $(".playPauseBtn");
+    if (isPlaying) {
+      playPauseBtn.removeClass("btn-outline-success btn-outline-warning").addClass("btn-success");
+      playPauseBtn.html(pauseIconHTML);
+      changeFavicon("favicon_play.ico");
+    } else {
+      playPauseBtn.removeClass("btn-success btn-outline-success").addClass("btn-outline-warning");
+      playPauseBtn.html(playIconHTML);
+      changeFavicon("favicon_pause.ico");
+    }
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    }
+    if (window.waveform) {
+      window.waveform.setPlaying(isPlaying);
+    }
+  }
+
+  /* ───────────────────────── FUNCTION: updateVolumeIcon ───────────────────── */
+  function updateVolumeIcon(v) {
+    if (v == 0) {
+      $(".volumeIcon").html('<?= icon("volume-mute-fill", 2) ?>');
+    } else if (v <= 0.5) {
+      $(".volumeIcon").html('<?= icon("volume-down-fill", 2) ?>');
+    } else {
+      $(".volumeIcon").html('<?= icon("volume-up-fill", 2) ?>');
+    }
+    $(".audioVolume").text(Math.round(v * 100) + "%");
+  }
+
+  /* ─────────────────────── FUNCTION: updateMediaMetadata ──────────────────── */
+  function updateMediaMetadata(title) {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata === "undefined") return;
+    navigator.mediaSession.metadata = new MediaMetadata({ title: title, artist: siteTitle });
+  }
+
+  /* ──────────────────────── FUNCTION: findIndexByFilename ─────────────────── */
+  function findIndexByFilename(name) {
+    var rows = playlistTable.bootstrapTable('getData');
+    for (var i = 0; i < rows.length; i++) {
+      if (urldecode(rows[i].filename).trim() === name) {
+        return rows[i].id;
+      }
+    }
+    return null;
+  }
+
+  /* ─────────────────────────── FUNCTION: saveState ────────────────────────── */
+  function saveState() {
+    try {
+      localStorage.setItem(stateKey, JSON.stringify({
+        filename: songName,
+        time:     songName ? player.getTime() : 0,
+        loop:     loop,
+        shuffle:  shuffle,
+      }));
+    } catch (e) {}
+  }
+
+  /* ────────────────────────── FUNCTION: restoreState ──────────────────────── */
+  function restoreState() {
+    var state = null;
+    try {
+      state = JSON.parse(localStorage.getItem(stateKey) || "null");
+    } catch (e) {}
+    if (!state) return;
+    if (state.loop && !loop) toggleLoop();
+    if (state.shuffle && !shuffle) toggleShuffle();
+    if (!state.filename) return;
+    var index = findIndexByFilename(state.filename);
+    if (index === null) {
+      try { localStorage.removeItem(stateKey); } catch (e) {}
+      return;
+    }
+    playSong(index, { autoplay: false, startTime: +state.time || 0 });
+  }
 
   /* ────────────────────────── FUNCTION: setWarning ────────────────────────── */
   function setWarning(selectorOrElement) {
@@ -94,7 +249,8 @@
   }
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
-  function playSong(index) {
+  function playSong(index, opts) {
+    opts = opts || {};
     console.log("Playing song at index: " + index);
     $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
     var tableData  = playlistTable.bootstrapTable('getData');
@@ -128,10 +284,8 @@
       return;
     }
     updateTitle(songName);
-    var filePath = "<?= getConfig("audio_path") ?>/" + songName;
-    $("#audioSource").attr("src", filePath);
-    $("audio")[0].load();
-    $("audio")[0].play();
+    updateMediaMetadata(songName);
+    player.load(songName, { autoplay: opts.autoplay !== false, startTime: opts.startTime || 0 });
     var activeRow = $("tr.songrow[data-uniqueid='" + index + "']");
     window.currentIndex = index;
     activeRow.addClass(activeClass).children().addClass(activeClass);
@@ -140,14 +294,15 @@
 
   /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
   function pauseSong() {
-    updateTitle(songName);
-    $("audio")[0].pause();
+    player.pause();
+    saveState();
   }
 
   /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
   function resumeSong() {
+    if (!songName) return;
     updateTitle(songName);
-    $("audio")[0].play();
+    player.play();
   }
 
   /* ────────────────────────── FUNCTION: toggleSong ────────────────────────── */
@@ -169,18 +324,23 @@
 
   /* ─────────────────────────── FUNCTION: stopSong ─────────────────────────── */
   function stopSong() {
-    pauseSong();
+    player.stop();
     window.currentIndex = undefined;
-    playing = false;
-    $("#audioSource").attr("src", "");
-    $("audio")[0].currentTime = 0;
+    songName = null;
+    setPlayingUI(false);
+    if (window.waveform) window.waveform.clear();
+    $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
+    $(".audioCurrentTime, .audioDuration").text("0:00");
+    $(".audioSlider").val(0);
+    duration = 0;
     updateTitle();
+    saveState();
   }
 
   /* ───────────────────────── FUNCTION: prevSong ───────────────────────── */
   function prevSong() {
-    if ($("audio")[0].currentTime > 5) {
-      $("audio")[0].currentTime = 0;
+    if (player.getTime() > 5) {
+      player.seek(0);
       return;
     }
     var prevIndex = parseInt(currentIndex) - 1;
@@ -235,17 +395,39 @@
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
   function toggleLoop() {
     loop = !loop;
-    var audioElement = $("audio")[0];
-    audioElement.loop = !audioElement.loop;
+    player.audio().loop = loop; // Remote looping is handled in cast.js
     console.log("Loop: " + loop);
-    $(".toggleLoopBtn").toggleClass("active");
+    $(".toggleLoopBtn").toggleClass("active", loop);
+    saveState();
   }
 
   /* ───────────────────────── FUNCTION: toggleShuffle ──────────────────────── */
   function toggleShuffle() {
     shuffle = !shuffle;
     console.log("Shuffle: " + shuffle);
-    $(".toggleShuffleBtn").toggleClass("active");
+    $(".toggleShuffleBtn").toggleClass("active", shuffle);
+    saveState();
+  }
+
+  /* ───────────────────────── FUNCTION: seekBy ─────────────────────────────── */
+  function seekBy(seconds) {
+    if (!songName) return;
+    var t = player.getTime() + seconds;
+    var d = player.getDuration();
+    player.seek(Math.max(0, d ? Math.min(t, d - 0.5) : t));
+    updateTime();
+  }
+
+  /* ───────────────────────── FUNCTION: changeVolume ───────────────────────── */
+  function changeVolume(delta) {
+    var slider = $("#volumeSlider");
+    var current = slider.length ? parseFloat(slider.val()) : player.audio().volume;
+    var v = Math.round(Math.min(1, Math.max(0, current + delta)) * 100) / 100;
+    if (slider.length) {
+      slider.val(v).trigger("input");
+    } else {
+      player.setVolume(v);
+    }
   }
 
   /* ────────────────────────── FUNCTION: formatTime ────────────────────────── */
@@ -257,10 +439,24 @@
 
   /* ────────────────────────── FUNCTION: updateTime ────────────────────────── */
   function updateTime() {
-    currentTime = $("audio")[0].currentTime;
+    currentTime = player.getTime() || 0;
+    var d = player.getDuration();
+    if (d) {
+      duration = d;
+      $(".audioDuration").text(formatTime(duration));
+    }
     $(".audioCurrentTime").text(formatTime(currentTime));
     $(".audioSlider").attr("max", duration);
     $(".audioSlider").val(currentTime);
+    if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && duration > 0 && !player.isRemote()) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration:     duration,
+          position:     Math.min(currentTime, duration),
+          playbackRate: player.audio().playbackRate || 1,
+        });
+      } catch (e) {}
+    }
   }
 
   /* ─────────────────────────── FUNCTION: showToast ────────────────────────── */
@@ -399,17 +595,16 @@
     });
 
     var audioElement = $("audio")[0];
-    var storedVolume = localStorage.getItem('volume');
-    if (storedVolume && !isNaN(storedVolume) && storedVolume >= 0 && storedVolume <= 100) {
-      console.log("Stored volume from localStorage: " + storedVolume);
-      $("#volumeSlider").val(storedVolume);
-      audioElement.volume = storedVolume;
-    } else {
-      console.log("Setting default volume: <?= getConfig("default_volume") ?>");
-      $("#volumeSlider").val(<?= getConfig("default_volume") ?>);
-      audioElement.volume = storedVolume;
-      // audioElement.volume = <?= getConfig("default_volume") ?>;
-    }
+    var storedVolume = NaN;
+    try {
+      var rawVolume = localStorage.getItem('volume');
+      if (rawVolume !== null) storedVolume = parseFloat(rawVolume);
+    } catch (e) {}
+    var initialVolume = (!isNaN(storedVolume) && storedVolume >= 0 && storedVolume <= 1) ? storedVolume : defaultVolume;
+    console.log("Initial volume: " + initialVolume);
+    $("#volumeSlider").val(initialVolume);
+    audioElement.volume = initialVolume;
+    updateVolumeIcon(initialVolume);
 
     /* ──────────────────────────── NOTE: sessionBtn ──────────────────────────── */
     $(".sessionBtn").on("click", function() {
@@ -444,7 +639,14 @@
     });
 
     /* ───────────────────────────── NOTE: Interval ───────────────────────────── */
-    setInterval(updateTime, 1000);
+    var tick = 0;
+    setInterval(function() {
+      updateTime();
+      if (playing && ++tick % 5 === 0) {
+        saveState();
+      }
+    }, 1000);
+    window.addEventListener("pagehide", saveState);
 
     /* ──────────────────────── NOTE: table event listeners ──────────────────────── */
     playlistTable.on('click-cell.bs.table', function (e, field, value, row, $element) {
@@ -475,7 +677,7 @@
           }
         });
       } else if (field === 'download') {
-        window.open('<?= getConfig("audio_path") ?>/' + file, '_blank');
+        window.open(songUrl(file), '_blank');
       } else if (field === 'queue') {
         queueSong(rowid);
       } else {
@@ -486,22 +688,18 @@
 
     /* ────────────────────────────── NOTE: audioSlider ───────────────────────── */
     $(".audioSlider").on('input', function() {
-      currentTime = $(this).val();
-      audioElement.currentTime = $(this).val();
+      currentTime = parseFloat($(this).val());
+      player.seek(currentTime);
     });
 
     /* ────────────────────────────── NOTE: volumeSlider ──────────────────────── */
     $("#volumeSlider").on('input', function() {
-      localStorage.setItem('volume', $(this).val());
-      audioElement.volume = $(this).val();
-      if ($(this).val() == 0) {
-        $(".volumeIcon").html('<?= icon("volume-mute-fill", 2) ?>');
-      } else if ($(this).val() <= 0.5) {
-        $(".volumeIcon").html('<?= icon("volume-down-fill", 2) ?>');
-      } else {
-        $(".volumeIcon").html('<?= icon("volume-up-fill", 2) ?>');
+      var v = parseFloat($(this).val());
+      if (!player.isRemote()) {
+        try { localStorage.setItem('volume', v); } catch (e) {}
       }
-      $(".audioVolume").text(Math.round($(this).val() * 100) + "%");
+      player.setVolume(v);
+      updateVolumeIcon(v);
     });
 
     /* ────────────────────────────── NOTE: volumeIcon ─────────────────────────── */
@@ -518,37 +716,31 @@
     /*                                Audio Element                               */
     /* ────────────────────────────────────────────────────────────────────────── */
     /* ────────────────────────────── NOTE: canplay ───────────────────────────── */
-    $(audioElement).on('canplay', function() {
+    $(audioElement).on('loadedmetadata canplay', function() {
+      if (player.isRemote() || !isFinite(audioElement.duration)) return;
       duration = audioElement.duration;
       $(".audioDuration").text(formatTime(duration));
       $(".ctrlBtn").prop("disabled", false);
+      updateTime();
     });
 
     /* ─────────────────────────────── NOTE: Ended ────────────────────────────── */
     $(audioElement).on('ended', function() {
+      if (player.isRemote()) return;
       nextSong();
     });
 
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
     $(audioElement).on('play', function() {
-      playPauseBtn = $(".playPauseBtn");
-      playPauseBtn.removeClass("btn-outline-success");
-      playPauseBtn.removeClass("btn-outline-warning");
-      playPauseBtn.addClass("btn-success");
-      playing = true;
-      playPauseBtn.html(pauseIconHTML);
-      changeFavicon("favicon_play.ico");
+      if (player.isRemote()) return;
+      setPlayingUI(true);
     });
 
     /* ────────────────────────────── NOTE: Pause ─────────────────────────────── */
     $(audioElement).on('pause', function() {
-      playPauseBtn = $(".playPauseBtn");
-      playPauseBtn.removeClass("btn-success");
-      playPauseBtn.removeClass("btn-outline-success");
-      playPauseBtn.addClass("btn-outline-warning");
-      playing = false;
-      $(".playPauseBtn").html(playIconHTML);
-      changeFavicon("favicon_pause.ico");
+      if (player.isRemote()) return;
+      setPlayingUI(false);
+      saveState();
     });
 
     if (window.history.replaceState) {
@@ -571,15 +763,44 @@
       navigator.mediaSession.setActionHandler('nexttrack', function() {
         nextSong();
       });
+      var seekHandlers = {
+        seekto:       function(d) { player.seek(d.seekTime); updateTime(); },
+        seekbackward: function(d) { seekBy(-(d.seekOffset || 10)); },
+        seekforward:  function(d) { seekBy(d.seekOffset || 10); },
+      };
+      $.each(seekHandlers, function(action, handler) {
+        try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
+      });
     }
 
-    // Keyboard shortcuts
+    /* ─────────────────────────── NOTE: Keyboard shortcuts ───────────────────── */
+    // Space: play/pause · ←/→: seek 5s · Shift+←/→: prev/next · ↑/↓: volume · M: mute · L: loop · S: shuffle
     $(document).keydown(function(e) {
-      if (e.code === 'Space' && !$(':focus').is('input, textarea')) {
-        e.preventDefault();
-        toggleSong();
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      var target = $(e.target);
+      if (target.is('textarea, select, [contenteditable="true"]')) return;
+      if (target.is('input') && !target.is('[type="range"], [type="checkbox"], [type="radio"], [type="button"]')) return;
+      // Let a focused slider handle its own arrow keys
+      if (target.is('[type="range"]') && e.code.indexOf('Arrow') === 0) return;
+      if ($('.modal.show').length) return;
+
+      var handled = true;
+      switch (e.code) {
+        case 'Space':      toggleSong(); break;
+        case 'ArrowLeft':  e.shiftKey ? prevSong() : seekBy(-5); break;
+        case 'ArrowRight': e.shiftKey ? nextSong() : seekBy(5); break;
+        case 'ArrowUp':    changeVolume(0.05); break;
+        case 'ArrowDown':  changeVolume(-0.05); break;
+        case 'KeyM':       $(".volumeIcon").first().trigger('click'); break;
+        case 'KeyL':       toggleLoop(); break;
+        case 'KeyS':       toggleShuffle(); break;
+        default:           handled = false;
       }
+      if (handled) e.preventDefault();
     });
+
+    /* ─────────────────────────── NOTE: Restore state ────────────────────────── */
+    restoreState();
 
     // Helper function to collect array values for a given base key within a container
     function collectArrayValues(baseKey, container) {

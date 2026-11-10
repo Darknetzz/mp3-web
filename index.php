@@ -137,7 +137,13 @@ if (getConfig('fluid-container')) {
 echo '
 <div class="audio-player-container px-3" style="opacity: '.getConfig('player_opacity').';">
   <div class="d-flex align-items-center card border border-success">
-      <h3 id="songtitle" class="card-header text-success">'.getConfig("no_song_text").'</h3>
+      <div class="card-header playerHeader">
+        <canvas class="waveform" aria-hidden="true"></canvas>
+        <div class="text-center">
+          <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
+          <small class="castStatus text-muted" style="display:none;"></small>
+        </div>
+      </div>
       <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
       <div class="card-body">
           <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
@@ -171,6 +177,9 @@ echo '
           <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('arrow-repeat').'</button>
             <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn" onclick="toggleShuffle()">'.icon('shuffle').'</button>
+          </div>
+          <div class="btn-group mx-2 castGroup" style="display:none;">
+            <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
           </div>
           <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-success" onclick="playSong(0)">'.icon('play-fill').' Play First Song</button>
@@ -299,5 +308,8 @@ echo '</div></div>';
 
 <?php require_once('modals.php'); ?>
 <?php require_once('js.php'); ?>
+<script src="waveform.js"></script>
+<script src="cast.js"></script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>
