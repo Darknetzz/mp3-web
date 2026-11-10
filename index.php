@@ -381,6 +381,7 @@ echo '</div></div>';
 <?php require_once('js.php'); ?>
 <script src="waveform.js?v=<?= @filemtime(__DIR__ . '/waveform.js') ?>"></script>
 <script src="cast.js?v=<?= @filemtime(__DIR__ . '/cast.js') ?>"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
 <script src="session.js?v=<?= @filemtime(__DIR__ . '/session.js') ?>"></script>
 <script src="playlists.js?v=<?= @filemtime(__DIR__ . '/playlists.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>

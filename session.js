@@ -33,6 +33,28 @@
     if (/^[a-f0-9]{8}$/.test(j)) inviteCode = j;
   } catch (e) {}
 
+  // QR code for the invite link (qrcode-generator, loaded in index.php).
+  var renderedQrUrl = null;
+  function renderQr(url) {
+    if (url === renderedQrUrl) return;
+    renderedQrUrl = url;
+    var box = $(".sessionQr");
+    if (typeof window.qrcode !== "function") {
+      box.hide(); $(".sessionQrHint").hide();
+      return;
+    }
+    try {
+      var qr = window.qrcode(0, "M"); // type 0 = smallest version that fits
+      qr.addData(url);
+      qr.make();
+      box.html(qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true, title: "Join " + url })).show();
+      $(".sessionQrHint").show();
+    } catch (e) {
+      console.warn("Could not render the invite QR code", e);
+      box.hide(); $(".sessionQrHint").hide();
+    }
+  }
+
   function esc(str) {
     return $("<div>").text(str == null ? "" : String(str)).html();
   }
@@ -83,6 +105,7 @@
     $(".sessionName").text(view.name);
     $(".sessionCodeText").text(view.code);
     $(".sessionInviteLink").val(inviteUrl);
+    renderQr(inviteUrl);
     $(".sessionListening").text(view.listening);
     $(".sessionRoleBadge").text(role)
       .toggleClass("bg-green text-green-fg", view.is_host)

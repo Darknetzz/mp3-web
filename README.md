@@ -94,8 +94,9 @@ Click the people button in the header to **create** or **join** a session.
 
 - Everyone in a session hears the same song at the same position. Playback is synced by polling the server
   every ~1.5s, and devices that drift more than a second re-seek.
-- **Join** with the 8-character code, with an invite link (`…/?join=<code>`, copy it from the session card), or by
-  picking a **public** session from the list in the Join card.
+- **Join** with the 8-character code, with an invite link (`…/?join=<code>`, copy it from the session card), by
+  scanning the **QR code** on the session card with a phone, or by picking a **public** session from the list in the
+  Join card.
 - **The host controls playback** (play/pause, seek, skip, queue, loop, shuffle). Listeners' controls are dimmed.
   The host can switch on *Let everyone control playback* to make the session a shared jukebox.
 - Set **your name** at the top of the dialog (it is remembered in this browser and can be changed at any time, even

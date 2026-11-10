@@ -87,6 +87,8 @@ echo '
             </div>
             <div class="text-muted small">Session code</div>
             <div class="sessionCodeText font-monospace fs-1 mb-3"></div>
+            <div class="sessionQr mx-auto mb-2" role="img" aria-label="QR code with the invite link" style="display:none;"></div>
+            <div class="sessionQrHint text-muted small mb-3" style="display:none;">Scan to join on a phone</div>
             <div class="input-group mb-3 mx-auto" style="max-width: 520px;">
               <input type="text" class="form-control sessionInviteLink" readonly aria-label="Invite link">
               <button type="button" class="btn btn-outline-primary copyInviteBtn">'.icon("link", 1.2, 0).' Copy invite link</button>
