@@ -125,20 +125,38 @@ do {
         break;
     }
 
-    if ($action == 'createSession') {
+    /* ─────────────────────────── Listening sessions ─────────────────────── */
+    if ($action === 'createSession') {
         require_csrf_token();
-        createSession(); // This will call apiResponse() and die()
-        break;
+        createSession($_POST['name'] ?? '', !empty($_POST['public']));
     }
 
-    if ($action == 'joinSession') {
+    if ($action === 'joinSession') {
         require_csrf_token();
-        $sessionId = $_POST['sessionCode'] ?? $_POST['id'] ?? null;
-        if (empty($sessionId)) {
-            apiResponse("error", "Session ID is required.");
-        }
-        joinSession($sessionId); // This will call apiResponse() and die()
-        break;
+        joinSession($_POST['sessionCode'] ?? $_POST['code'] ?? '');
+    }
+
+    if ($action === 'leaveSession') {
+        require_csrf_token();
+        leaveSession();
+    }
+
+    if ($action === 'listSessions') {
+        listSessions();
+    }
+
+    if ($action === 'sessionState') {
+        sessionState();
+    }
+
+    if ($action === 'sessionUpdate') {
+        require_csrf_token();
+        sessionUpdate($_POST['state'] ?? null, $_POST['if_version'] ?? null);
+    }
+
+    if ($action === 'sessionSettings') {
+        require_csrf_token();
+        sessionSettings($_POST['allow_all'] ?? false);
     }
 
 } while (false);

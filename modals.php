@@ -1,109 +1,96 @@
 <?php
 
-/* ───────────────────────── Startup (session) modal ──────────────────────── */
+/* ───────────────────────── Listening session modal ──────────────────────── */
 echo '
 <div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header">
-        <h1 class="modal-title" id="sessionModalLabel">Session</h1>
+        <h1 class="modal-title" id="sessionModalLabel">Listen together</h1>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         <div class="modal-status bg-primary"></div>
       </div>
-      <div class="modal-body">';
+      <div class="modal-body">
 
-      $sessionCards = '<div class="d-flex justify-content-around sessionCards noSessionCards">
+      <!-- # NOTE: Not in a session: create / join -->
+      <div class="sessionLobby">
+      <div class="d-flex flex-column flex-md-row justify-content-around">
 
-      <!-- # NOTE: CREATE SESSION CARD -->
-      <div class="card m-2 w-100">
-        <div class="card-status-top bg-success"></div>
-        <h4 class="card-header text-center">Create session</h4>
-        <div class="card-body text-center">
+        <div class="card m-2 w-100">
+          <div class="card-status-top bg-success"></div>
+          <h4 class="card-header text-center">Create session</h4>
+          <div class="card-body text-center">
+            <p class="text-muted">Start a session and invite others. Everyone hears the same song, in sync.</p>
+            <a href="javascript:void(0);" class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
+                '.icon("person-plus-fill", 2).'
+            </a>
+            <form class="sessionForm" id="createSessionForm" style="display:none;" method="POST">
+              <input type="text" class="form-control m-1 w-100" name="name" maxlength="40" placeholder="Session name (optional)">
+              <div class="m-2">
+                <label class="form-check d-inline-flex align-items-center gap-2">
+                  <input type="checkbox" class="form-check-input m-0" name="public" value="1">
+                  <span>Public <small class="text-muted">(listed for anyone on this server to join)</small></span>
+                </label>
+              </div>
+              <div class="btn-group w-100 m-1">
+                <button type="submit" class="btn btn-success m-1">Create session</button>
+                <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </div>
 
-          <a class="btn btn-success m-2 sessionBtn" data-target="#createSessionForm">
-              '.icon("person-plus-fill", 2).'
-          </a>
+        <div class="card m-2 w-100">
+          <div class="card-status-top bg-primary"></div>
+          <h4 class="card-header text-center">Join session</h4>
+          <div class="card-body text-center">
+            <p class="text-muted">Join with a code, or pick a public session below.</p>
+            <a href="javascript:void(0);" class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
+                '.icon("people-fill", 2).'
+            </a>
+            <form class="sessionForm" id="joinSessionForm" style="display:none;" method="POST">
+              <input type="text" class="form-control m-1 w-100 font-monospace" name="sessionCode" maxlength="8"
+                     placeholder="Session code (8 characters)" autocomplete="off" spellcheck="false">
+              <div class="btn-group w-100 m-1">
+                <button type="submit" class="btn btn-primary m-1">Join session</button>
+                <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn">Cancel</a>
+              </div>
+            </form>
+            <h5 class="mt-3 text-start">Public sessions</h5>
+            <div class="sessionPublicList text-start"></div>
+          </div>
+        </div>
 
-          <form class="sessionForm apiForm" id="createSessionForm" style="display:none;" method="POST">
-            <input type="hidden" name="action" value="createSession">
-            <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session name (optional)">
-            
-            <div class="m-2">
-              <label>
-                <input type="checkbox" class="form-check-input" name="public" id="isPublic" value="1">
-                Public
+      </div>
+      </div>
+
+      <!-- # NOTE: In a session -->
+      <div class="sessionActive" style="display:none;">
+        <div class="card m-2">
+          <div class="card-status-top bg-green"></div>
+          <div class="card-body text-center">
+            <h2 class="sessionName mb-1"></h2>
+            <div class="mb-3">
+              <span class="sessionListening fw-bold"></span> listening
+              <span class="badge sessionRoleBadge ms-2"></span>
+            </div>
+            <div class="text-muted small">Session code</div>
+            <div class="sessionCodeText font-monospace fs-1 mb-3"></div>
+            <div class="input-group mb-3 mx-auto" style="max-width: 520px;">
+              <input type="text" class="form-control sessionInviteLink" readonly aria-label="Invite link">
+              <button type="button" class="btn btn-outline-primary copyInviteBtn">'.icon("link-45deg", 1.2, 0).' Copy invite link</button>
+            </div>
+            <div class="sessionHostOnly mb-3" style="display:none;">
+              <label class="form-check form-switch d-inline-flex align-items-center gap-2">
+                <input class="form-check-input m-0" type="checkbox" id="sessionAllowAll">
+                <span>Let everyone control playback</span>
               </label>
             </div>
-
-            <div class="btn-group w-100 m-1">
-              <button type="submit" class="btn btn-success m-1">Create Session</button>
-              <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
-            </div>
-          </form>
-
-          <div class="sessionResponse" id="createSessionResponse" style="display:none;">
-            <!-- Response from createSession will be displayed here -->
+            <button type="button" class="btn btn-danger leaveSessionBtn">'.icon("box-arrow-right", 1.2, 0).' Leave session</button>
           </div>
-
         </div>
       </div>
 
-
-      <!-- # NOTE: JOIN SESSION CARD -->
-      <div class="card m-2 w-100">
-        <div class="card-status-top bg-primary"></div>
-        <h4 class="card-header text-center">Join session</h4>
-        <div class="card-body text-center">
-
-          <a class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
-              '.icon("people-fill", 2).'
-          </a>
-
-          <form class="sessionForm apiForm" id="joinSessionForm" style="display:none;" method="POST">
-              <input type="text" class="form-control m-1 w-100" name="sessionCode" placeholder="Session code">
-              <div class="btn-group w-100 m-1">
-                <button type="submit" class="btn btn-primary m-1">Join Session</button>
-                <a href="javascript:void(0);" class="btn btn-secondary m-1 cancelSessionBtn" data-bs-dismiss="modal">Cancel</a>
-              </div>
-          </form>
-
-          <div class="sessionResponse" id="joinSessionResponse" style="display:none;">
-            <!-- Response from joinSession will be displayed here -->
-          </div>
-
-        </div>
-      </div>
-
-    </div>';
-
-    // <!-- # NOTE: CANCEL MODAL
-    // <div class="card m-2 w-100">
-    //   <h4 class="card-header text-center">Listen alone</h4>
-    //   <div class="card-status-top bg-secondary"></div>
-    //   <div class="card-body text-center">
-    //     <a class="btn btn-secondary m-2 sessionActionBtn" data-bs-dismiss="modal">
-    //         '.icon("person-x-fill", 2).'
-    //     </a>
-    //   </div>
-    // </div>
-    // -->
-
-    if (!empty($_SESSION['session_code'])) {
-      $sessionCards .= '
-      <div class="d-flex justify-content-around sessionCards hasSessionCards">
-        <div class="card m-2 w-100">
-          <h4 class="card-header text-center">Session</h4>
-          <div class="card-body text-center">
-            <p class="text-muted"> ' . $_SESSION['session_code'] . ' </p>
-            <a href="api.php?action=leaveSession" class="btn btn-danger m-2">Leave session</a>
-          </div>
-        </div>
-      </div>';
-      }
-
-      echo $sessionCards;
-
-echo '
       </div>
     </div>
   </div>

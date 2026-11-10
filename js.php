@@ -26,6 +26,32 @@
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
   var stateKey              = "playerState";
   var songName              = null;
+  var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
+
+  /* ───────────────────────── Listening session hooks ──────────────────────── */
+  // session.js defines window.sessionSync. These stay no-ops outside a session.
+  function sessionBlocked() {
+    if (window.sessionSync && sessionSync.blocks()) {
+      sessionSync.denied();
+      return true;
+    }
+    return false;
+  }
+  function sessionChanged(override) {
+    if (window.sessionSync) sessionSync.localChange(override);
+  }
+  // Called when the current song finishes (locally or on a Cast speaker).
+  function onSongEnded() {
+    if (window.sessionSync && sessionSync.active()) {
+      sessionSync.songEnded();
+      return;
+    }
+    if (loop && window.currentIndex !== undefined) {
+      playSong(window.currentIndex);
+      return;
+    }
+    nextSong();
+  }
 
   /* ─────────────────────────── FUNCTION: songUrl ──────────────────────────── */
   // Absolute, encoded URL for a song (Cast devices need an absolute URL).
@@ -65,7 +91,10 @@
     play: function() {
       if (this.remote) return this.remote.play();
       var p = this.audio().play();
-      if (p && p.catch) p.catch(function(e) { console.log("Playback was blocked:", e); });
+      if (p && p.catch) p.catch(function(e) {
+        console.log("Playback was blocked:", e);
+        if (e && e.name === "NotAllowedError" && window.sessionSync) sessionSync.playBlocked();
+      });
     },
     pause: function() {
       if (this.remote) return this.remote.pause();
@@ -161,6 +190,7 @@
 
   /* ────────────────────────── FUNCTION: restoreState ──────────────────────── */
   function restoreState() {
+    if (sessionCode) return; // the session's state wins
     var state = null;
     try {
       state = JSON.parse(localStorage.getItem(stateKey) || "null");
@@ -251,6 +281,7 @@
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
   function playSong(index, opts) {
     opts = opts || {};
+    if (sessionBlocked()) return;
     console.log("Playing song at index: " + index);
     $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
     var tableData  = playlistTable.bootstrapTable('getData');
@@ -290,19 +321,24 @@
     window.currentIndex = index;
     activeRow.addClass(activeClass).children().addClass(activeClass);
     scrollToActiveSong();
+    sessionChanged({ position: opts.startTime || 0, playing: opts.autoplay !== false });
   }
 
   /* ─────────────────────────── FUNCTION: pauseSong ────────────────────────── */
   function pauseSong() {
+    if (sessionBlocked()) return;
     player.pause();
     saveState();
+    sessionChanged({ playing: false });
   }
 
   /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
   function resumeSong() {
     if (!songName) return;
+    if (sessionBlocked()) return;
     updateTitle(songName);
     player.play();
+    sessionChanged({ playing: true });
   }
 
   /* ────────────────────────── FUNCTION: toggleSong ────────────────────────── */
@@ -316,6 +352,7 @@
 
   /* ────────────────────────── FUNCTION: randomSong ────────────────────────── */
   function randomSong() {
+    if (sessionBlocked()) return;
     var rowCount = playlistTable.bootstrapTable('getData').length;
     var randomIndex = Math.floor(Math.random() * rowCount);
     console.log("Playing random row: " + randomIndex);
@@ -324,6 +361,7 @@
 
   /* ─────────────────────────── FUNCTION: stopSong ─────────────────────────── */
   function stopSong() {
+    if (sessionBlocked()) return;
     player.stop();
     window.currentIndex = undefined;
     songName = null;
@@ -335,12 +373,15 @@
     duration = 0;
     updateTitle();
     saveState();
+    sessionChanged();
   }
 
   /* ───────────────────────── FUNCTION: prevSong ───────────────────────── */
   function prevSong() {
+    if (sessionBlocked()) return;
     if (player.getTime() > 5) {
       player.seek(0);
+      sessionChanged({ position: 0 });
       return;
     }
     var prevIndex = parseInt(currentIndex) - 1;
@@ -358,6 +399,7 @@
 
   /* ─────────────────────────── FUNCTION: nextSong ─────────────────────────── */
   function nextSong() {
+    if (sessionBlocked()) return;
     if (queue.length > 0) {
       var nextQueueIndex = queue.shift();
       playSong(nextQueueIndex);
@@ -386,7 +428,9 @@
 
   /* ─────────────────────────── FUNCTION: queueSong ────────────────────────── */
   function queueSong(index) {
+    if (sessionBlocked()) return;
     queue.push(index);
+    sessionChanged();
     showToast("Added to queue: " + getSongNameByIndex(index), "success");
     $("#nextInQueueText").parent().show();
     $("#nextInQueueText").text(getSongNameByIndex(getQueuedSong()));
@@ -394,28 +438,35 @@
 
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
   function toggleLoop() {
+    if (sessionBlocked()) return;
     loop = !loop;
     player.audio().loop = loop; // Remote looping is handled in cast.js
     console.log("Loop: " + loop);
     $(".toggleLoopBtn").toggleClass("active", loop);
     saveState();
+    sessionChanged();
   }
 
   /* ───────────────────────── FUNCTION: toggleShuffle ──────────────────────── */
   function toggleShuffle() {
+    if (sessionBlocked()) return;
     shuffle = !shuffle;
     console.log("Shuffle: " + shuffle);
     $(".toggleShuffleBtn").toggleClass("active", shuffle);
     saveState();
+    sessionChanged();
   }
 
   /* ───────────────────────── FUNCTION: seekBy ─────────────────────────────── */
   function seekBy(seconds) {
     if (!songName) return;
+    if (sessionBlocked()) return;
     var t = player.getTime() + seconds;
     var d = player.getDuration();
-    player.seek(Math.max(0, d ? Math.min(t, d - 0.5) : t));
+    t = Math.max(0, d ? Math.min(t, d - 0.5) : t);
+    player.seek(t);
     updateTime();
+    sessionChanged({ position: t });
   }
 
   /* ───────────────────────── FUNCTION: changeVolume ───────────────────────── */
@@ -613,22 +664,6 @@
       toggleFade(target);
     });
 
-    /* ──────────────────────────── NOTE: sessionForm ─────────────────────────── */
-    // REVIEW: incomplete
-    $(".sessionForm").on("submit", function(e) {
-      e.preventDefault();
-      var method = $(this).attr("method");
-      var data   = $(this).serializeArray().reduce(function(obj, item) {
-        obj[item.name] = item.value;
-        return obj;
-      }, {});
-      var action = data.action;
-      console.log("Session form data: ", data);
-      api(action, data, method);
-      $(".sessionCards").find(".noSessionCards").hide();
-      // $(".sessionCards").find(".hasSessionCards").show();
-    });
-
     /* ───────────────────────────── Cursor pointer ───────────────────────────── */
     $('#playlistTable').on('post-body.bs.table', function () {
       $('#playlistTable').find('td[data-field="name"]').addClass('cursor-pointer');
@@ -688,8 +723,13 @@
 
     /* ────────────────────────────── NOTE: audioSlider ───────────────────────── */
     $(".audioSlider").on('input', function() {
+      if (sessionBlocked()) {
+        updateTime();
+        return;
+      }
       currentTime = parseFloat($(this).val());
       player.seek(currentTime);
+      sessionChanged({ position: currentTime });
     });
 
     /* ────────────────────────────── NOTE: volumeSlider ──────────────────────── */
@@ -727,7 +767,7 @@
     /* ─────────────────────────────── NOTE: Ended ────────────────────────────── */
     $(audioElement).on('ended', function() {
       if (player.isRemote()) return;
-      nextSong();
+      onSongEnded();
     });
 
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
@@ -764,7 +804,7 @@
         nextSong();
       });
       var seekHandlers = {
-        seekto:       function(d) { player.seek(d.seekTime); updateTime(); },
+        seekto:       function(d) { if (sessionBlocked()) return; player.seek(d.seekTime); updateTime(); sessionChanged({ position: d.seekTime }); },
         seekbackward: function(d) { seekBy(-(d.seekOffset || 10)); },
         seekforward:  function(d) { seekBy(d.seekOffset || 10); },
       };

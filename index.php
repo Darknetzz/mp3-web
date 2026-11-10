@@ -142,6 +142,7 @@ echo '
         <div class="text-center">
           <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
           <small class="castStatus text-muted" style="display:none;"></small>
+          <div class="sessionStatus text-muted small" style="display:none;"></div>
         </div>
       </div>
       <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
@@ -200,8 +201,9 @@ echo '
         <button type="button" class="btn btn-sm btn-pill btn-primary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
           '.icon("gear").'
         </button>
-        <button type="button" class="btn btn-sm btn-pill btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal">
+        <button type="button" class="btn btn-sm btn-pill btn-primary" data-bs-toggle="modal" data-bs-target="#sessionModal" title="Listen together">
           '.icon("people").'
+          <span class="badge bg-green text-green-fg sessionBadge ms-1" style="display:none;"></span>
         </button>
     </div>
   </div>
@@ -310,6 +312,7 @@ echo '</div></div>';
 <?php require_once('js.php'); ?>
 <script src="waveform.js"></script>
 <script src="cast.js"></script>
+<script src="session.js"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

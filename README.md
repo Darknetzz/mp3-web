@@ -21,6 +21,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
 - [x] Keyboard shortcuts (see below)
 - [x] Remembers the current song, position, loop and shuffle across page refreshes
+- [x] **Listen together**: shared sessions where every device plays the same song in sync (see below)
 - [x] Queue, shuffle and loop
 - [x] Download and delete songs from the playlist
 - [x] Upload files (multiple at once) directly from the web UI
@@ -56,10 +57,26 @@ The Cast button sits in the playbar next to loop/shuffle.
   continues locally (paused) from where the speaker left off.
 - In Safari the button opens the AirPlay picker instead.
 
+### Listening sessions
+
+Click the people button in the header to **create** or **join** a session.
+
+- Everyone in a session hears the same song at the same position. Playback is synced by polling the server
+  every ~1.5s, and devices that drift more than a second re-seek.
+- **Join** with the 8-character code, with an invite link (`…/?join=<code>`, copy it from the session card), or by
+  picking a **public** session from the list in the Join card.
+- **The host controls playback** (play/pause, seek, skip, queue, loop, shuffle). Listeners' controls are dimmed.
+  The host can switch on *Let everyone control playback* to make the session a shared jukebox.
+- Volume is per device and is never synced. Casting works inside a session too.
+- If the host leaves or goes quiet for a minute, the longest-joined listener becomes host. Sessions with no activity
+  for 24 hours are deleted.
+- After a page refresh you stay in the session. If the browser blocks autoplay, click *Tap to start listening*
+  under the song title.
+- Session state is stored as JSON files in `session/`, which must be writable by the web server.
+
 ### Planned
 - [ ] Favorites
-- [ ] Multiple playlists
-- [ ] Session sharing (create/join session codes exist, syncing is still work in progress)
+- [ ] Multiple playlists (create/join session codes exist, syncing is still work in progress)
 
 ## Requirements
 
@@ -162,15 +179,17 @@ VERSION  = "vX.Y.Z"                                 # shown next to the site tit
 | --- | --- |
 | `index.php` | Main page: player, song table, upload form |
 | `_includes.php` | Bootstrap: session + CSRF token, Composer autoload, `.env`, config loading, constants |
-| `functions.php` | Helpers: config read/write, listing, upload, delete, durations, sessions, `apiResponse()` |
+| `functions.php` | Helpers: config read/write, listing, upload, delete, durations, `apiResponse()` |
+| `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |
 | `cast.js` | Google Cast sender + AirPlay fallback |
 | `waveform.js` | Playbar waveform (Web Audio analyser) |
+| `session.js` | Listening session sync and session modal |
 | `style.css` | Custom styles |
 | `music/` | Default audio folder (ships with a few sample tracks) |
-| `session/` | Session JSON files (created at runtime, git-ignored) |
+| `session/` | Listening session JSON files (created at runtime, git-ignored) |
 | `Dockerfile` | Container image definition |
 | `IMPROVEMENTS.md` | Notes on known issues and suggested improvements |
 
@@ -188,7 +207,11 @@ The action is passed as `action` in the query string or POST body. State-changin
 | `getconfig` | Read the current configuration |
 | `setconfig` | Update a setting |
 | *(file upload)* | Any request with `$_FILES` is treated as an upload |
-| `createSession` / `joinSession` | Create or join a listening session by 8-character code |
+| `createSession` / `joinSession` / `leaveSession` | Create (`name`, `public`), join (`sessionCode`) or leave a listening session |
+| `listSessions` | Public sessions with active listeners |
+| `sessionState` | Current session state (polled by members) |
+| `sessionUpdate` | Publish playback state (`state` JSON, optional `if_version` for compare-and-swap) |
+| `sessionSettings` | Host only: `allow_all` lets everyone control playback |
 
 > **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,
 > so don't expose it to the internet without putting it behind auth (reverse proxy, VPN, etc.), or set `env` to `demo`.

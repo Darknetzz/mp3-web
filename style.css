@@ -76,3 +76,12 @@ body {
   pointer-events: auto; /* keep the explanatory tooltip on hover */
   cursor: not-allowed;
 }
+
+/* Listening sessions: listeners can't use the transport controls */
+.session-readonly .audio-player-container .btn-group .btn:not(.castBtn),
+.session-readonly .audio-player-container .audioSlider {
+  opacity: 0.45;
+}
+.session-readonly .queueBtn {
+  opacity: 0.35;
+}

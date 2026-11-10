@@ -172,11 +172,7 @@
         var media   = session && session.getMediaSession();
         if (media && media.idleReason === chrome.cast.media.IdleReason.FINISHED && !finishedHandled) {
           finishedHandled = true;
-          if (loop && window.currentIndex !== undefined) {
-            playSong(window.currentIndex);
-          } else {
-            nextSong();
-          }
+          onSongEnded();
         }
       }
     });
