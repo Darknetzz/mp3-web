@@ -30,12 +30,12 @@ $theme = themeSetup();
         }
       });
     </script>
-    <link rel="stylesheet" href="assets/icons/table.css?v=1.71.0">
+    <link rel="stylesheet" href="assets/icons/table.css?v=<?= @filemtime(__DIR__ . '/assets/icons/table.css') ?>">
 
     <script src="https://unpkg.com/dropzone@6.3.5/dist/dropzone-min.js" integrity="sha384-wHTterC8uaPhGVKg8kmSlqcmI8CCFkOI+Mn51O3udobTBX0vQLs6a18vJqh0AnW3" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://unpkg.com/dropzone@6.3.5/dist/dropzone.css" integrity="sha384-asD8pW//1IYJd67ZZn/Eyo31U/YtixrhsNyn90jnZTEIgTpYfE2mkwGYVWHwg2vD" crossorigin="anonymous">
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?= @filemtime(__DIR__ . '/style.css') ?>">
     <link rel="stylesheet" href="themes.css">
     <?php if ($theme["css"] !== "") { echo "<style>" . $theme["css"] . "</style>"; } ?>
     <?= $theme["script"] ?>
@@ -223,6 +223,7 @@ echo '
           <div class="btn-group mx-2">
             <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('repeat').'</button>
             <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn" onclick="toggleShuffle()">'.icon('shuffle').'</button>
+            <button type="button" class="btn btn-sm btn-pill btn-outline-primary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end').'</button>
           </div>
           <div class="btn-group mx-2 castGroup" style="display:none;">
             <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
@@ -378,10 +379,10 @@ echo '</div></div>';
 
 <?php require_once('modals.php'); ?>
 <?php require_once('js.php'); ?>
-<script src="waveform.js"></script>
-<script src="cast.js"></script>
-<script src="session.js"></script>
-<script src="playlists.js"></script>
+<script src="waveform.js?v=<?= @filemtime(__DIR__ . '/waveform.js') ?>"></script>
+<script src="cast.js?v=<?= @filemtime(__DIR__ . '/cast.js') ?>"></script>
+<script src="session.js?v=<?= @filemtime(__DIR__ . '/session.js') ?>"></script>
+<script src="playlists.js?v=<?= @filemtime(__DIR__ . '/playlists.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

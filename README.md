@@ -47,6 +47,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 | <kbd>M</kbd> | Mute / unmute |
 | <kbd>L</kbd> | Toggle loop |
 | <kbd>S</kbd> | Toggle shuffle |
+| <kbd>A</kbd> | Toggle autoplay (play the next song when one ends) |
 
 **In the song list.** Clicking a song selects it and gives the list keyboard focus. While the list has focus:
 

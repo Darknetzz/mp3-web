@@ -30,7 +30,15 @@
   var audioPath             = <?= json_encode(getConfig("audio_path")) ?>;
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
-  var autoplayNext          = <?= json_encode((bool) getConfig("autoplay_next")) ?>;
+  // Autoplay (play the next song when one ends): the playbar toggle is remembered
+  // per browser; the autoplay_next setting is the default.
+  var autoplayNext          = (function() {
+    try {
+      var saved = localStorage.getItem("autoplayNext");
+      if (saved === "1" || saved === "0") return saved === "1";
+    } catch (e) {}
+    return <?= json_encode((bool) getConfig("autoplay_next")) ?>;
+  })();
   var seekStep              = <?= json_encode(max(1, (int) getConfig("seek_step"))) ?>;
   var startShuffle          = <?= json_encode((bool) getConfig("start_shuffle")) ?>;
   var startLoop             = <?= json_encode((bool) getConfig("start_loop")) ?>;
@@ -630,6 +638,21 @@
     sessionChanged();
   }
 
+  /* ───────────────────────── FUNCTION: toggleAutoplay ─────────────────────── */
+  function toggleAutoplay() {
+    autoplayNext = !autoplayNext;
+    try { localStorage.setItem("autoplayNext", autoplayNext ? "1" : "0"); } catch (e) {}
+    updateAutoplayBtn();
+    showToast("Autoplay " + (autoplayNext ? "on: the next song plays automatically" : "off: playback stops after each song"), "info");
+  }
+
+  function updateAutoplayBtn() {
+    $(".toggleAutoplayBtn")
+      .toggleClass("active", autoplayNext)
+      .attr("aria-pressed", autoplayNext ? "true" : "false")
+      .attr("title", "Autoplay next song: " + (autoplayNext ? "on" : "off") + " (A)");
+  }
+
   /* ───────────────────────── FUNCTION: toggleShuffle ──────────────────────── */
   function toggleShuffle() {
     if (sessionBlocked()) return;
@@ -1061,10 +1084,13 @@
         case 'KeyM':       $(".volumeIcon").first().trigger('click'); break;
         case 'KeyL':       toggleLoop(); break;
         case 'KeyS':       toggleShuffle(); break;
+        case 'KeyA':       toggleAutoplay(); break;
         default:           handled = false;
       }
       if (handled) e.preventDefault();
     });
+
+    updateAutoplayBtn();
 
     /* ─────────────────────────── NOTE: Restore state ────────────────────────── */
     restoreState();

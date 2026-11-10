@@ -19,7 +19,7 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 ICONS = [
     # player
     "play", "pause", "square", "skip-back", "skip-forward", "list-start",
-    "repeat", "shuffle", "cast", "dice-1", "dice-2", "dice-3", "dice-4",
+    "repeat", "shuffle", "list-end", "cast", "dice-1", "dice-2", "dice-3", "dice-4",
     "dice-5", "dice-6", "volume-x", "volume-1", "volume-2", "heart",
     # navbar, sessions, settings
     "settings", "users", "user", "user-plus", "link", "log-out",

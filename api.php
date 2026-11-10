@@ -210,6 +210,19 @@ do {
         sessionSettings($_POST['allow_all'] ?? false);
     }
 
+    // TEMPORARY: Cast debugging. Appends client-side Cast events to debug.log (git-ignored).
+    if ($action === 'clientLog') {
+        require_csrf_token();
+        $logFile = __DIR__ . '/debug.log';
+        if (file_exists($logFile) && filesize($logFile) > 1024 * 1024) {
+            apiResponse("error", "Log is full.");
+        }
+        $msg  = substr(preg_replace('/[^\P{C}\t]/u', ' ', (string) ($_POST['msg'] ?? '')), 0, 2000);
+        $line = date('Y-m-d H:i:s') . ' ' . substr(md5(session_id()), 0, 6) . ' ' . $msg . "\n";
+        file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+        apiResponse("success", "Logged.");
+    }
+
 } while (false);
 
 if (empty($res)) {

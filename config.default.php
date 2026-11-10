@@ -95,7 +95,7 @@ $config = [
     ],
     "autoplay_next" => [
         "name"        => "Play the next song automatically",
-        "description" => "When off, playback stops at the end of each song.",
+        "description" => "Default for the autoplay button in the playbar (each browser remembers its own choice). When off, playback stops at the end of each song.",
         "value"       => true,
         "type"        => "bool",
     ],
