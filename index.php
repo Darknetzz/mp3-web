@@ -231,6 +231,9 @@ echo '
             <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn" onclick="toggleShuffle()">'.icon('shuffle').'</button>
             <button type="button" class="btn btn-sm btn-pill btn-outline-primary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end').'</button>
           </div>
+          <div class="btn-group mx-2 queueGroup">
+            <button type="button" class="btn btn-sm btn-pill btn-outline-primary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music').'</button>
+          </div>
           <div class="btn-group mx-2 castGroup" style="display:none;">
             <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
           </div>
@@ -241,6 +244,33 @@ echo '
         </div>
   </div>
 </div>
+';
+
+echo '
+<aside id="queuePanel" class="queuePanel card" aria-label="Queue" hidden>
+  <div class="queuePanelHead">
+    <h3 class="m-0">Queue</h3>
+    <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary queuePanelClose" aria-label="Close the queue" title="Close (Q)">'.icon('x', margin: 0).'</button>
+  </div>
+  <div class="queuePanelBody">
+    <section class="qpSection" aria-labelledby="qpNowTitle">
+      <h4 id="qpNowTitle" class="qpTitle">Now playing</h4>
+      <ul class="qpList" id="qpNow"></ul>
+    </section>
+    <section class="qpSection qpQueueSection" aria-labelledby="qpQueueTitle">
+      <div class="qpTitleRow">
+        <h4 id="qpQueueTitle" class="qpTitle">Next in queue</h4>
+        <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary qpClear">Clear</button>
+      </div>
+      <ul class="qpList" id="qpQueue"></ul>
+    </section>
+    <section class="qpSection" aria-labelledby="qpContextTitle">
+      <h4 id="qpContextTitle" class="qpTitle">Next from: <span class="qpContextName"></span></h4>
+      <p class="qpHint text-secondary small" hidden></p>
+      <ul class="qpList" id="qpContext"></ul>
+    </section>
+  </div>
+</aside>
 ';
 
 echo '
@@ -392,6 +422,7 @@ echo '</div></div>';
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
 <script src="session.js?v=<?= @filemtime(__DIR__ . '/session.js') ?>"></script>
 <script src="playlists.js?v=<?= @filemtime(__DIR__ . '/playlists.js') ?>"></script>
+<script src="queue.js?v=<?= @filemtime(__DIR__ . '/queue.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

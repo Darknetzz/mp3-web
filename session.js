@@ -92,6 +92,7 @@
     $(".sessionLobby").toggle(!active);
     $(".sessionActive").toggle(!!active);
     $("body").toggleClass("session-readonly", !!active && !view.can_control);
+    if (window.queuePanel) queuePanel.refresh(); // queue editing follows control rights
 
     if (!active) {
       $(".sessionStatus").hide().empty();
@@ -176,11 +177,7 @@
       if (idx !== null) ids.push(idx);
     });
     queue = ids;
-    if (queue.length) {
-      $("#nextInQueueText").text(getSongNameByIndex(queue[0])).parent().show();
-    } else {
-      $("#nextInQueueText").parent().hide();
-    }
+    queueChanged();
   }
 
   function apply(v, force) {

@@ -984,3 +984,181 @@ body.player-top .toast-container {
   width: 100%;
   height: 100%;
 }
+
+/* ─────────────────────────────── Queue panel ─────────────────────────────── */
+/* A side panel next to the playbar: Now playing, Next in queue, Next from.
+   Wide screens make room for it; narrower ones show it over the list. */
+.queuePanel {
+  --qp-w: 360px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: var(--player-h, 0px);
+  width: var(--qp-w);
+  max-width: 100%;
+  z-index: 9; /* under the playbar (10), menus and dialogs */
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+}
+.queuePanel[hidden] {
+  display: none;
+}
+body.player-top .queuePanel {
+  top: var(--player-h, 0px);
+  bottom: 0;
+}
+.queuePanelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem .75rem .5rem 1rem;
+  border-bottom: 1px solid var(--tblr-border-color);
+}
+.queuePanelHead .lucide {
+  font-size: 1.25rem;
+}
+.queuePanelBody {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: .5rem .5rem 1rem;
+}
+.qpSection + .qpSection {
+  margin-top: 1rem;
+}
+.qpTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.qpTitle {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--tblr-secondary);
+  margin: .25rem .5rem .4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qpContextName {
+  text-transform: none;
+  color: var(--tblr-body-color);
+}
+.qpHint {
+  margin: 0 .5rem .4rem;
+}
+.qpList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.qpItem {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .3rem .5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.qpItem:hover,
+.qpItem:focus-visible {
+  background: var(--tblr-bg-surface-secondary, rgba(128, 128, 128, .12));
+  outline: none;
+}
+.qpItem:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--tblr-primary);
+}
+.qpNowItem {
+  cursor: default;
+}
+.qpNowItem .qpName {
+  color: var(--tblr-success);
+  font-weight: 600;
+}
+.qpCover {
+  width: 36px;
+  height: 36px;
+}
+.qpName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qpDuration {
+  flex-shrink: 0;
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+.qpGrip {
+  flex-shrink: 0;
+  display: flex;
+  margin-left: -.35rem;
+  color: var(--tblr-secondary);
+  cursor: grab;
+  touch-action: none; /* dragging the grip must not scroll the panel */
+}
+.qpGrip .lucide,
+.qpRemove .lucide {
+  font-size: 1.1rem;
+  margin: 0;
+}
+.qpRemove {
+  flex-shrink: 0;
+  padding: .25rem;
+  border-radius: 50%;
+}
+.qpDragging {
+  opacity: .85;
+  background: var(--tblr-bg-surface-secondary, rgba(128, 128, 128, .18));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+  cursor: grabbing;
+}
+.qpDragging .qpGrip {
+  cursor: grabbing;
+}
+.qpEmpty {
+  padding: .3rem .5rem;
+  font-size: .875rem;
+  cursor: default;
+}
+@media (hover: hover) {
+  .qpRemove {
+    opacity: 0;
+  }
+  .qpItem:hover .qpRemove,
+  .qpItem:focus-within .qpRemove {
+    opacity: 1;
+  }
+}
+/* Wide screens: the page makes room for the panel instead of hiding under it */
+@media (min-width: 1200px) {
+  body.queue-open {
+    padding-right: 360px;
+  }
+  body.queue-open .toast-container {
+    right: 360px !important;
+  }
+}
+/* Phones: the panel covers the page above the playbar */
+@media (max-width: 576px) {
+  .queuePanel {
+    --qp-w: 100%;
+    border-width: 0;
+    box-shadow: none;
+  }
+  .qpItem {
+    padding: .4rem .5rem;
+  }
+}
+.queueToggleBtn.active {
+  color: var(--tblr-success);
+}

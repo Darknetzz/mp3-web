@@ -30,6 +30,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Listen together**: shared sessions where every device plays the same song in sync (see below)
 - [x] **Playlists** and **Favorites**, shared on the server, with drag-to-reorder and M3U import/export (see below)
 - [x] Queue ("Add to queue" and "Play next"), shuffle and loop
+- [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
 - [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
 - [x] Track durations (via [`wapmorgan/mp3info`](https://github.com/wapmorgan/Mp3Info))
@@ -50,6 +51,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 | <kbd>L</kbd> | Toggle loop |
 | <kbd>S</kbd> | Toggle shuffle |
 | <kbd>A</kbd> | Toggle autoplay (play the next song when one ends) |
+| <kbd>Q</kbd> | Show / hide the queue panel |
 
 **In the song list.** Clicking a song selects it and gives the list keyboard focus. While the list has focus:
 
@@ -63,6 +65,29 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 Clicking anywhere outside the list also gives <kbd>↑</kbd> / <kbd>↓</kbd> back to the volume. Double-click a song to
 play it. On touch screens, double-tap it, or tap the play button shown on the cover of the selected song. The queue,
 favorite, ⋯, download and delete buttons work with a single click, as before.
+
+### Queue panel
+
+The queue button in the playbar (<kbd>Q</kbd>; on phones it's in the expanded controls) opens a side panel. It
+stays open or closed across reloads. It has three sections:
+
+1. **Now playing**: the current song.
+2. **Next in queue**: songs you added with *Play next* or *Add to queue* (from the ⋯ menu, right-click, the
+   Queue column or a playlist's *Add to queue*). They play before anything else.
+3. **Next from: _All songs_ / _playlist name_**: the rest of the library or playlist you started from, in the order
+   it will play (up to 100 songs). With shuffle on, songs are picked at random, so none are listed.
+
+In the panel:
+
+- Drag a queued song by its grip to reorder it, or focus it and press <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd>.
+  Dragging works with a mouse and on touch screens.
+- × (or <kbd>Delete</kbd>) removes a song from the queue; *Clear* empties it.
+- Click a song (or press <kbd>Enter</kbd>) to play it now. A queued song leaves the queue when played.
+- Right-click a song for the usual song menu.
+
+On wide screens the page makes room for the panel. On narrower screens it opens over the song list, and on phones
+it fills the screen above the playbar. In a listening session, queue changes are shared like any other playback
+change. If you can't control playback, the panel is read-only.
 
 ### Cover art
 

@@ -108,6 +108,7 @@ function moreFormatter(value, row) {
       favorites = new Set(p.songs);
       refreshHearts();
     }
+    if (window.queuePanel) queuePanel.refresh(); // "Next from" follows playlist edits
   }
 
   /* ──────────────────────────────── Views ───────────────────────────────── */
@@ -177,6 +178,7 @@ function moreFormatter(value, row) {
     html += '<button type="button" class="plPill plAdd" data-action="add-menu" aria-haspopup="menu" title="New or import playlist">' +
             lucideIcon('plus') + '<span>New playlist</span></button>';
     $("#playlistBar").html(html);
+    if (window.queuePanel) queuePanel.refresh(); // playlist names may have changed
   }
 
   function renderHeader() {
@@ -860,6 +862,16 @@ function moreFormatter(value, row) {
     isFavorite: function (song) { return favorites.has(song); },
     songOf: songOf,
     songChanged: updatePlayerHeart,
+    // Display name of a playlist, or null if it's unknown.
+    nameOf: function (id) {
+      var p = listById(id) || cache[id];
+      return p ? p.name : null;
+    },
+    // The song menu for any element showing a song (the queue panel uses it).
+    songMenu: function (anchor, id, at) {
+      if (!songOf(id)) return;
+      openMenu(anchor, songMenuItems(id), { at: at || null, label: "Actions for " + songTitle(id) });
+    },
     cellClicked: function (field, id, $cell, e) {
       if (field === "favorite") toggleFavorite(songOf(id));
       if (field === "more") rowMenu($cell.find(".moreBtn")[0] || $cell[0], id);

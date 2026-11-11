@@ -509,8 +509,7 @@
     queue = queue.filter(function(q) { return String(q) !== id; });
     if (selectedId === id) selectedId = null;
     playlistTable.bootstrapTable('removeByUniqueId', id);
-    if (getQueuedSong() === null) $("#nextInQueueText").parent().hide();
-    else $("#nextInQueueText").text(getSongNameByIndex(getQueuedSong()));
+    queueChanged();
   }
 
   /* ─────────────────────────── FUNCTION: playSong ─────────────────────────── */
@@ -526,14 +525,6 @@
     }
     $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
 
-    // Update next in queue text
-    $("#nextInQueueText").parent().hide();
-    var nextInQueue = getQueuedSong();
-    if (nextInQueue !== null) {
-      $("#nextInQueueText").text(getSongNameByIndex(nextInQueue));
-      $("#nextInQueueText").parent().show();
-    }
-
     window.songName = getSongNameByIndex(index);
     if (!songName || songName.length === 0) {
       showToast("Invalid songname: " + songName, "danger");
@@ -547,6 +538,7 @@
     activeRow.addClass(activeClass).children().addClass(activeClass);
     scrollToActiveSong();
     if (window.playlistsUI) playlistsUI.songChanged();
+    queueChanged();
     sessionChanged({ position: opts.startTime || 0, playing: opts.autoplay !== false });
   }
 
@@ -611,6 +603,7 @@
     duration = 0;
     updateTitle();
     saveState();
+    queueChanged();
     sessionChanged();
   }
 
@@ -658,6 +651,19 @@
     return null;
   }
 
+  /* ───────────────────────── FUNCTION: queueChanged ───────────────────────── */
+  // Call after the queue, the current song or the play order changes: updates
+  // the "Next in queue" line and the queue panel (queue.js).
+  function queueChanged() {
+    var next = getQueuedSong();
+    if (next === null) {
+      $("#nextInQueueText").parent().hide();
+    } else {
+      $("#nextInQueueText").text(getSongNameByIndex(next)).parent().show();
+    }
+    if (window.queuePanel) queuePanel.refresh();
+  }
+
   /* ─────────────────────────── FUNCTION: queueSong ────────────────────────── */
   // opts.next: insert at the front ("Play next"); opts.silent: no toast
   function queueSong(index, opts) {
@@ -675,8 +681,7 @@
       var label = ids.length === 1 ? getSongNameByIndex(ids[0]) : ids.length + " songs";
       showToast((opts.next ? "Playing next: " : "Added to queue: ") + $("<div>").text(label).html(), "success");
     }
-    $("#nextInQueueText").parent().show();
-    $("#nextInQueueText").text(getSongNameByIndex(getQueuedSong()));
+    queueChanged();
   }
 
   /* ────────────────────────── FUNCTION: toggleLoop ────────────────────────── */
@@ -687,6 +692,7 @@
     console.log("Loop: " + loop);
     $(".toggleLoopBtn").toggleClass("active", loop);
     saveState();
+    queueChanged();
     sessionChanged();
   }
 
@@ -712,6 +718,7 @@
     console.log("Shuffle: " + shuffle);
     $(".toggleShuffleBtn").toggleClass("active", shuffle);
     saveState();
+    queueChanged();
     sessionChanged();
   }
 
@@ -1151,6 +1158,7 @@
         case 'KeyL':       toggleLoop(); break;
         case 'KeyS':       toggleShuffle(); break;
         case 'KeyA':       toggleAutoplay(); break;
+        case 'KeyQ':       if (window.queuePanel) queuePanel.toggle(); break;
         default:           handled = false;
       }
       if (handled) e.preventDefault();
