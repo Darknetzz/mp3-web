@@ -986,6 +986,15 @@
       setPlayerExpanded(on);
       try { localStorage.setItem("playerExpanded", on ? "1" : "0"); } catch (e) {}
     });
+    // List / Grid view of the songs (bootstrap-table's card view), remembered per browser
+    var savedGrid = false;
+    try { savedGrid = localStorage.getItem("songView") === "grid"; } catch (e) {}
+    if (savedGrid && !playlistTable.bootstrapTable("getOptions").cardView) {
+      playlistTable.bootstrapTable("toggleView");
+    }
+    playlistTable.on("toggle.bs.table", function(e, cardView) {
+      try { localStorage.setItem("songView", cardView ? "grid" : "list"); } catch (err) {}
+    });
     // Pad the page by the playbar's real height so it never covers the last songs
     function syncPlayerHeight() {
       if (!playerBar[0]) return;

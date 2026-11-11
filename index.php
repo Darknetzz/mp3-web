@@ -22,8 +22,10 @@ $theme = themeSetup();
       // Lucide icons for bootstrap-table's toolbar (masks defined in assets/icons/table.css)
       $.extend($.fn.bootstrapTable.defaults, {
         iconsPrefix: "lucide-i",
+        formatToggleOn: function () { return "Grid view"; },
+        formatToggleOff: function () { return "List view"; },
         icons: {
-          refresh: "icon-refresh-cw", toggleOff: "icon-toggle-left", toggleOn: "icon-toggle-right",
+          refresh: "icon-refresh-cw", toggleOff: "icon-layout-grid", toggleOn: "icon-list",
           columns: "icon-columns-3", search: "icon-search", clearSearch: "icon-trash-2",
           detailOpen: "icon-plus", detailClose: "icon-minus", fullscreen: "icon-maximize",
           paginationSwitchDown: "icon-chevron-down", paginationSwitchUp: "icon-chevron-up"
@@ -55,6 +57,7 @@ if (is_dir(AUDIO_PATH)) {
 
 $columns = [
   "id" => [
+    "card"     => false,
     "name"     => "#",
     "sortable" => true,
     "field"    => "id",
@@ -69,6 +72,7 @@ $columns = [
     "switchable" => false,
     "searchable" => false,
     "width"      => 48,
+    "textFormatter" => "coverFormatter",
   ],
   "name" => [
     "name"          => "Name",
@@ -79,13 +83,47 @@ $columns = [
     "textFormatter" => "nameFormatter",
   ],
   "filename" => [
+    "card"     => false,
     "name"     => "Filename",
     "sortable" => true,
     "field"    => "filename",
     "visible"  => false,
     "align"    => null,
   ],
+  "title" => [
+    "name"     => "Title",
+    "sortable" => true,
+    "field"    => "title",
+    "visible"  => false,
+    "align"    => null,
+    "card"     => false,
+  ],
+  "artist" => [
+    "name"     => "Artist",
+    "sortable" => true,
+    "field"    => "artist",
+    "visible"  => false,
+    "align"    => null,
+    "card"     => false,
+  ],
+  "album" => [
+    "name"     => "Album",
+    "sortable" => true,
+    "field"    => "album",
+    "visible"  => false,
+    "align"    => null,
+    "card"     => false,
+  ],
+  "year" => [
+    "name"     => "Year",
+    "sortable" => true,
+    "field"    => "year",
+    "visible"  => false,
+    "align"    => null,
+    "card"     => false,
+  ],
   "duration" => [
+    "card"     => false,
     "name"     => "Duration",
     "sortable" => true,
     "field"    => "duration",
@@ -94,6 +132,7 @@ $columns = [
     "align"    => null,
   ],
   "size" => [
+    "card"     => false,
     "name"     => "Size",
     "sortable" => true,
     "field"    => "size",
@@ -102,6 +141,7 @@ $columns = [
     "align"    => null,
   ],
   "date" => [
+    "card"     => false,
     "name"     => "Date",
     "sortable" => true,
     "field"    => "date",
@@ -116,6 +156,7 @@ $columns = [
     "formatter" => "favoriteFormatter",
   ],
   "queue" => [
+    "card"     => false,
     "name"    => "Queue",
     "field"   => "queue",
     "visible" => true,
@@ -129,12 +170,14 @@ $columns = [
     "formatter" => "moreFormatter",
   ],
   "download" => [
+    "card"     => false,
     "name"    => "Download",
     "field"   => "download",
     "visible" => false,
     "align"   => "center",
   ],
   "delete" => [
+    "card"     => false,
     "name"    => "Delete",
     "field"   => "delete",
     "visible" => false,
@@ -357,6 +400,7 @@ echo '
     $sorter  .= isset($column['formatter']) ? ' data-formatter="'.$column['formatter'].'" data-switchable="false" data-width="44"' : '';
     $sorter  .= isset($column['switchable']) && !$column['switchable'] && !isset($column['formatter']) ? ' data-switchable="false"' : '';
     $sorter  .= isset($column['searchable']) && !$column['searchable'] ? ' data-searchable="false"' : '';
+    $sorter  .= isset($column['card']) && !$column['card'] ? ' data-card-visible="false"' : '';
     $sorter  .= isset($column['width']) ? ' data-width="'.(int) $column['width'].'"' : '';
     // A formatter for a text column: search still matches the plain value, not the markup
     $sorter  .= isset($column['textFormatter']) ? ' data-formatter="'.$column['textFormatter'].'" data-search-formatter="false"' : '';
@@ -396,6 +440,7 @@ foreach ($musicFiles as $file) {
     }
     # Cover thumbnails are fetched lazily from cover.php; nothing is extracted here.
     $mtime    = filemtime($filePath);
+    $meta     = getSongMeta($filePath);  # ID3 tags + duration, cached in cache/meta/
     $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.$mtime;
     # TODO: Fix `data-value` attribute
     echo '
@@ -410,7 +455,11 @@ foreach ($musicFiles as $file) {
       <td>
         '.$urlFilename.'
       </td>
-      <td class="durationCol">'.getDuration($filePath).'</td>
+      <td>'.htmlspecialchars($meta['title']).'</td>
+      <td>'.htmlspecialchars($meta['artist']).'</td>
+      <td>'.htmlspecialchars($meta['album']).'</td>
+      <td>'.htmlspecialchars($meta['year']).'</td>
+      <td class="durationCol">'.$meta['duration'].'</td>
       <td class="sizeCol">'.round(filesize($filePath) / 1024 / 1024).'MB</td>
       <td class="dateCol">'.date("Y-m-d H:i:s", $mtime).'</td>
       <td class="action"></td>

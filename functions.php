@@ -134,6 +134,56 @@
         }
     }
 
+    /* ────────────────────────── FUNCTION: getSongMeta ───────────────────────── */
+    // ID3 title/artist/album/year plus duration, read in one pass. Results are
+    // cached in cache/meta/ (git-ignored) until the file changes. Missing tags are ''.
+    function getSongMeta(string $file): array {
+        $meta = ['title' => '', 'artist' => '', 'album' => '', 'year' => '', 'duration' => '0:00'];
+        if (!is_file($file)) {
+            return $meta;
+        }
+        $mtime    = filemtime($file);
+        $cacheDir = __DIR__ . '/cache/meta';
+        $cached   = $cacheDir . '/' . sha1(realpath($file) ?: $file) . '.json';
+        if (is_file($cached) && filemtime($cached) >= $mtime) {
+            $data = json_decode((string) @file_get_contents($cached), true);
+            if (is_array($data)) {
+                return array_merge($meta, array_intersect_key($data, $meta));
+            }
+        }
+
+        $clean = function ($v): string {
+            if (!is_string($v) && !is_numeric($v)) return '';
+            $v = (string) $v;
+            if (!mb_check_encoding($v, 'UTF-8')) {
+                $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
+            }
+            // Strip NULs/control chars left over from fixed-width id3v1 fields
+            return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $v) ?? '');
+        };
+        if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'mp3') {
+            try {
+                $info = new wapmorgan\Mp3Info\Mp3Info($file, true);
+                $tags = (array) $info->tags;
+                $meta['title']  = $clean($tags['song'] ?? '');
+                $meta['artist'] = $clean($tags['artist'] ?? '');
+                $meta['album']  = $clean($tags['album'] ?? '');
+                $meta['year']   = $clean($tags['year'] ?? '');
+                $d = (int) round((float) $info->duration);
+                $meta['duration'] = sprintf("%d:%02d", intdiv($d, 60), $d % 60);
+            } catch (Throwable $e) {
+                $meta['duration'] = getDuration($file);
+            }
+        } else {
+            $meta['duration'] = getDuration($file);
+        }
+
+        if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+            @file_put_contents($cached, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+        return $meta;
+    }
+
     /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */
     function apiResponse(string $status = "error", string $response = "An error occurred.", array $data = []): void {
         if (empty($status)) {

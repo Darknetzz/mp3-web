@@ -18,9 +18,33 @@ function favoriteFormatter(value, row) {
 }
 // Song names wrap to at most two lines and are trimmed with "…"; the full name is the tooltip.
 // value is the server-rendered cell, already HTML-escaped.
-function nameFormatter(value) {
+function nameFormatter(value, row) {
   var html = String(value == null ? "" : value).trim();
+  if (isCardView()) return songCardText(html, row);
   return '<span class="songName" title="' + html.replace(/"/g, "&quot;") + '">' + html + '</span>';
+}
+// Grid view (bootstrap-table's card view, styled as cards in style.css)
+function isCardView() {
+  var t = $("#playlistTable").data("bootstrap.table");
+  return !!(t && t.options.cardView);
+}
+// Card text: ID3 title + artist when tagged, else the file name. Values are
+// server-rendered cells, already HTML-escaped.
+function songCardText(name, row) {
+  var tag = function (v) { return String(v == null ? "" : v).trim(); };
+  var title  = tag(row.title) || name;
+  var artist = tag(row.artist);
+  var sub    = [tag(row.album), tag(row.year)].filter(Boolean).join(" · ");
+  return '<span class="songCardText">' +
+           '<span class="cardTitle" title="' + title.replace(/"/g, "&quot;") + '">' + title + '</span>' +
+           '<span class="cardArtist">' + (artist || "&nbsp;") + '</span>' +
+           (sub ? '<span class="cardSub">' + sub + '</span>' : '') +
+         '</span>';
+}
+// Grid cards are ~180px wide, so they load the 512px cover instead of the 96px one.
+function coverFormatter(value) {
+  var html = String(value == null ? "" : value);
+  return isCardView() ? html.replace(/([?&](?:amp;)?size=)sm\b/, "$1lg") : html;
 }
 function moreFormatter(value, row) {
   return '<button type="button" class="moreBtn" data-song-id="' + String(row.id).trim() + '" title="More" aria-label="More actions" aria-haspopup="menu">' +

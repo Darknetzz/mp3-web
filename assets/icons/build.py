@@ -37,7 +37,7 @@ ICONS = [
 
 # bootstrap-table option name -> Lucide icon (see the icons config in index.php)
 TABLE_ICONS = {
-    "refresh": "refresh-cw", "toggleOff": "toggle-left", "toggleOn": "toggle-right",
+    "refresh": "refresh-cw", "toggleOff": "layout-grid", "toggleOn": "list",
     "columns": "columns-3", "search": "search", "clearSearch": "trash-2",
     "detailOpen": "plus", "detailClose": "minus", "fullscreen": "maximize",
     "paginationSwitchDown": "chevron-down", "paginationSwitchUp": "chevron-up",
