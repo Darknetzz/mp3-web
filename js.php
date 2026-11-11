@@ -52,6 +52,18 @@
   var startLoop             = <?= json_encode((bool) getConfig("start_loop")) ?>;
   var rememberPosition      = <?= json_encode((bool) getConfig("remember_position")) ?>;
   var castEndAction         = <?= json_encode((string) getConfig("cast_end_action")) ?>; // "continue" or "pause"
+  var playerTimeFormat      = <?= json_encode((string) getConfig("player_time_format")) ?>; // "total" or "remaining"
+  // Read by waveform.js; the settings modal updates it live via waveform.configure()
+  window.waveformConfig     = {
+    enabled:     <?= json_encode((bool) getConfig("show_waveform")) ?>,
+    placement:   <?= json_encode((string) getConfig("waveform_placement")) ?>,
+    style:       <?= json_encode((string) getConfig("waveform_style")) ?>,
+    bars:        <?= json_encode((int) getConfig("waveform_bars")) ?>,
+    color:       <?= json_encode((string) getConfig("waveform_color")) ?>,
+    customColor: <?= json_encode((string) getConfig("waveform_custom_color")) ?>,
+    opacity:     <?= json_encode((float) getConfig("waveform_opacity")) ?>,
+    sensitivity: <?= json_encode((float) getConfig("waveform_sensitivity")) ?>,
+  };
   var stateKey              = "playerState";
   var songName              = null;
   var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
@@ -882,9 +894,11 @@
     currentTime = player.getTime() || 0;
     if (!player.isRemote() && player.audio().readyState > 0) player.lastTime = currentTime;
     var d = player.getDuration();
-    if (d) {
-      duration = d;
-      $(".audioDuration").text(formatTime(duration));
+    if (d) duration = d;
+    if (duration) {
+      $(".audioDuration").text(playerTimeFormat === "remaining"
+        ? "-" + formatTime(Math.max(0, duration - currentTime))
+        : formatTime(duration));
     }
     $(".audioCurrentTime").text(formatTime(currentTime));
     $(".audioSlider").attr("max", duration);
@@ -1349,8 +1363,44 @@
     }
 
     // Live preview for preset themes and accents (custom ones need a reload).
+    // Player bar body classes: key -> class prefix
+    var playerClassKeys = { player_size: "player-size-", player_progress: "player-progress-" };
+    var waveformKeys = {
+      show_waveform: "enabled", waveform_placement: "placement", waveform_style: "style",
+      waveform_bars: "bars", waveform_color: "color", waveform_custom_color: "customColor",
+      waveform_opacity: "opacity", waveform_sensitivity: "sensitivity",
+    };
+
     function previewSetting(key, value) {
       var root = document.documentElement;
+      var body = document.body;
+      if (playerClassKeys[key]) {
+        var prefix = playerClassKeys[key];
+        body.className = body.className.split(/\s+/).filter(function(c) { return c.indexOf(prefix) !== 0; }).join(" ");
+        body.classList.add(prefix + value);
+      }
+      if (key === "player_position") {
+        body.classList.toggle("player-top", value === "top");
+        body.classList.toggle("player-bottom", value !== "top");
+      }
+      if (key === "player_show_cover") body.classList.toggle("player-no-cover", !value);
+      if (key === "player_buttons") {
+        settingsModal.find(".settingMulti[data-key='player_buttons'] .multiOpt").each(function() {
+          body.classList.toggle("hide-pbtn-" + this.value, (value || []).indexOf(this.value) === -1);
+        });
+      }
+      if (key === "player_time_format") {
+        playerTimeFormat = value;
+        updateTime();
+      }
+      if (waveformKeys[key] && window.waveform && waveform.configure) {
+        var opts = {};
+        var v = value;
+        if (key === "waveform_bars" || key === "waveform_opacity" || key === "waveform_sensitivity") v = parseFloat(value);
+        if (key === "show_waveform") v = value === true || value === "true";
+        opts[waveformKeys[key]] = v;
+        waveform.configure(opts);
+      }
       if (key === "player_theme" && previewThemes[value]) {
         root.setAttribute("data-app-theme", value);
         root.setAttribute("data-bs-theme", previewThemes[value]);
@@ -1365,15 +1415,15 @@
 
     function updateConditionalRows() {
       settingsModal.find(".settingRow[data-show-when]").each(function() {
-        var rule = String($(this).data("show-when"));
-        var show;
-        if (rule.indexOf("!=") !== -1) {
-          var parts = rule.split("!=");
-          show = String(settingValue(parts[0]) || "").trim() !== parts[1];
-        } else {
+        // Rules joined with & must all hold
+        var show = String($(this).data("show-when")).split("&").every(function(rule) {
+          if (rule.indexOf("!=") !== -1) {
+            var parts = rule.split("!=");
+            return String(settingValue(parts[0]) || "").trim() !== parts[1];
+          }
           var eq = rule.split("=");
-          show = String(settingValue(eq[0])) === eq[1];
-        }
+          return String(settingValue(eq[0])) === eq[1];
+        });
         $(this).toggleClass("settingCondHidden", !show);
       });
       updateSearch();
@@ -1450,8 +1500,14 @@
       // Range value label while dragging
       .on("input", ".settingRange", function() {
         var v = parseFloat($(this).val());
-        var label = $(this).data("format") === "px" ? Math.round(v) + " px" : Math.round(v * 100) + "%";
+        var format = $(this).data("format");
+        var label = format === "px" ? Math.round(v) + " px"
+                  : format === "count" ? (v === 0 ? "Auto" : String(Math.round(v)))
+                  : Math.round(v * 100) + "%";
         $(this).siblings(".settingRangeValue").text(label);
+        // Waveform sliders preview while dragging
+        var key = $(this).data("key");
+        if (waveformKeys[key]) previewSetting(key, v);
       })
       // Chips (array settings)
       .on("click", ".chipRemove", function() {

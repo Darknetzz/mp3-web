@@ -273,10 +273,12 @@
                 return (string) $value;
 
             case 'multiselect':
+                // Options are a list of values, or a value => label map
                 $options = $setting['options'] ?? [];
+                $allowed = array_is_list($options) ? $options : array_map('strval', array_keys($options));
                 $value   = is_array($value) ? $value : [];
-                return array_values(array_filter($value, function ($v) use ($options) {
-                    return in_array($v, $options, true);
+                return array_values(array_filter($value, function ($v) use ($allowed) {
+                    return in_array($v, $allowed, true);
                 }));
 
             case 'color':

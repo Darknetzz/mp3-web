@@ -268,12 +268,130 @@ $config = [
             "top"     => "Above the songs",
         ],
     ],
-    "show_waveform" => [
-        "name"        => "Waveform",
-        "description" => "The animated bars next to the song title.",
+
+    /* ────────────────────────────── Player bar ────────────────────────────── */
+    "player_size" => [
+        "name"        => "Player bar size",
+        "description" => "Height of the player bar, its cover and its buttons.",
+        "value"       => "normal",
+        "type"        => "selection",
+        "options"     => [
+            "compact" => "Compact",
+            "normal"  => "Normal",
+            "large"   => "Large",
+        ],
+    ],
+    "player_buttons" => [
+        "name"        => "Player buttons",
+        "description" => "Buttons shown in the player bar. Keyboard shortcuts work either way.",
+        "value"       => ["shuffle", "stop", "prevnext", "repeat", "autoplay", "volume", "lyrics", "queue", "cast"],
+        "type"        => "multiselect",
+        "options"     => [
+            "shuffle"  => "Shuffle",
+            "stop"     => "Stop",
+            "prevnext" => "Previous / Next",
+            "repeat"   => "Repeat",
+            "autoplay" => "Autoplay",
+            "volume"   => "Volume",
+            "lyrics"   => "Lyrics",
+            "queue"    => "Queue",
+            "cast"     => "Cast",
+        ],
+    ],
+    "player_show_cover" => [
+        "name"        => "Cover art",
+        "description" => "Show the song's cover in the player bar.",
         "value"       => true,
         "type"        => "bool",
     ],
+    "player_progress" => [
+        "name"        => "Progress bar",
+        "description" => "Under the controls, or as a full-width line along the edge of the player bar.",
+        "value"       => "center",
+        "type"        => "selection",
+        "options"     => [
+            "center" => "Under the controls",
+            "edge"   => "Full-width edge",
+        ],
+    ],
+    "player_time_format" => [
+        "name"        => "Time display",
+        "description" => "Show the song's total length or the time left.",
+        "value"       => "total",
+        "type"        => "selection",
+        "options"     => [
+            "total"     => "Elapsed / total",
+            "remaining" => "Elapsed / remaining",
+        ],
+    ],
+        "description" => "Animated bars that follow the music.",
+    "show_waveform" => [
+        "name"        => "Waveform",
+        "description" => "Animated bars that follow the music.",
+        "value"       => true,
+        "type"        => "bool",
+    ],
+    "waveform_placement" => [
+        "name"        => "Waveform placement",
+        "description" => "Next to the song title, or across the whole player bar behind the controls.",
+        "value"       => "inline",
+        "type"        => "selection",
+        "options"     => [
+            "inline"     => "Next to the title",
+            "background" => "Player bar background",
+        ],
+    ],
+    "waveform_style" => [
+        "name"        => "Waveform style",
+        "description" => "How the levels are drawn.",
+        "value"       => "bars",
+        "type"        => "selection",
+        "options"     => [
+            "bars"   => "Bars",
+            "bottom" => "Bars from bottom",
+            "line"   => "Wave",
+        ],
+    ],
+    "waveform_bars" => [
+        "name"        => "Waveform detail",
+        "description" => "Number of bars (or wave points). Auto uses 20 next to the title and 64 as background.",
+        "value"       => 0,
+        "type"        => "range",
+        "attributes"  => ["min" => 0, "max" => 96, "step" => 4, "format" => "count"],
+    ],
+    "waveform_color" => [
+        "name"        => "Waveform color",
+        "description" => "The accent color, the text color, or a color of your own.",
+        "value"       => "accent",
+        "type"        => "selection",
+        "options"     => [
+            "accent" => "Accent",
+            "text"   => "Text",
+            "custom" => "Custom",
+        ],
+    ],
+    "waveform_custom_color" => [
+        "name"        => "Custom waveform color",
+        "description" => "Used when the waveform color is Custom.",
+        "value"       => "#2fb344",
+        "type"        => "color",
+    ],
+    "waveform_opacity" => [
+        "name"        => "Background waveform opacity",
+        "description" => "Keep it low so the controls stay readable.",
+        "value"       => 0.3,
+        "type"        => "range",
+        "attributes"  => ["min" => 0.05, "max" => 1, "step" => 0.05, "format" => "percent"],
+    ],
+    "waveform_sensitivity" => [
+        "name"        => "Waveform sensitivity",
+        "description" => "Makes the bars react more (or less) to the music.",
+        "value"       => 1,
+        "type"        => "range",
+        "attributes"  => ["min" => 0.5, "max" => 2, "step" => 0.1, "format" => "percent"],
+    ],
+
+    /* ─────────────────────────────── Layout ───────────────────────────────── */
     "show_upload" => [
         "name"        => "Upload box",
         "description" => "Show the drag-and-drop upload area.",
