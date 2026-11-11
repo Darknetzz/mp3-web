@@ -359,6 +359,55 @@
     }
   }
 
+  /* ───────────────────────────── Media keys ──────────────────────────────── */
+  // Chrome sends media keys (and shows its media controls) only to a tab that is
+  // playing audio. While casting, the tab is silent, so the keys went nowhere.
+  // A looping silent clip keeps the tab's media session alive; its play/pause
+  // state mirrors the speaker, so the play/pause key toggles the right way.
+  // Chrome ignores clips shorter than about 5 s, so the clip is 10 s long.
+  var keepAlive = null;
+
+  function silentWavUrl(seconds) {
+    var rate = 8000, n = rate * seconds;
+    var buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    function str(o, s) { for (var i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); }
+    str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE");
+    str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    str(36, "data"); v.setUint32(40, n, true);
+    new Uint8Array(buf, 44).fill(128); // 8-bit unsigned silence
+    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+  }
+
+  window.castKeepAlive = {
+    update: function (isPlaying) {
+      var casting = window.player && player.isRemote && player.isRemote();
+      if (!casting) {
+        if (keepAlive) keepAlive.pause();
+        return;
+      }
+      if (!keepAlive) {
+        keepAlive = new Audio(silentWavUrl(10));
+        keepAlive.loop = true;
+      }
+      if (isPlaying) {
+        // Without a prior user gesture (e.g. a resumed session on page load) this
+        // is refused; the gesture listener below retries.
+        var p = keepAlive.play();
+        if (p && p.catch) p.catch(function () {});
+      } else {
+        keepAlive.pause();
+      }
+    },
+  };
+  ["pointerdown", "keydown"].forEach(function (type) {
+    document.addEventListener(type, function () {
+      if (keepAlive && keepAlive.paused && window.playing && player.isRemote()) {
+        window.castKeepAlive.update(true);
+      }
+    }, true);
+  });
+
   window.__onGCastApiAvailable = function (isAvailable) {
     $(function () {
       if (isAvailable && window.cast && cast.framework) {

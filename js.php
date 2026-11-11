@@ -185,6 +185,10 @@
     if (window.waveform) {
       window.waveform.setPlaying(isPlaying);
     }
+    // Keeps media keys working while casting (see cast.js)
+    if (window.castKeepAlive) {
+      window.castKeepAlive.update(isPlaying);
+    }
   }
 
   /* ───────────────────────── FUNCTION: updateVolumeIcon ───────────────────── */
