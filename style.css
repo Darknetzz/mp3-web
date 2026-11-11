@@ -21,26 +21,6 @@ body {
 .lucide.filled {
   fill: currentColor;
 }
-.container-fluid {
-  padding-bottom: 250px; /* Adjust this value based on the height of the audio player */
-  z-index: auto;
-}
-.audio-player-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  /* background-color: #f8f9fa; */
-  box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-  z-index: 10;
-  padding: 10px;
-}
-.audio-player-container audio {
-  width: 100%;
-}
-.audio-player-container .btn-group {
-  margin-top: 10px;
-}
 .form-control.is-warning {
   /* background-image: url('resources/Exclamation_flat_icon.svg');
   background-repeat: no-repeat;
@@ -70,13 +50,6 @@ body {
 }
 .hover-pointer {
   cursor: pointer;
-}
-/* Playbar header: waveform + title */
-.playerHeader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
 }
 /* ─────────────────────────────── Cover art ──────────────────────────────── */
 /* .coverThumb draws a placeholder (a music note on a soft gradient in the
@@ -175,17 +148,6 @@ tr.songSelected .coverPlay {
     opacity: 0;
   }
 }
-.playerCover {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-}
-@media (max-width: 576px) {
-  .playerCover {
-    width: 44px;
-    height: 44px;
-  }
-}
 
 /* Song names: at most two lines, then trimmed with "…" */
 #playlistTable .songName {
@@ -245,21 +207,151 @@ tr.songSelected .coverPlay {
               inset 0 0 0 9999px color-mix(in srgb, var(--tblr-primary, #206bc4) 14%, transparent);
 }
 
+/* ──────────────────────────────── Playbar ───────────────────────────────── */
+/* A slim, opaque bar docked to the edge: song on the left, transport and
+   progress in the middle, volume / queue / cast on the right. */
+.audio-player-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: var(--tblr-bg-surface, var(--tblr-body-bg));
+  border-top: 1px solid var(--tblr-border-color);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, .12);
+}
+body.player-top .audio-player-container {
+  border-top: 0;
+  border-bottom: 1px solid var(--tblr-border-color);
+}
+.playerBar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-areas: "left center right";
+  align-items: center;
+  gap: 1rem;
+  min-height: 80px;
+  padding: .5rem 1rem;
+}
+.playerBar .lucide.m-1 { margin: 0 !important; }
+.playerLeft   { grid-area: left; display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.playerCenter { grid-area: center; display: flex; flex-direction: column; align-items: center; gap: .15rem; min-width: 0; }
+.playerRight  { grid-area: right; display: flex; align-items: center; justify-content: flex-end; gap: .35rem; min-width: 0; }
+.playerMini   { grid-area: mini; display: none; }
+
+.playerCover {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+}
+.playerTitle {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.playerTitleRow {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  min-width: 0;
+}
+#songtitle {
+  font-size: .95rem;
+  line-height: 1.3;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.playerTitle .castStatus,
+.playerTitle .sessionStatus {
+  display: block;
+  font-size: .75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .waveform {
-  width: 120px;
-  height: 32px;
+  width: 72px;
+  height: 28px;
   flex-shrink: 0;
 }
-@media (max-width: 576px) {
-  .waveform {
-    width: 72px;
-  }
+
+.playerControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
 }
-/* Phone playbar: a compact bar (cover, title, play/pause, next, expand) over
-   the progress slider; the expand button shows the full controls. */
-.playerMini {
-  display: none;
+.playerControls .btn,
+.playerRight .btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
 }
+.playerControls .btn .lucide,
+.playerRight .btn .lucide {
+  font-size: 1.05rem !important;
+}
+.playerControls .playMain {
+  width: 38px;
+  height: 38px;
+  margin: 0 .25rem;
+}
+.playerControls .playMain,
+.playerControls .playMain:hover {
+  background: var(--tblr-success, #2fb344) !important;
+  color: #fff !important;
+}
+.playerControls .playMain .lucide {
+  font-size: 1.15rem !important;
+}
+.playerControls .btn.active,
+.playerRight .btn.active {
+  color: var(--tblr-success, #2fb344) !important;
+  background: color-mix(in srgb, var(--tblr-success, #2fb344) 15%, transparent) !important;
+}
+.playerProgress {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  max-width: 640px;
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--tblr-secondary);
+}
+.playerProgress .audioSlider {
+  flex: 1 1 auto;
+}
+.playerCenter audio {
+  width: 100%;
+  max-width: 640px;
+  height: 36px;
+}
+.volumeGroup {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.volumeGroup .volumeIcon {
+  cursor: pointer;
+  display: inline-flex;
+}
+.volumeGroup .volumeIcon .lucide {
+  font-size: 1.15rem !important;
+}
+#volumeSlider {
+  width: 110px;
+}
+@media (max-width: 991.98px) {
+  .playerBar { gap: .6rem; }
+  .waveform { display: none; }
+  #volumeSlider { width: 72px; }
+}
+
+/* Phones: cover, title, play/pause, next and the expand button, over the
+   progress slider; the expand button shows the full controls. */
 .playerExpandBtn .lucide {
   transition: transform .15s;
 }
@@ -267,43 +359,18 @@ tr.songSelected .coverPlay {
   transform: rotate(180deg);
 }
 @media (max-width: 576px) {
-  .audio-player-container {
-    padding: 6px !important;
+  .playerBar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "left mini" "center center" "right right";
+    gap: .35rem .5rem;
+    min-height: 0;
+    padding: .5rem .6rem .4rem;
   }
-  .audio-player-container > .card {
-    align-items: stretch !important;
-    margin: 0;
-  }
-  .playerHeader {
-    justify-content: flex-start;
-    gap: .6rem;
-    padding: .5rem .6rem;
-  }
-  .playerHeader .waveform {
-    display: none;
-  }
-  .playerTitle {
-    flex: 1 1 auto;
-    min-width: 0;
-    text-align: left !important;
-  }
-  .playerTitle > .d-flex {
-    justify-content: flex-start !important;
-    min-width: 0;
-  }
-  #songtitle {
-    font-size: .95rem;
-    line-height: 1.3;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .playerCover { width: 44px; height: 44px; }
   .playerMini {
     display: flex;
     align-items: center;
     gap: .35rem;
-    flex-shrink: 0;
   }
   .playerMini .btn {
     width: 40px;
@@ -312,46 +379,23 @@ tr.songSelected .coverPlay {
     justify-content: center;
   }
   .playerMini .btn .lucide {
-    font-size: 1.15rem;
-    margin: 0 !important;
+    font-size: 1.15rem !important;
   }
-  #playerBody {
-    padding: 0 .75rem .5rem;
+  .audio-player-container:not(.expanded) .playerControls,
+  .audio-player-container:not(.expanded) .playerRight {
+    display: none;
   }
-  .playerProgress {
-    font-size: .75rem;
-  }
-  .audio-player-container .btn-group {
-    margin-top: 8px;
-  }
-  .audio-player-container h5.card-header {
-    font-size: .8rem;
-    padding: .4rem .75rem;
-  }
-  /* Collapsed: only the bar and the progress slider */
-  .audio-player-container:not(.expanded) h5.card-header,
-  .audio-player-container:not(.expanded) #playerBody > .btn-group {
-    display: none !important;
-  }
-  /* Expanded: the full controls take over play/pause and next, packed in rows */
   .audio-player-container.expanded .playerMini .ctrlBtn {
     display: none;
   }
-  .audio-player-container.expanded #playerBody {
-    display: flex;
-    flex-wrap: wrap;
+  .playerRight {
     justify-content: center;
-    align-items: center;
-    gap: 8px;
   }
-  .audio-player-container.expanded #playerBody > .playerProgress,
-  .audio-player-container.expanded #playerBody > .volumeGroup {
-    flex: 1 1 100%;
+  .playerRight .volumeGroup {
+    flex: 1 1 auto;
   }
-  .audio-player-container.expanded #playerBody > .btn-group {
-    margin: 0 !important;
-  }
-  .audio-player-container.expanded #volumeSlider {
+  .playerRight #volumeSlider {
+    width: auto;
     flex: 1 1 auto;
   }
 }
@@ -361,7 +405,8 @@ tr.songSelected .coverPlay {
 }
 
 /* Listening sessions: listeners can't use the transport controls */
-.session-readonly .audio-player-container .btn-group .btn:not(.castBtn),
+.session-readonly .playerControls .btn,
+.session-readonly .playerMini .ctrlBtn,
 .session-readonly .audio-player-container .audioSlider {
   opacity: 0.45;
 }

@@ -236,13 +236,6 @@ $config = [
             "top"    => "Top",
         ],
     ],
-    "player_opacity" => [
-        "name"        => "Player opacity",
-        "description" => "How see-through the player bar is.",
-        "value"       => 0.95,
-        "type"        => "range",
-        "attributes"  => ["min" => 0, "max" => 1, "step" => 0.05, "format" => "percent"],
-    ],
     "show_waveform" => [
         "name"        => "Waveform",
         "description" => "The animated bars next to the song title.",
@@ -257,7 +250,7 @@ $config = [
     ],
     "show_quick_buttons" => [
         "name"        => "Play first / Random buttons",
-        "description" => "Show the quick-start buttons in the player.",
+        "description" => "Show the quick-start buttons above the song list.",
         "value"       => true,
         "type"        => "bool",
     ],

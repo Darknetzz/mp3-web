@@ -176,72 +176,66 @@ if (getConfig('fluid-container')) {
 // }
 
 echo '
-<div class="audio-player-container px-3" style="opacity: '.(float) getConfig('player_opacity').';">
-  <div class="d-flex align-items-center card border border-success">
-      <div class="card-header playerHeader">
-        <span class="coverThumb playerCover"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
-        '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
-
-        <div class="text-center playerTitle">
-          <div class="d-flex align-items-center justify-content-center gap-2">
-          <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
+<div class="audio-player-container" role="region" aria-label="Player">
+  <div class="playerBar">
+    <div class="playerLeft">
+      <span class="coverThumb playerCover"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
+      <div class="playerTitle">
+        <div class="playerTitleRow">
           <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
-          </div>
-          <small class="castStatus text-muted" style="display:none;"></small>
-          <div class="sessionStatus text-muted small" style="display:none;"></div>
+          <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
         </div>
-        <div class="playerMini">
-          <button type="button" class="btn btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled aria-label="Play or pause">'.icon("play", filled: true).'</button>
-          <button type="button" class="btn btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled aria-label="Next song">'.icon("skip-forward", filled: true).'</button>
-          <button type="button" class="btn btn-pill btn-ghost-secondary playerExpandBtn" aria-expanded="false" aria-controls="playerBody" aria-label="More player controls" title="More controls">'.icon("chevron-up").'</button>
-        </div>
+        <small class="castStatus text-muted" style="display:none;"></small>
+        <div class="sessionStatus text-muted small" style="display:none;"></div>
       </div>
-      <h5 class="card-header text-muted" style="display:none;">Next in queue: <span id="nextInQueueText" class="mx-2"></span></h5>
-      <div class="card-body" id="playerBody">
-          <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
-          <source id="audioSource" src="" type="audio/mpeg">
-          Your browser does not support the audio element.
-          </audio>';
+      '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
+    </div>
 
-          if (!getConfig('use_legacy_player')) {
-            echo '
-            <div class="d-flex align-items-center playerProgress">
-              <span class="audioCurrentTime">0:00</span>
-              <input type="range" class="form-range audioSlider mx-2" min="0" max="0" step="1" value="0" style="flex: 3;">
-              <span class="audioDuration">0:00</span>
-            </div>
-            
-            <div class="btn-group mx-2 align-items-center volumeGroup">
-              <label for="volumeSlider" class="volumeIcon form-label mb-0 me-2">'.icon("volume-1", 2).'</label>
-              <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.getConfig('default_volume').'">
-            </div>
-            ';
-          }
+    <div class="playerMini">
+      <button type="button" class="btn btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled aria-label="Play or pause">'.icon("play", filled: true).'</button>
+      <button type="button" class="btn btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled aria-label="Next song">'.icon("skip-forward", filled: true).'</button>
+      <button type="button" class="btn btn-pill btn-ghost-secondary playerExpandBtn" aria-expanded="false" aria-controls="playerCenter playerRight" aria-label="More player controls" title="More controls">'.icon("chevron-up").'</button>
+    </div>
+
+    <div class="playerCenter" id="playerCenter">
+      <div class="playerControls">
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary toggleShuffleBtn" onclick="toggleShuffle()" title="Shuffle (S)" aria-label="Shuffle">'.icon('shuffle', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-danger ctrlBtn stopBtn" onclick="stopSong()" disabled title="Stop" aria-label="Stop">'.icon('square', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary ctrlBtn" onclick="prevSong()" disabled title="Previous (Shift+←)" aria-label="Previous song">'.icon('skip-back', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-success ctrlBtn playPauseBtn playMain" onclick="toggleSong()" disabled title="Play/pause (Space)" aria-label="Play or pause">'.icon("play", filled: true).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary ctrlBtn" onclick="nextSong()" disabled title="Next (Shift+→)" aria-label="Next song">'.icon('skip-forward', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary toggleLoopBtn" onclick="toggleLoop()" title="Repeat (L)" aria-label="Repeat">'.icon('repeat', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end', margin: 0).'</button>
+      </div>
+      <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
+        <source id="audioSource" src="" type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>';
+      if (!getConfig('use_legacy_player')) {
+        echo '
+      <div class="playerProgress">
+        <span class="audioCurrentTime">0:00</span>
+        <input type="range" class="form-range audioSlider" min="0" max="0" step="1" value="0" aria-label="Seek">
+        <span class="audioDuration">0:00</span>
+      </div>';
+      }
 echo '
-          <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled>'.icon("play", filled: true).'</button>
-            <button class="btn btn-sm btn-pill btn-outline-danger ctrlBtn stopBtn" onclick="stopSong()" disabled>'.icon('square', filled: true).'</button>
-          </div>
-          <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="prevSong()" disabled>'.icon('skip-back', filled: true).'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled>'.icon('skip-forward', filled: true).'</button>
-          </div>
-          <div class="btn-group mx-2">
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleLoopBtn" onclick="toggleLoop()">'.icon('repeat').'</button>
-            <button class="btn btn-sm btn-pill btn-outline-primary toggleShuffleBtn" onclick="toggleShuffle()">'.icon('shuffle').'</button>
-            <button type="button" class="btn btn-sm btn-pill btn-outline-primary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end').'</button>
-          </div>
-          <div class="btn-group mx-2 queueGroup">
-            <button type="button" class="btn btn-sm btn-pill btn-outline-primary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music').'</button>
-          </div>
-          <div class="btn-group mx-2 castGroup" style="display:none;">
-            <button type="button" class="btn btn-sm btn-pill btn-outline-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast').'</button>
-          </div>
-          <div class="btn-group mx-2 quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
-            <button class="btn btn-sm btn-pill btn-outline-success" onclick="playFirst()">'.icon('play', filled: true).' Play First Song</button>
-            <button class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong(true)">'.icon('dice-'.mt_rand(1,6)).' Random Song</button>
-          </div>
-        </div>
+    </div>
+
+    <div class="playerRight" id="playerRight">';
+      if (!getConfig('use_legacy_player')) {
+        echo '
+      <div class="volumeGroup">
+        <label for="volumeSlider" class="volumeIcon form-label mb-0">'.icon("volume-1", 2).'</label>
+        <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.getConfig('default_volume').'" aria-label="Volume">
+      </div>';
+      }
+echo '
+      <button type="button" class="btn btn-icon btn-pill btn-ghost-primary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music', margin: 0).'</button>
+      <span class="castGroup" style="display:none;">
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast', margin: 0).'</button>
+      </span>
+    </div>
   </div>
 </div>
 ';
@@ -279,6 +273,11 @@ echo '
       <div>
         <h2>'.getConfig("site_title").' <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
       </div>
+      <div class="d-flex align-items-center gap-2">
+      <div class="btn-group quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
+        <button type="button" class="btn btn-sm btn-pill btn-outline-success" onclick="playFirst()" title="Play the first song">'.icon('play', filled: true).'<span class="d-none d-md-inline">Play first</span></button>
+        <button type="button" class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong(true)" title="Play a random song">'.icon('dice-'.mt_rand(1,6)).'<span class="d-none d-md-inline">Random</span></button>
+      </div>
       <div class="btn-group">
         <button type="button" class="btn btn-sm btn-pill btn-primary configBtn" data-bs-toggle="modal" data-bs-target="#configModal">
           '.icon("settings").'
@@ -287,6 +286,7 @@ echo '
           '.icon("users").'
           <span class="badge bg-green text-green-fg sessionBadge ms-1" style="display:none;"></span>
         </button>
+      </div>
     </div>
   </div>
 <div class="card-body">

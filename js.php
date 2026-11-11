@@ -657,14 +657,8 @@
 
   /* ───────────────────────── FUNCTION: queueChanged ───────────────────────── */
   // Call after the queue, the current song or the play order changes: updates
-  // the "Next in queue" line and the queue panel (queue.js).
+  // the queue panel (queue.js).
   function queueChanged() {
-    var next = getQueuedSong();
-    if (next === null) {
-      $("#nextInQueueText").parent().hide();
-    } else {
-      $("#nextInQueueText").text(getSongNameByIndex(next)).parent().show();
-    }
     if (window.queuePanel) queuePanel.refresh();
   }
 

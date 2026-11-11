@@ -22,6 +22,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Cover art** from each song's embedded ID3v2 picture: a thumbnail per row, a larger cover in the playbar, and artwork in the OS media overlay and on Cast speakers (a neutral placeholder when a song has none; see below)
 - [x] **Click to select, double-click to play**: a single click selects a song, a double-click (or Enter, or the play button on its cover) plays it
 - [x] **Song menu** on right-click, long-press (touch), the context-menu key or <kbd>Shift</kbd>+<kbd>F10</kbd>, and the ⋯ button: play, play next, add to queue, add to a playlist, favorite, download, copy the song name, remove from the shown playlist and delete (with a confirmation). Items you can't use (demo mode, or a listening session you don't control) are hidden
+- [x] **Slim playbar**: an opaque bar about 80 px tall, docked to the bottom (or top) of the window: the song (cover, title, favourite, cast status) on the left, the transport controls with the progress bar in the middle, and volume, queue and cast on the right. The page is padded by the bar's height so it never covers the song list. *Play first* and *Random* sit in the page header
 - [x] **Phone layout**: on narrow screens the playbar is a compact bar (cover, title, play/pause, next) over the progress slider; the chevron expands the full controls, and the choice is remembered. The song table fits the screen: names wrap to at most two lines and are trimmed with "…" (the full name is the tooltip), and the Queue column is hidden (it is in the ⋯ and long-press menus)
 - [x] Live waveform in the playbar that follows the music and freezes when paused
 - [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
@@ -104,7 +105,7 @@ Shortcuts are ignored while typing in a text field.
 
 ### Casting
 
-The Cast button sits in the playbar next to loop/shuffle.
+The Cast button sits on the right of the playbar, next to the queue button.
 
 - **Google Cast** works in Chrome and Edge. Chrome only enables it on a **secure origin**: serve the app over HTTPS
   (e.g. behind a reverse proxy), or open it on `localhost`. Over plain HTTP the button is disabled with a tooltip saying so.
@@ -245,8 +246,7 @@ Where settings live:
 | `custom_base`, `custom_background`, `custom_surface`, `custom_text` | dark, `#121212`, `#1e1e1e`, `#f0f0f0` | Colors for the `custom` theme |
 | **Layout** | | |
 | `player_position` | `bottom` | Player bar at the `bottom` or `top` |
-| `player_opacity` | `0.95` | Opacity of the player bar |
-| `show_waveform`, `show_quick_buttons`, `show_upload` | `true` | Show the waveform, Play first/Random buttons, upload box |
+| `show_waveform`, `show_quick_buttons`, `show_upload` | `true` | Show the waveform, the Play first/Random buttons in the page header, the upload box |
 | `compact_rows` | `false` | Tighter song list rows |
 | `fluid-container` | `false` | Full-width layout |
 | **Background** | | |

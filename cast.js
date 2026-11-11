@@ -180,7 +180,7 @@
 
     var device = session.getCastDevice();
     $(".castStatus").text("Casting to " + (device ? device.friendlyName : "speaker")).show();
-    castBtn().removeClass("btn-outline-primary").addClass("btn-primary");
+    castBtn().removeClass("btn-ghost-primary").addClass("btn-primary");
 
     // Reloaded the page while already casting: adopt what the speaker is playing.
     var media = session.getMediaSession();
@@ -219,7 +219,7 @@
     lastDuration  = 0;
     if (window.waveform) window.waveform.setRemote(false);
     $(".castStatus").hide().text("");
-    castBtn().removeClass("btn-primary").addClass("btn-outline-primary");
+    castBtn().removeClass("btn-primary").addClass("btn-ghost-primary");
     setPlayingUI(false);
 
     // Hand the volume slider back to the local player
