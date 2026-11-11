@@ -9,16 +9,34 @@ if (empty(getConfig("audio_path"))) {
     apiResponse("error", "The audio path is not set.");
 }
 
+/**
+ * Require a valid CSRF token for state-changing POST requests.
+ */
+function require_csrf_token(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        apiResponse("error", "Invalid request method for this action.");
+    }
 
+    if (
+        empty($_SESSION['csrf_token']) ||
+        empty($_POST['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], (string) $_POST['csrf_token'])
+    ) {
+        apiResponse("error", "Invalid CSRF token.");
+    }
+}
 
 do {
 
+    // Demo mode rejects every action, read-only ones (ls, lyrics, playlists, sessions) included.
     if (getConfig("env") === "demo") {
         $res = apiResponse("error", "File actions have been disabled in this demo.");
         break;
     }
 
-    if (!empty($_FILES)) {
+    // Music uploads (Dropzone) send files without an action; other file posts name their action.
+    if (!empty($_FILES) && empty($_POST['action'])) {
         $action = "upload";
     } elseif (array_key_exists("action", $_GET)) {
         $action = $_GET["action"];
@@ -29,12 +47,15 @@ do {
         break;
     }
 
+    // NOTE: download() is commented out in functions.php, so this action fails.
+    // The UI downloads songs by opening the file URL directly instead.
     if ($action === "dl") {
         $res = download($_GET["file"]);
         break;
     }
 
     if ($action === "rm") {
+        require_csrf_token();
         $res = remove($_POST["file"]);
         break;
     }
@@ -46,24 +67,28 @@ do {
 
     if ($action === 'getconfig') {
         if (isset($_GET['key'])) {
-            $res = getConfig($_GET['key']);
-            break;
+            $value = getConfig((string) $_GET['key']);
+            // "response" keeps the old string form; "data.value" has the real type.
+            $text  = is_bool($value) ? ($value ? 'true' : 'false') : (is_scalar($value) ? (string) $value : json_encode($value));
+            apiResponse("success", $text, ["value" => $value]);
         }
-        $res = getConfig();
-        break;
+        apiResponse("success", "ok", ["config" => getConfig()]);
     }
 
-    # REVIEW: 
+    # REVIEW:
     if ($action === 'setconfig') {
-        $postConfig = $_POST['config'];
-        if (!isset($postConfig['key']) || !isset($postConfig['value'])) {
-            apiResponse("error", "Key or value not set: " . json_encode($_POST));
+        require_csrf_token();
+        $postConfig = $_POST['config'] ?? [];
+        if (!isset($postConfig['key'])) {
+            apiResponse("error", "No setting key was sent.");
         }
-        $res = setConfig($postConfig['key'], $postConfig['value']);
+        // An emptied array is omitted by jQuery's serializer, so a missing value means "empty".
+        $res = setConfig((string) $postConfig['key'], $postConfig['value'] ?? '');
         break;
     }
 
     if ($action == 'upload') {
+        require_csrf_token();
         $results = [];
         $hasError = false;
         $successCount = 0;
@@ -106,18 +131,96 @@ do {
         break;
     }
 
-    if ($action == 'createSession') {
-        createSession(); // This will call apiResponse() and die()
-        break;
+    /* ─────────────────────────────── Playlists ──────────────────────────── */
+    if ($action === 'listPlaylists') {
+        listPlaylists();
+    }
+    if ($action === 'getPlaylist') {
+        getPlaylist($_GET['id'] ?? '');
+    }
+    if ($action === 'exportPlaylist') {
+        exportPlaylist($_GET['id'] ?? '');
+    }
+    if ($action === 'createPlaylist') {
+        require_csrf_token();
+        createPlaylist($_POST['name'] ?? '', $_POST['songs'] ?? []);
+    }
+    if ($action === 'renamePlaylist') {
+        require_csrf_token();
+        renamePlaylist($_POST['id'] ?? '', $_POST['name'] ?? '');
+    }
+    if ($action === 'deletePlaylist') {
+        require_csrf_token();
+        deletePlaylist($_POST['id'] ?? '');
+    }
+    if ($action === 'addToPlaylist') {
+        require_csrf_token();
+        addToPlaylist($_POST['id'] ?? '', $_POST['songs'] ?? []);
+    }
+    if ($action === 'removeFromPlaylist') {
+        require_csrf_token();
+        removeFromPlaylist($_POST['id'] ?? '', $_POST['song'] ?? '');
+    }
+    if ($action === 'reorderPlaylist') {
+        require_csrf_token();
+        reorderPlaylist($_POST['id'] ?? '', $_POST['songs'] ?? [], $_POST['if_version'] ?? '');
+    }
+    if ($action === 'toggleFavorite') {
+        require_csrf_token();
+        toggleFavorite($_POST['song'] ?? '');
+    }
+    if ($action === 'importPlaylist') {
+        require_csrf_token();
+        importPlaylist($_FILES['playlist'] ?? []);
     }
 
-    if ($action == 'joinSession') {
-        $sessionId = $_POST['sessionCode'] ?? $_POST['id'] ?? null;
-        if (empty($sessionId)) {
-            apiResponse("error", "Session ID is required.");
-        }
-        joinSession($sessionId); // This will call apiResponse() and die()
-        break;
+    /* ──────────────────────────────── Lyrics ─────────────────────────────── */
+    if ($action === 'lyrics') {
+        getLyrics($_GET['song'] ?? '');
+    }
+
+    /* ─────────────────────────── Listening sessions ─────────────────────── */
+    if ($action === 'createSession') {
+        require_csrf_token();
+        createSession($_POST['name'] ?? '', !empty($_POST['public']), !empty($_POST['allow_all']));
+    }
+
+    if ($action === 'joinSession') {
+        require_csrf_token();
+        joinSession($_POST['sessionCode'] ?? $_POST['code'] ?? '');
+    }
+
+    if ($action === 'leaveSession') {
+        require_csrf_token();
+        leaveSession();
+    }
+
+    if ($action === 'listSessions') {
+        listSessions();
+    }
+
+    if ($action === 'sessionState') {
+        sessionState();
+    }
+
+    if ($action === 'sessionUpdate') {
+        require_csrf_token();
+        sessionUpdate($_POST['state'] ?? null, $_POST['if_version'] ?? null);
+    }
+
+    if ($action === 'setDisplayName') {
+        require_csrf_token();
+        setDisplayName($_POST['name'] ?? '');
+    }
+
+    if ($action === 'setUserPrefs') {
+        require_csrf_token();
+        setUserPrefs($_POST['prefs'] ?? null);
+    }
+
+    if ($action === 'sessionSettings') {
+        require_csrf_token();
+        sessionSettings($_POST['allow_all'] ?? false);
     }
 
 } while (false);
@@ -125,9 +228,8 @@ do {
 if (empty($res)) {
     apiResponse("error", "Invalid response (empty). Probably the endpoint doesn't exist: " . $action);
 }
-if (!json_validate($res)) {
-    apiResponse("error", "Invalid response: " . $res);
-}
+
+// $res may already be a structured value or string; it is wrapped once here.
 apiResponse("success", $res);
 
 ?>

@@ -1,0 +1,129 @@
+/* ────────────────────────────────────────────────────────────────────────── */
+/*                                   Themes                                   */
+/* ────────────────────────────────────────────────────────────────────────── */
+/* <html> carries data-bs-theme (light/dark base for Tabler), data-app-theme
+   (the preset) and data-accent. Variables are set on <html> itself so Tabler's
+   derived variables (hover shades, subtle backgrounds…) are recomputed. */
+
+/* ─────────────────────────────── Presets ──────────────────────────────── */
+html[data-app-theme="oled"] {
+  --tblr-body-bg: #000000;
+  --tblr-bg-surface: #0b0b0b;
+  --tblr-bg-surface-secondary: #000000;
+  --tblr-bg-surface-tertiary: #121212;
+  --tblr-bg-forms: #121212;
+  --tblr-border-color: #1f1f1f;
+  --tblr-border-color-translucent: rgba(255, 255, 255, 0.07);
+  --tblr-body-color: #e8e8e8;
+  --tblr-secondary-bg: #141414;
+  --tblr-tertiary-bg: #0b0b0b;
+}
+
+html[data-app-theme="midnight"] {
+  --tblr-body-bg: #0b1020;
+  --tblr-bg-surface: #121a2e;
+  --tblr-bg-surface-secondary: #0e1527;
+  --tblr-bg-surface-tertiary: #18223a;
+  --tblr-bg-forms: #0f172a;
+  --tblr-border-color: #23314f;
+  --tblr-border-color-translucent: rgba(160, 180, 255, 0.1);
+  --tblr-body-color: #dbe4f5;
+  --tblr-secondary-bg: #1a2440;
+  --tblr-tertiary-bg: #121a2e;
+}
+
+html[data-app-theme="forest"] {
+  --tblr-body-bg: #0b130f;
+  --tblr-bg-surface: #13201a;
+  --tblr-bg-surface-secondary: #0f1a14;
+  --tblr-bg-surface-tertiary: #192a21;
+  --tblr-bg-forms: #0f1a14;
+  --tblr-border-color: #24382d;
+  --tblr-border-color-translucent: rgba(170, 230, 190, 0.09);
+  --tblr-body-color: #dcebe1;
+  --tblr-secondary-bg: #1b2d23;
+  --tblr-tertiary-bg: #13201a;
+}
+
+html[data-app-theme="sunset"] {
+  --tblr-body-bg: #1a0f1a;
+  --tblr-bg-surface: #261627;
+  --tblr-bg-surface-secondary: #1f1220;
+  --tblr-bg-surface-tertiary: #2f1c30;
+  --tblr-bg-forms: #1f1220;
+  --tblr-border-color: #3e2641;
+  --tblr-border-color-translucent: rgba(255, 180, 210, 0.1);
+  --tblr-body-color: #f3e1ea;
+  --tblr-secondary-bg: #321d33;
+  --tblr-tertiary-bg: #261627;
+}
+
+html[data-app-theme="arctic"] {
+  --tblr-body-bg: #eaf0f6;
+  --tblr-bg-surface: #ffffff;
+  --tblr-bg-surface-secondary: #e2eaf3;
+  --tblr-bg-surface-tertiary: #f3f7fb;
+  --tblr-bg-forms: #ffffff;
+  --tblr-border-color: #cdd9e6;
+  --tblr-border-color-translucent: rgba(30, 60, 100, 0.12);
+  --tblr-body-color: #1e2b3b;
+  --tblr-secondary-bg: #dbe5ef;
+  --tblr-tertiary-bg: #f3f7fb;
+}
+
+/* ─────────────────────────────── Accents ──────────────────────────────── */
+/* "green" keeps Tabler's own success color. */
+html[data-accent="blue"]   { --tblr-success: #3b82f6; --tblr-success-rgb: 59, 130, 246; }
+html[data-accent="purple"] { --tblr-success: #a855f7; --tblr-success-rgb: 168, 85, 247; }
+html[data-accent="pink"]   { --tblr-success: #ec4899; --tblr-success-rgb: 236, 72, 153; }
+html[data-accent="orange"] { --tblr-success: #f97316; --tblr-success-rgb: 249, 115, 22; }
+html[data-accent="red"]    { --tblr-success: #ef4444; --tblr-success-rgb: 239, 68, 68; }
+html[data-accent="teal"]   { --tblr-success: #14b8a6; --tblr-success-rgb: 20, 184, 166; }
+html[data-accent="yellow"] { --tblr-success: #eab308; --tblr-success-rgb: 234, 179, 8; --tblr-success-fg: #1a1a1a; }
+
+/* Toggles and range thumbs follow the accent too */
+.form-check-input:checked {
+  background-color: var(--tblr-success);
+  border-color: var(--tblr-success);
+}
+
+/* ────────────────────────── Custom background ─────────────────────────── */
+html[data-has-bg] {
+  background-color: var(--tblr-body-bg);
+}
+html[data-has-bg] body {
+  background: transparent;
+}
+html[data-has-bg] body::before,
+html[data-has-bg] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+html[data-has-bg] body::before {
+  z-index: -2;
+  background-image: var(--app-bg-image);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--app-bg-blur, 0px));
+  transform: scale(1.05); /* hide blurred edges */
+}
+html[data-has-bg] body::after {
+  z-index: -1;
+  background: rgba(0, 0, 0, var(--app-bg-dim, 0.6));
+}
+html[data-has-bg][data-bs-theme="light"] body::after {
+  background: rgba(255, 255, 255, var(--app-bg-dim, 0.6));
+}
+html[data-has-bg] .card,
+html[data-has-bg] .table {
+  --tblr-table-bg: transparent;
+  background-color: color-mix(in oklab, var(--tblr-bg-surface) 82%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+/* Sliders use the accent color */
+.form-range::-webkit-slider-thumb { background-color: var(--tblr-success); }
+.form-range::-moz-range-thumb { background-color: var(--tblr-success); }
+.form-range:focus::-webkit-slider-thumb { box-shadow: 0 0 0 1px var(--tblr-body-bg), 0 0 0 0.25rem rgba(var(--tblr-success-rgb), 0.25); }

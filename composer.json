@@ -1,6 +1,6 @@
 {
     "require": {
-        "wapmorgan/mp3info": "dev-master",
+        "wapmorgan/mp3info": "^0.1.1",
         "vlucas/phpdotenv": "^5.6"
     }
 }
