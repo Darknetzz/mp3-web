@@ -9,11 +9,16 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 
 ## Screenshots
 
-### Default (new) player
-![Default player](https://github.com/user-attachments/assets/c09b9566-930b-4e0e-9d4e-759124f956b6)
+Taken with a generated demo library.
 
-### Legacy (old) player
-![Legacy player](https://github.com/user-attachments/assets/7a3589a4-34e5-4028-b525-9978008a71ba)
+| | |
+| --- | --- |
+| ![Song list with the playbar](assets/screenshots/library.png) | ![Grid view](assets/screenshots/grid.png) |
+| Song list, playlists sidebar and playbar | Grid view |
+| ![Queue panel](assets/screenshots/queue.png) | ![Listen together](assets/screenshots/session.png) |
+| Queue panel | Listening session |
+| ![Settings](assets/screenshots/settings.png) | ![Light theme with a playlist](assets/screenshots/playlist-light.png) |
+| Settings | A playlist in the Light theme with a blue accent |
 
 ## Features
 
@@ -24,6 +29,8 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Song menu** on right-click, long-press (touch), the context-menu key or <kbd>Shift</kbd>+<kbd>F10</kbd>, and the ⋯ button: play, play next, add to queue, add to a playlist, favorite, download, copy the song name, remove from the shown playlist and delete (with a confirmation). Items you can't use (demo mode, or a listening session you don't control) are hidden
 - [x] **Slim playbar**: an opaque bar about 80 px tall, docked to the bottom (or top) of the window: the song (cover, title, favourite, cast status) on the left, the transport controls with the progress bar in the middle, and volume, queue and cast on the right. The page is padded by the bar's height so it never covers the song list. *Play first* and *Random* sit in the page header
 - [x] **Phone layout**: on narrow screens the playbar is a compact bar (cover, title, play/pause, next) over the progress slider; the chevron expands the full controls, and the choice is remembered. The song table fits the screen: names wrap to at most two lines and are trimmed with "…" (the full name is the tooltip), and the Queue column is hidden (it is in the ⋯ and long-press menus)
+- [x] **List or grid view**: the song table, or cards with cover, title, artist and album (toggle above the list; remembered per browser)
+- [x] **Library sidebar**: All songs, Favorites and your playlists in a left sidebar, or above the songs (`playlist_nav`; small screens always show them above)
 - [x] Live waveform in the playbar that follows the music and freezes when paused
 - [x] Media keys and OS media overlay (title, play/pause, next/previous, seek) via the Media Session API
 - [x] Keyboard shortcuts (see below)
@@ -39,7 +46,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] Track durations (via [`wapmorgan/mp3info`](https://github.com/wapmorgan/Mp3Info))
 - [x] Change settings from the GUI (persisted to the config file)
 - [x] Seven themes (plus Follow system and custom colors), accent colors, background image, and layout options (see [Settings](#settings))
-- [x] Demo mode that disables all file actions
+- [x] Demo mode (`env` = `demo`) that rejects every API request, so nothing on the server can be changed (see [API](#api))
 - [x] CSRF protection on state-changing API requests
 
 ### Keyboard shortcuts
@@ -47,7 +54,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 | Key | Action |
 | --- | --- |
 | <kbd>Space</kbd> | Play / pause |
-| <kbd>←</kbd> / <kbd>→</kbd> | Seek back / forward 5 seconds |
+| <kbd>←</kbd> / <kbd>→</kbd> | Seek back / forward by `seek_step` seconds (default 5) |
 | <kbd>Shift</kbd>+<kbd>←</kbd> / <kbd>Shift</kbd>+<kbd>→</kbd> | Previous / next song |
 | <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down (moves the selection while the song list has focus) |
 | <kbd>M</kbd> | Mute / unmute |
@@ -147,9 +154,13 @@ Click the people button in the header to **create** or **join** a session.
   scanning the **QR code** on the session card with a phone, or by picking a **public** session from the list in the
   Join card.
 - **The host controls playback** (play/pause, seek, skip, queue, loop, shuffle). Listeners' controls are dimmed.
-  The host can switch on *Let everyone control playback* to make the session a shared jukebox.
+  The host can switch on *Let everyone control playback* to make the session a shared jukebox, or tick it in the
+  Create form so the session starts that way.
 - Set **your name** at the top of the dialog (it is remembered in this browser and can be changed at any time, even
   mid-session). The session card lists every member by name, with the host marked and idle members shown as *away*.
+- **Session defaults** (under your name) set how sessions you create start: let everyone control playback, make it
+  public, a default name, and whether it starts with what you're playing or empty. They prefill the Create form. They
+  are kept in the PHP session and mirrored to `localStorage`, so they belong to this browser.
 - Volume is per device and is never synced. Casting works inside a session too.
 - If the host leaves or goes quiet for a minute, the longest-joined listener becomes host. Sessions with no activity
   for 24 hours are deleted.
@@ -159,7 +170,8 @@ Click the people button in the header to **create** or **join** a session.
 
 ### Playlists
 
-The pills above the song list switch between **All songs**, **Favorites** and your playlists.
+The library sidebar (or the pills above the song list, with `playlist_nav` = `top` and on small screens) switches
+between **All songs**, **Favorites** and your playlists.
 
 - **Create** a playlist with *New playlist*, or **import** an `.m3u` / `.m3u8` file. Songs are matched to your library
   by file name, and any that aren't found are listed.
@@ -175,14 +187,22 @@ The pills above the song list switch between **All songs**, **Favorites** and yo
 ## Requirements
 
 - PHP 8.x with a web server (Apache, nginx + PHP-FPM, etc.)
-- [Composer](https://getcomposer.org/)
-- Write access for the web server user to the music folder (uploads/deletes), the config file (GUI settings) and `session/` (and optionally `cache/` for cached cover art)
+- PHP extensions: `mbstring` (required), `curl` (lyrics), `gd` (optional: resizes cover art; without it covers are sent at full size)
+- [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`)
+- Write access for the web server user to:
+  - the music folder (uploads) and the app folder, where deleted songs are moved to `deleted/`
+  - the active config file (settings dialog)
+  - `session/` and `playlists/`
+  - `cache/` (optional: covers, tags and lyrics are cached there)
+- Outbound HTTPS to `lrclib.net` for lyrics (optional)
 
 ## Getting started
 
 ### Docker (recommended)
 
-The [Dockerfile](Dockerfile) builds a `php:8.3-apache` image, clones the `main` branch of this repo and runs `composer install`.
+The [Dockerfile](Dockerfile) builds a `php:8.3-apache` image, clones the `main` branch of this repo (so the image
+always contains the latest `main`, not your local checkout) and runs `composer install`. It also installs the `gd`,
+`intl`, `zip`, `pdo_mysql` and `mysqli` extensions; only `gd` is used by the app.
 
 ```bash
 # Get the Dockerfile
@@ -223,9 +243,17 @@ services:
    ```bash
    composer install
    ```
-3. Make sure a `.env` file exists in the project root (see [Environment](#environment-env)).
-4. Put some music in the `music` folder (or whichever folder `audio_path` points to).
-5. Open the page in a browser and start listening.
+3. Make sure a `.env` file exists in the project root (copy `.env.example`; see [Environment](#environment-env)).
+4. Optional: create `config.local.php` for your settings, so the tracked `config.php` stays unchanged
+   (see [Settings](#settings)).
+5. Put some music in the `music` folder (or whichever folder `audio_path` points to).
+6. Open the page in a browser and start listening.
+
+For a quick local try without a web server, PHP's built-in server works:
+
+```bash
+php -S 127.0.0.1:8080
+```
 
 ## Configuration
 
@@ -239,6 +267,14 @@ Where settings live:
 - `config.default.php` defines every setting (name, type, options, default). Don't edit it to change settings.
 - `config.local.php` (git-ignored), or `config.php` if there is no local file, holds your values. Only the values are
   read from it, so new settings and options added in updates show up automatically with their defaults.
+  A minimal override file:
+  ```php
+  <?php
+  $config = [
+      "audio_path"   => ["value" => "/srv/music"],
+      "player_theme" => ["value" => "auto"],
+  ];
+  ```
 - The settings dialog writes to that active file, so it must be writable by the web server.
 
 | Key | Default | Description |
@@ -246,7 +282,7 @@ Where settings live:
 | **General** | | |
 | `site_title` | `Music Player` | Header and browser tab title |
 | `no_song_text` | `No song selected` | Player text when nothing is selected |
-| `env` | `dev` | `dev`, `prod` or `demo` (demo disables uploads, deletes, settings and sessions) |
+| `env` | `dev` | `dev`, `prod` or `demo`. `demo` makes `api.php` reject every request (listing, downloads, uploads, deletes, settings, playlists, sessions, lyrics) and hides file and playlist actions in the UI |
 | **Library** | | |
 | `audio_path` | `music` | Folder containing the audio files |
 | `allowed_types` | `mp3, ogg, wav` | Extensions that are listed and accepted for upload |
@@ -260,6 +296,7 @@ Where settings live:
 | `start_shuffle` / `start_loop` | `false` | Turn shuffle / loop on when the page loads |
 | `remember_position` | `true` | Restore song, position, loop and shuffle after a refresh |
 | `auto_scroll` | `true` | Keep the playing song in view |
+| `auto_scroll_on_end` | `false` | Also scroll to the next song when it starts because the previous one finished |
 | `use_legacy_player` | `false` | Use the browser's built-in audio controls |
 | **Appearance** | | |
 | `player_theme` | `dark` | See [Themes](#themes) |
@@ -268,6 +305,7 @@ Where settings live:
 | `custom_base`, `custom_background`, `custom_surface`, `custom_text` | dark, `#121212`, `#1e1e1e`, `#f0f0f0` | Colors for the `custom` theme |
 | **Layout** | | |
 | `player_position` | `bottom` | Player bar at the `bottom` or `top` |
+| `playlist_nav` | `sidebar` | List All songs and playlists in a left `sidebar` or `top` (above the songs) |
 | `show_waveform`, `show_quick_buttons`, `show_upload` | `true` | Show the waveform, the Play first/Random buttons in the page header, the upload box |
 | `compact_rows` | `false` | Tighter song list rows |
 | `fluid-container` | `false` | Full-width layout |
@@ -284,14 +322,22 @@ look. Combine any theme with an accent color, and optionally a background image.
 
 ### Environment (`.env`)
 
-Loaded with [`vlucas/phpdotenv`](https://github.com/vlucas/phpdotenv). The app refuses to start without it.
+Loaded with [`vlucas/phpdotenv`](https://github.com/vlucas/phpdotenv). The app refuses to start without it, and
+`ENV` and `VERSION` must be set (they are read without a fallback). Copy [`.env.example`](.env.example) to start.
+
+| Variable | Required | Used for |
+| --- | --- | --- |
+| `VERSION` | yes | Shown next to the site title in the header |
+| `URL` | yes | Link target of that version label |
+| `ENV` | yes | Read into `$env` in `_includes.php` but not otherwise used. The environment that changes behaviour is the `env` *setting* |
+| `APP_NAME`, `AUTHOR` | no | Not read by the code |
 
 ```ini
 APP_NAME = "mp3-web"
-AUTHOR   = "..."
-URL      = "https://github.com/Darknetzz/mp3-web"   # linked from the version label in the header
+AUTHOR   = "<your name>"
+URL      = "https://github.com/Darknetzz/mp3-web"
 ENV      = "prod"
-VERSION  = "vX.Y.Z"                                 # shown next to the site title
+VERSION  = "vX.Y.Z"
 ```
 
 ## Project structure
@@ -300,7 +346,10 @@ VERSION  = "vX.Y.Z"                                 # shown next to the site tit
 | --- | --- |
 | `index.php` | Main page: player, song table, upload form |
 | `_includes.php` | Bootstrap: session + CSRF token, Composer autoload, `.env`, config loading, constants |
-| `functions.php` | Helpers: config read/write, listing, upload, delete, durations, `apiResponse()` |
+| `config.default.php` | Definition and default of every setting |
+| `config.php` | Tracked settings file, used when there is no `config.local.php` |
+| `functions.php` | Helpers: config read/write, listing, upload, delete, durations and ID3 tags, `apiResponse()` |
+| `cover.php` | Cover art endpoint (`?file=<name>&size=sm\|lg`), cached in `cache/covers/` |
 | `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
 | `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
 | `lyrics.php` | Lyrics lookup on LRCLIB (ID3 tags / file name matching) with a disk cache |
@@ -314,39 +363,60 @@ VERSION  = "vX.Y.Z"                                 # shown next to the site tit
 | `queue.js` | Queue side panel: now playing, queue (drag to reorder), next from the play context |
 | `lyrics.js` | Lyrics panel: synced highlighting, click to seek |
 | `style.css` | Custom styles |
+| `themes.css` | Theme and accent color variables |
+| `assets/branding/` | Logo, banner, favicons and placeholder cover. `python3 build.py assets/branding` regenerates the SVGs (needs `fontTools` and the Lato font); render PNGs with `rsvg-convert` |
+| `assets/icons/` | Lucide icon sprite and `table.css`. `python3 assets/icons/build.py` rebuilds them from `lucide-static` (downloads from jsDelivr) |
+| `assets/screenshots/` | README screenshots |
 | `music/` | Default audio folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
 | `playlists/` | Playlist JSON files (created at runtime, git-ignored) |
+| `cache/` | `covers/`, `meta/` (ID3 tags and durations) and `lyrics/` caches (created at runtime, git-ignored) |
+| `deleted/` | Songs deleted from the UI are moved here, not erased (created at runtime, git-ignored) |
 | `Dockerfile` | Container image definition |
 | `IMPROVEMENTS.md` | Notes on known issues and suggested improvements |
 
 ## API
 
-All endpoints live in `api.php` and always return JSON shaped like `{ "status": "success" | "error", "response": "...", "data": {...} }`.
-The action is passed as `action` in the query string or POST body. State-changing actions require a POST with a valid
-`csrf_token` (the frontend handles this automatically).
+All actions live in `api.php`. Responses are JSON shaped like
+`{ "status": "success" | "error" | "conflict", "statuscode": 0 | 1, "response": "<message, may contain HTML>", "data": {...} }`
+(`statuscode` is `1` only for `error`). `conflict` is returned by `sessionUpdate` and `reorderPlaylist` when the
+`if_version` you sent is out of date; `data` then holds the current state. `exportPlaylist` is the exception: it
+returns an `.m3u` file.
 
-| Action | Description |
-| --- | --- |
-| `ls` | List songs in the audio folder |
-| `dl` | Download a song (`file`) |
-| `rm` | Delete a song |
-| `getconfig` | Read the current configuration |
-| `setconfig` | Update a setting |
-| *(file upload)* | Any request with `$_FILES` is treated as an upload |
-| `createSession` / `joinSession` / `leaveSession` | Create (`name`, `public`), join (`sessionCode`) or leave a listening session |
-| `listSessions` | Public sessions with active listeners |
-| `sessionState` | Current session state (polled by members) |
-| `sessionUpdate` | Publish playback state (`state` JSON, optional `if_version` for compare-and-swap) |
-| `setDisplayName` | Set your display name (`name`, max 30 characters); also updates it in your current session |
-| `sessionSettings` | Host only: `allow_all` lets everyone control playback |
-| `listPlaylists` / `getPlaylist` | Playlist summaries; one playlist's songs (`id`; `favorites` is built in) |
-| `createPlaylist` / `renamePlaylist` / `deletePlaylist` | Manage playlists (`name`, `id`, optional `songs[]`) |
-| `addToPlaylist` / `removeFromPlaylist` | Add `songs[]` / remove `song` |
-| `reorderPlaylist` | New order (`songs[]`, `if_version`); returns `conflict` if the playlist changed meanwhile |
-| `toggleFavorite` | Add or remove `song` from Favorites |
-| `exportPlaylist` / `importPlaylist` | Download as `.m3u` (GET `id`); create from an uploaded `playlist` file |
-| `lyrics` | Lyrics for `song` (GET): `found`, `synced` (`[[seconds, line], …]`), `plain`, `instrumental`, `match` |
+The action is passed as `action` in the query string or POST body. Actions marked POST require a POST with a valid
+`csrf_token` (from the PHP session; the frontend sends it automatically). Identity for sessions and preferences is the
+PHP session cookie. When the `env` setting is `demo`, every action returns an error.
+
+| Action | Method | Parameters | Description |
+| --- | --- | --- | --- |
+| `ls` | GET | | List songs in the audio folder |
+| `dl` | GET | `file` | Calls `download()`, which is commented out in `functions.php`, so this action currently fails. The UI downloads songs by opening the file URL directly |
+| `rm` | POST | `file` | Move a song to `deleted/` |
+| *(upload)* | POST | `files[]`, no `action` | A multipart request with files and no `action` uploads them to the audio folder. Extensions must be in `allowed_types`; characters other than `A-Z a-z 0-9 . _ -` in the file name become `_` |
+| `getconfig` | GET | optional `key` | All settings, or one setting's value in `data.value` |
+| `setconfig` | POST | `config[key]`, `config[value]` | Update one setting in the active config file |
+| `createSession` | POST | `name`, `public`, `allow_all` | Create a listening session and join it as host |
+| `joinSession` / `leaveSession` | POST | `sessionCode` (join) | Join or leave a listening session |
+| `listSessions` | GET | | Public sessions with active listeners |
+| `sessionState` | GET | | Current session state (polled by members) |
+| `sessionUpdate` | POST | `state` (JSON), optional `if_version` | Publish playback state; `if_version` makes it compare-and-swap |
+| `setDisplayName` | POST | `name` (max 30 characters) | Set your display name; also updates it in your current session |
+| `sessionSettings` | POST | `allow_all` | Host only: let everyone control playback |
+| `setUserPrefs` | POST | `prefs` (JSON object) | Save session defaults: `session_allow_all`, `session_public`, `session_name`, `session_share_playback`. Unknown keys are ignored; returns the full set |
+| `listPlaylists` | GET | | Playlist summaries |
+| `getPlaylist` | GET | `id` | One playlist's songs (`favorites` is the built-in Favorites list) |
+| `createPlaylist` | POST | `name`, optional `songs[]` | Create a playlist |
+| `renamePlaylist` | POST | `id`, `name` | Rename a playlist |
+| `deletePlaylist` | POST | `id` | Delete a playlist |
+| `addToPlaylist` | POST | `id`, `songs[]` | Add songs |
+| `removeFromPlaylist` | POST | `id`, `song` | Remove a song |
+| `reorderPlaylist` | POST | `id`, `songs[]`, `if_version` | Set a new order; `conflict` if the playlist changed meanwhile |
+| `toggleFavorite` | POST | `song` | Add or remove a song from Favorites |
+| `exportPlaylist` | GET | `id` | Download the playlist as `.m3u` |
+| `importPlaylist` | POST | `playlist` (file, max 1 MB) | Create a playlist from an `.m3u` / `.m3u8` upload |
+| `lyrics` | GET | `song` | `found`, `synced` (`[[seconds, line], …]`), `plain`, `instrumental`, `match` |
+
+Cover art is served by `cover.php?file=<song file name>&size=sm|lg[&v=<mtime>]` (96 px / 512 px), not by `api.php`.
 
 > **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,
 > so don't expose it to the internet without putting it behind auth (reverse proxy, VPN, etc.), or set `env` to `demo`.
@@ -373,6 +443,14 @@ If your music folder is on a remote share where ownership can't be changed, you 
 ### Large uploads fail
 
 Raise `upload_max_filesize` and `post_max_size` in your PHP config (the Docker image sets both to `50M`).
+The upload box itself only accepts `.mp3` files up to 10 MB each (Dropzone options in `js.php`), even if
+`allowed_types` lists more.
+
+### The song list is empty or the page breaks after adding a file
+
+`getDuration()` catches `Exception` only. Some MP3s make `wapmorgan/mp3info` throw a `DivisionByZeroError`
+(seen with low sample rate MPEG-2 files), which is not caught and stops the page. Re-encoding the file to a common
+format (44.1 kHz) avoids it.
 
 ### "The Composer autoload file is missing." / "The .env file is missing."
 

@@ -29,6 +29,7 @@ function require_csrf_token(): void
 
 do {
 
+    // Demo mode rejects every action, read-only ones (ls, lyrics, playlists, sessions) included.
     if (getConfig("env") === "demo") {
         $res = apiResponse("error", "File actions have been disabled in this demo.");
         break;
@@ -46,6 +47,8 @@ do {
         break;
     }
 
+    // NOTE: download() is commented out in functions.php, so this action fails.
+    // The UI downloads songs by opening the file URL directly instead.
     if ($action === "dl") {
         $res = download($_GET["file"]);
         break;

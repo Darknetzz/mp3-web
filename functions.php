@@ -130,6 +130,8 @@
             $duration = sprintf("%d:%02d", $minutes, $seconds);
             return $duration;
         } catch (Exception $e) {
+            // Only Exception is caught: an Error from Mp3Info (e.g. DivisionByZeroError on
+            // some MPEG-2 files) still propagates and stops the page.
             return "0:00";
         }
     }
