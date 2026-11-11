@@ -18,6 +18,7 @@
   var wasPlaying       = false; // speaker was playing/buffering before the last state change
   var loadingMedia     = false; // a load is in flight (the old track goes IDLE/INTERRUPTED)
   var userStopped      = false; // Stop was pressed (the track goes IDLE/CANCELLED)
+  var resumeTimer      = null;  // pending "keep playing here" after casting stopped
 
   function castLog(msg) {
     console.log("Cast: " + msg);
@@ -109,10 +110,10 @@
       lastDuration    = 0;
       resolveCover(name, function (art) {
         if (token !== loadToken) return; // a newer song was loaded meanwhile
-        remote.loadWithArt(url, name, startTime, autoplay, art || fallbackArtwork);
+        remote.loadWithArt(url, name, startTime, autoplay, art || fallbackArtwork, token, 0);
       });
     },
-    loadWithArt: function (url, name, startTime, autoplay, art) {
+    loadWithArt: function (url, name, startTime, autoplay, art, token, attempt) {
       var session = currentSession();
       if (!session) { loadingMedia = false; return; }
       var info        = new chrome.cast.media.MediaInfo(url, mimeFor(name));
@@ -138,6 +139,17 @@
           watchMedia(session.getMediaSession());
         },
         function (err) {
+          if (token !== loadToken || !player.remote) return; // superseded or disconnected
+          // A session that has only just started sometimes refuses the first
+          // load; one retry fixes it.
+          if (!attempt) {
+            castLog("load failed (" + (err && err.code ? err.code : err) + "), retrying");
+            setTimeout(function () {
+              if (token !== loadToken || !player.remote) return;
+              remote.loadWithArt(url, name, startTime, autoplay, art, token, 1);
+            }, 1000);
+            return;
+          }
           loadingMedia = false;
           console.error("Cast: load failed", err);
           showToast("Could not cast this song: " + (err && err.code ? err.code : err), "danger");
@@ -145,16 +157,30 @@
       );
     },
     play: function () {
-      if (remotePlayer.isPaused) controller.playOrPause();
+      // Nothing on the speaker (a failed or interrupted load, or it went idle):
+      // load the current song again instead of doing nothing.
+      if (loadingMedia) return;
+      var media = currentMedia();
+      if (!media) { reloadCurrent("play with nothing loaded"); return; }
+      if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
+        media.play(null, function () {}, function (err) {
+          reloadCurrent("play refused (" + (err && err.code ? err.code : err) + ")");
+        });
+      }
     },
     pause: function () {
-      if (!remotePlayer.isPaused) controller.playOrPause();
+      var media = currentMedia();
+      if (!media) { setPlayingUI(false); return; }
+      media.pause(null, function () {}, function (err) {
+        castLog("pause refused (" + (err && err.code ? err.code : err) + ")");
+      });
     },
     stop: function () {
       userStopped = true;
       controller.stop();
     },
     seek: function (t) {
+      if (nothingLoaded()) { lastRemoteTime = t; return; }
       remotePlayer.currentTime = t;
       controller.seek();
     },
@@ -162,20 +188,56 @@
       remotePlayer.volumeLevel = v;
       controller.setVolumeLevel();
     },
+    // While loading (or with nothing loaded) remotePlayer still describes the
+    // previous track, so report the position we asked for instead.
     getTime: function () {
-      return remotePlayer.currentTime;
+      return nothingLoaded() ? lastRemoteTime : remotePlayer.currentTime;
     },
     getDuration: function () {
-      return remotePlayer.duration;
+      return nothingLoaded() ? lastDuration : remotePlayer.duration;
     },
   };
 
+  // The speaker's current media, or null when it has none it can play
+  // (never loaded, load failed, finished, stopped or taken over by another app).
+  function currentMedia() {
+    var session = currentSession();
+    var media   = session && session.getMediaSession();
+    if (!media || media.playerState === chrome.cast.media.PlayerState.IDLE) return null;
+    return media;
+  }
+
+  // True while a load is in flight or the speaker has no usable media.
+  function nothingLoaded() {
+    return loadingMedia || !currentMedia();
+  }
+
+  function reloadCurrent(why) {
+    if (!songName || !player.remote) return;
+    var at = nearEnd() ? 0 : lastRemoteTime;
+    castLog(why + ", reloading " + songName + " at " + Math.round(at) + "s");
+    remote.load(songUrl(songName), songName, at, true);
+  }
+
   /* ─────────────────────────── Session lifecycle ──────────────────────────── */
+  function cancelLocalResume() {
+    if (resumeTimer) clearTimeout(resumeTimer);
+    resumeTimer = null;
+  }
+
+  function castConnecting() {
+    var s = cast.framework.CastContext.getInstance().getCastState();
+    return s === cast.framework.CastState.CONNECTING || s === cast.framework.CastState.CONNECTED;
+  }
+
   function onConnected(session, resumed) {
     if (player.remote) return;
-    var audio      = player.audio();
-    var wasPlaying = !audio.paused;
-    var localTime  = audio.currentTime || 0;
+    var audio = player.audio();
+    // Read before `player.remote` is set. A local resume still pending (we're
+    // switching from one speaker to another) counts as playing.
+    var state = player.handoff();
+    if (resumeTimer) state.playing = true;
+    cancelLocalResume();
 
     player.remote = remote;   // set first so the local pause event is ignored
     audio.pause();
@@ -187,8 +249,11 @@
 
     // Reloaded the page while already casting: adopt what the speaker is playing.
     var media = session.getMediaSession();
-    if (resumed && media && media.media) {
+    var MS = chrome.cast.media.PlayerState;
+    if (resumed && media && media.media && media.playerState !== MS.IDLE) {
       watchMedia(media);
+      lastRemoteTime = media.getEstimatedTime ? media.getEstimatedTime() : (media.currentTime || 0);
+      lastDuration   = media.media.duration || 0;
       var title = (media.media.customData && media.media.customData.file) ||
                   (media.media.metadata && media.media.metadata.title);
       if (title) {
@@ -201,20 +266,23 @@
           $("tr.songrow[data-uniqueid='" + index + "']").addClass(activeClass).children().addClass(activeClass);
         }
       }
-      setPlayingUI(!remotePlayer.isPaused);
+      setPlayingUI(media.playerState === MS.PLAYING || media.playerState === MS.BUFFERING);
       $(".ctrlBtn").prop("disabled", false);
       return;
     }
 
     setPlayingUI(false);
     if (songName) {
-      player.load(songName, { startTime: localTime, autoplay: wasPlaying });
+      castLog("handing off " + songName + " at " + Math.round(state.time) + "s, playing=" + state.playing);
+      player.load(songName, { startTime: state.time, autoplay: state.playing });
     }
   }
 
   function onDisconnected() {
     if (!player.remote) return;
-    var resumeAt = lastRemoteTime;
+    var resumeAt      = lastRemoteTime;
+    var speakerPlayed = !!window.playing;
+    loadToken++;              // drop a load still waiting for its cover / retry
     player.remote = null;
     watchedMedia  = null;
     loadingMedia  = false;
@@ -231,9 +299,20 @@
     $("#volumeSlider").val(localVolume);
     updateVolumeIcon(localVolume);
 
-    if (songName) {
-      player.load(songName, { startTime: resumeAt, autoplay: false });
-    }
+    if (!songName) return;
+    player.load(songName, { startTime: resumeAt, autoplay: false });
+    if (!speakerPlayed || castEndAction === "pause") return;
+
+    // Keep playing here, but wait a moment: when switching to another speaker
+    // the new session starts right after this one ends, and the computer
+    // shouldn't blip in between. onConnected() cancels this.
+    cancelLocalResume();
+    resumeTimer = setTimeout(function () {
+      resumeTimer = null;
+      if (player.remote || castConnecting()) return;
+      castLog("casting stopped, continuing here at " + Math.round(resumeAt) + "s");
+      player.play();
+    }, 1500);
   }
 
   /* ─────────────────────────── Remote player events ───────────────────────── */

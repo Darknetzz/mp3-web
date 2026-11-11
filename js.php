@@ -125,6 +125,7 @@
     // still starts at the right position.
     pendingStart: null,
     loadedAt: 0,
+    lastTime: 0, // last real local position, survives the element being reset
     audio: function() {
       return $("audio")[0];
     },
@@ -144,6 +145,7 @@
       var a = this.audio();
       $(a).off("loadedmetadata.start");
       this.pendingStart = startTime > 0 ? startTime : null;
+      this.lastTime = startTime;
       this.loadedAt = Date.now();
       $("#audioSource").attr("src", songUrl(name));
       a.load();
@@ -176,7 +178,7 @@
     play: function() {
       if (this.remote) return this.remote.play();
       if (songName && this.localBroken()) {
-        var t = this.getTime() || 0;
+        var t = this.getTime() || this.lastTime || 0;
         console.log("Player: nothing loaded locally, reloading " + songName + " at " + Math.round(t) + "s");
         this.load(songName, { startTime: t, autoplay: true });
         return;
@@ -193,6 +195,7 @@
       a.pause();
       $(a).off("loadedmetadata.start");
       this.pendingStart = null;
+      this.lastTime = 0;
       $("#audioSource").attr("src", "");
       a.removeAttribute("src");
       a.load();
@@ -877,6 +880,7 @@
   /* ────────────────────────── FUNCTION: updateTime ────────────────────────── */
   function updateTime() {
     currentTime = player.getTime() || 0;
+    if (!player.isRemote() && player.audio().readyState > 0) player.lastTime = currentTime;
     var d = player.getDuration();
     if (d) {
       duration = d;

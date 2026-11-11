@@ -148,6 +148,16 @@ $config = [
         "value"       => false,
         "type"        => "bool",
     ],
+    "cast_end_action" => [
+        "name"        => "When casting stops",
+        "description" => "What this device does with a song that was playing on the speaker.",
+        "value"       => "continue",
+        "type"        => "selection",
+        "options"     => [
+            "continue" => "Keep playing here",
+            "pause"    => "Pause",
+        ],
+    ],
 
     /* ────────────────────────────── Appearance ────────────────────────────── */
     "player_theme" => [
