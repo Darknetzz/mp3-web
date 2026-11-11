@@ -187,11 +187,11 @@
     if (isPlaying) {
       playPauseBtn.removeClass("btn-outline-success btn-outline-warning").addClass("btn-success");
       playPauseBtn.html(pauseIconHTML);
-      changeFavicon("favicon_play.ico");
+      changeFavicon("favicon_play.ico?v=<?= @filemtime(__DIR__ . '/favicon_play.ico') ?>");
     } else {
       playPauseBtn.removeClass("btn-success btn-outline-success").addClass("btn-outline-warning");
       playPauseBtn.html(playIconHTML);
-      changeFavicon("favicon_pause.ico");
+      changeFavicon("favicon_pause.ico?v=<?= @filemtime(__DIR__ . '/favicon_pause.ico') ?>");
     }
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";

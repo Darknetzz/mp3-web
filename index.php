@@ -8,7 +8,9 @@ $theme = themeSetup();
   <head>
 
     <meta charset="utf-8">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.ico?v=<?= @filemtime(__DIR__ . '/favicon.ico') ?>" type="image/x-icon">
+    <link rel="apple-touch-icon" href="assets/branding/apple-touch-icon.png">
+    <meta name="theme-color" content="#2fb344">
     <title><?= getConfig("site_title") ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha384-fgGyf7Mo7DURSOMnOy7ed+dkq5Job205Gnzu6QIg0BOHKaqt4D76Dt8VlDCzcMHV" crossorigin="anonymous"></script>
