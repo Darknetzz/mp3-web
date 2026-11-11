@@ -32,6 +32,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Playlists** and **Favorites**, shared on the server, with drag-to-reorder and M3U import/export (see below)
 - [x] Queue ("Add to queue" and "Play next"), shuffle and loop
 - [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
+- [x] **Lyrics** for the current song from [LRCLIB](https://lrclib.net), synced line by line when available (see below)
 - [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
 - [x] Track durations (via [`wapmorgan/mp3info`](https://github.com/wapmorgan/Mp3Info))
@@ -53,6 +54,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 | <kbd>S</kbd> | Toggle shuffle |
 | <kbd>A</kbd> | Toggle autoplay (play the next song when one ends) |
 | <kbd>Q</kbd> | Show / hide the queue panel |
+| <kbd>Y</kbd> | Show / hide the lyrics panel |
 
 **In the song list.** Clicking a song selects it and gives the list keyboard focus. While the list has focus:
 
@@ -89,6 +91,25 @@ In the panel:
 On wide screens the page makes room for the panel. On narrower screens it opens over the song list, and on phones
 it fills the screen above the playbar. In a listening session, queue changes are shared like any other playback
 change. If you can't control playback, the panel is read-only.
+
+### Lyrics
+
+The microphone button in the playbar (<kbd>Y</kbd>) opens a lyrics panel in the queue panel's spot (only one of the two
+is open at a time). Lyrics come from [LRCLIB](https://lrclib.net), a free, open lyrics database that needs no API key.
+
+- **Synced lyrics** highlight the current line and keep it in view; click a line to jump there. Scrolling the lyrics
+  yourself pauses the auto-scroll for a few seconds.
+- **Plain lyrics** are shown as text when no synced version exists.
+- The panel header shows which LRCLIB track was matched, so a wrong match is easy to spot.
+
+The server (`lyrics.php`) identifies each song from its ID3 tags, falling back to the file name: it drops the extension,
+a leading track number and underscores, splits "Artist - Title", and strips "(prod. …)", "[…]" and "feat. …". It first
+asks LRCLIB for an exact artist/title/duration match, then searches. A search result is used only if its duration is
+within 3 seconds of the song's, and its title matches exactly, or loosely when one of its artists appears in the file
+name or tags. Every answer, including "not found", is cached in `cache/lyrics/`. A "not found" is looked up again after
+30 days. Network errors and rate limiting are not cached.
+
+Song titles are sent to lrclib.net when lyrics are looked up.
 
 ### Cover art
 
@@ -281,6 +302,7 @@ VERSION  = "vX.Y.Z"                                 # shown next to the site tit
 | `functions.php` | Helpers: config read/write, listing, upload, delete, durations, `apiResponse()` |
 | `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
 | `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
+| `lyrics.php` | Lyrics lookup on LRCLIB (ID3 tags / file name matching) with a disk cache |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |
@@ -288,6 +310,8 @@ VERSION  = "vX.Y.Z"                                 # shown next to the site tit
 | `waveform.js` | Playbar waveform (Web Audio analyser) |
 | `session.js` | Listening session sync and session modal |
 | `playlists.js` | Playlist bar and views, ⋯ song menu, favorites, drag-to-reorder |
+| `queue.js` | Queue side panel: now playing, queue (drag to reorder), next from the play context |
+| `lyrics.js` | Lyrics panel: synced highlighting, click to seek |
 | `style.css` | Custom styles |
 | `music/` | Default audio folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
@@ -321,6 +345,7 @@ The action is passed as `action` in the query string or POST body. State-changin
 | `reorderPlaylist` | New order (`songs[]`, `if_version`); returns `conflict` if the playlist changed meanwhile |
 | `toggleFavorite` | Add or remove `song` from Favorites |
 | `exportPlaylist` / `importPlaylist` | Download as `.m3u` (GET `id`); create from an uploaded `playlist` file |
+| `lyrics` | Lyrics for `song` (GET): `found`, `synced` (`[[seconds, line], …]`), `plain`, `instrumental`, `match` |
 
 > **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,
 > so don't expose it to the internet without putting it behind auth (reverse proxy, VPN, etc.), or set `env` to `demo`.

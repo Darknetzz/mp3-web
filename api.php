@@ -171,6 +171,11 @@ do {
         importPlaylist($_FILES['playlist'] ?? []);
     }
 
+    /* ──────────────────────────────── Lyrics ─────────────────────────────── */
+    if ($action === 'lyrics') {
+        getLyrics($_GET['song'] ?? '');
+    }
+
     /* ─────────────────────────── Listening sessions ─────────────────────── */
     if ($action === 'createSession') {
         require_csrf_token();

@@ -231,6 +231,7 @@ echo '
       </div>';
       }
 echo '
+      <button type="button" class="btn btn-icon btn-pill btn-ghost-primary lyricsToggleBtn" aria-controls="lyricsPanel" aria-expanded="false" aria-label="Lyrics" title="Lyrics (Y)">'.icon('mic-vocal', margin: 0).'</button>
       <button type="button" class="btn btn-icon btn-pill btn-ghost-primary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music', margin: 0).'</button>
       <span class="castGroup" style="display:none;">
         <button type="button" class="btn btn-icon btn-pill btn-ghost-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast', margin: 0).'</button>
@@ -264,6 +265,19 @@ echo '
       <ul class="qpList" id="qpContext"></ul>
     </section>
   </div>
+</aside>
+';
+
+echo '
+<aside id="lyricsPanel" class="queuePanel lyricsPanel card" aria-label="Lyrics" hidden>
+  <div class="queuePanelHead">
+    <div class="lyricsHeadText">
+      <h3 class="m-0">Lyrics</h3>
+      <div class="lyricsSource text-secondary small"></div>
+    </div>
+    <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary lyricsPanelClose" aria-label="Close the lyrics" title="Close (Y)">'.icon('x', margin: 0).'</button>
+  </div>
+  <div class="queuePanelBody lyricsBody" tabindex="-1" aria-live="polite"></div>
 </aside>
 ';
 
@@ -423,6 +437,7 @@ echo '</div></div>';
 <script src="session.js?v=<?= @filemtime(__DIR__ . '/session.js') ?>"></script>
 <script src="playlists.js?v=<?= @filemtime(__DIR__ . '/playlists.js') ?>"></script>
 <script src="queue.js?v=<?= @filemtime(__DIR__ . '/queue.js') ?>"></script>
+<script src="lyrics.js?v=<?= @filemtime(__DIR__ . '/lyrics.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

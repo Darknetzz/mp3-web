@@ -1186,10 +1186,12 @@ body.player-top .queuePanel {
 }
 /* Wide screens: the page makes room for the panel instead of hiding under it */
 @media (min-width: 1200px) {
-  body.queue-open {
+  body.queue-open,
+  body.lyrics-open {
     padding-right: 360px;
   }
-  body.queue-open .toast-container {
+  body.queue-open .toast-container,
+  body.lyrics-open .toast-container {
     right: 360px !important;
   }
 }
@@ -1204,6 +1206,78 @@ body.player-top .queuePanel {
     padding: .4rem .5rem;
   }
 }
+/* ─────────────────────────────── Lyrics panel ────────────────────────────── */
+/* Same spot and shell as the queue panel (.queuePanel); only one is open. */
+.lyricsHeadText {
+  min-width: 0;
+}
+.lyricsSource {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lyricsBody {
+  padding: 1rem 1.25rem 40vh;
+  scroll-behavior: auto;
+}
+.lyricsBody:focus {
+  outline: none;
+}
+.lyricsLines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.lyricsPlain {
+  white-space: pre-wrap;
+  font-weight: 500;
+  font-size: 1rem;
+}
+.lyLine {
+  padding: .3rem .4rem;
+  margin: 0 -.4rem;
+  border-radius: 6px;
+  color: var(--tblr-secondary);
+  cursor: pointer;
+  transition: color .2s, opacity .2s;
+}
+.lyLine.past {
+  opacity: .55;
+}
+.lyLine.active {
+  color: var(--tblr-body-color);
+  opacity: 1;
+}
+.lyLine:hover {
+  background: var(--tblr-bg-surface-secondary, rgba(128,128,128,.12));
+}
+.lyGap {
+  opacity: .6;
+}
+.lyricsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  text-align: center;
+  padding: 3rem 1rem;
+}
+.lyricsEmptyIcon .lucide {
+  font-size: 2rem;
+  opacity: .6;
+}
+.lyricsEmptyTitle {
+  font-weight: 600;
+  color: var(--tblr-body-color);
+}
+.lyricsTried {
+  margin-top: .75rem;
+  opacity: .8;
+}
+.lyricsToggleBtn.active,
 .queueToggleBtn.active {
   color: var(--tblr-success);
 }

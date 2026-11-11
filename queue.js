@@ -112,6 +112,7 @@
 
   /* ──────────────────────────────── Open/close ────────────────────────────── */
   function setOpen(on, opts) {
+    if (on && window.lyricsPanel) lyricsPanel.close();
     panel.prop("hidden", !on);
     $("body").toggleClass("queue-open", on);
     $(".queueToggleBtn").toggleClass("active", on).attr("aria-expanded", on ? "true" : "false");
@@ -286,7 +287,7 @@
   $("#playlistTable").on("post-body.bs.table", refresh);
 
   /* ──────────────────────────────── Startup ──────────────────────────────── */
-  window.queuePanel = { refresh: refresh, toggle: toggle, open: function () { setOpen(true); } };
+  window.queuePanel = { refresh: refresh, toggle: toggle, open: function () { setOpen(true); }, close: function () { if (isOpen()) setOpen(false); } };
   // After the song table is set up (the library is read from it).
   $(function () {
     var saved = false;

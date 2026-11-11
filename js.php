@@ -1157,6 +1157,7 @@
         case 'KeyS':       toggleShuffle(); break;
         case 'KeyA':       toggleAutoplay(); break;
         case 'KeyQ':       if (window.queuePanel) queuePanel.toggle(); break;
+        case 'KeyY':       if (window.lyricsPanel) lyricsPanel.toggle(); break;
         default:           handled = false;
       }
       if (handled) e.preventDefault();
