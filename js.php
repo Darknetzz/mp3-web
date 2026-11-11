@@ -23,6 +23,12 @@
   var currentIndex          = 0;
   var apiURL                = "api.php";
   var queue                 = [];
+  // Songs actually played, for Previous (newest last), and the songs Previous
+  // stepped back from, which Next replays before the queue order resumes.
+  var playHistory           = [];
+  var forwardHistory        = [];
+  var HISTORY_MAX           = 200;
+  var RESTART_AFTER         = 3; // seconds: Previous restarts the song after this
   var activeClass           = "table-active text-success";
   var warningClass          = "text-warning border border-warning is-warning";
   var successClass          = "text-success border border-success is-valid";
@@ -529,6 +535,19 @@
     }
     $("tr.songrow").removeClass(activeClass).children().removeClass(activeClass);
 
+    // Play history: opts.history "back"/"forward" is Previous/Next walking it;
+    // anything else is a new pick, which starts a new forward path.
+    var prevId = window.currentIndex === undefined || window.currentIndex === null ? null : String(window.currentIndex);
+    if (prevId !== null && prevId !== index) {
+      if (opts.history === "back") {
+        forwardHistory.push(prevId);
+      } else {
+        playHistory.push(prevId);
+        if (playHistory.length > HISTORY_MAX) playHistory.shift();
+        if (opts.history !== "forward") forwardHistory = [];
+      }
+    }
+
     window.songName = getSongNameByIndex(index);
     if (!songName || songName.length === 0) {
       showToast("Invalid songname: " + songName, "danger");
@@ -612,21 +631,41 @@
   }
 
   /* ───────────────────────── FUNCTION: prevSong ───────────────────────── */
+  // Previous: restart the song if it has played a few seconds; otherwise go
+  // back to the song played before it (play history, also with shuffle on).
+  // With no history, step back in the play order, or restart when shuffling.
+  function restartSong() {
+    player.seek(0);
+    updateTime();
+    sessionChanged({ position: 0 });
+  }
+  function popValid(stack) {
+    while (stack.length) {
+      var id = stack.pop();
+      if (id !== String(currentIndex) && getSongByIndex(id)) return id;
+    }
+    return null;
+  }
   function prevSong() {
     if (sessionBlocked()) return;
-    if (player.getTime() > 5) {
-      player.seek(0);
-      sessionChanged({ position: 0 });
+    if (!songName) return;
+    if (player.getTime() > RESTART_AFTER) {
+      restartSong();
+      return;
+    }
+    var back = popValid(playHistory);
+    if (back !== null) {
+      playSong(back, { history: "back" });
       return;
     }
     if (shuffle) {
-      randomSong();
+      restartSong();
       return;
     }
     var order = contextOrder();
     if (!order.length) return;
     var pos = order.indexOf(String(currentIndex));
-    playSong(order[pos <= 0 ? order.length - 1 : pos - 1]);
+    playSong(order[pos <= 0 ? order.length - 1 : pos - 1], { history: "back" });
   }
 
   /* ─────────────────────────── FUNCTION: nextSong ─────────────────────────── */
@@ -635,6 +674,12 @@
     if (queue.length > 0) {
       var nextQueueIndex = queue.shift();
       playSong(nextQueueIndex);
+      return;
+    }
+    // After Previous, Next retraces the songs stepped back from.
+    var forward = popValid(forwardHistory);
+    if (forward !== null) {
+      playSong(forward, { history: "forward" });
       return;
     }
     if (shuffle) {

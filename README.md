@@ -31,6 +31,7 @@ cast it to Google/Nest speakers (Spotify won't cast local files).
 - [x] **Listen together**: shared sessions where every device plays the same song in sync (see below)
 - [x] **Playlists** and **Favorites**, shared on the server, with drag-to-reorder and M3U import/export (see below)
 - [x] Queue ("Add to queue" and "Play next"), shuffle and loop
+- [x] **Previous** works like other players: after 3 seconds it restarts the song; otherwise it goes back to the song actually played before (a play history, also with shuffle on), and Next then retraces the songs you stepped back from
 - [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
 - [x] **Lyrics** for the current song from [LRCLIB](https://lrclib.net), synced line by line when available (see below)
 - [x] Download and delete songs
