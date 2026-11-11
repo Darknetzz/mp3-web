@@ -175,6 +175,7 @@
   /* ────────────────────────── FUNCTION: setPlayingUI ──────────────────────── */
   function setPlayingUI(isPlaying) {
     playing = isPlaying;
+    document.body.classList.toggle("songIsPlaying", isPlaying);
     var playPauseBtn = $(".playPauseBtn");
     if (isPlaying) {
       playPauseBtn.removeClass("btn-outline-success btn-outline-warning").addClass("btn-success");
@@ -1050,8 +1051,12 @@
         if (lastCoverPlay.id === rowid && now - lastCoverPlay.at < 500) return;
         lastCoverPlay = { id: rowid, at: now };
         setContextFromView();
+        var isLoaded = String(currentIndex) === rowid && songName && songName === getSongNameByIndex(rowid);
+        // The playing song shows a pause button: pause it
+        if (isLoaded && playing) {
+          pauseSong();
         // The loaded song, paused: carry on from where it stopped
-        if (String(currentIndex) === rowid && songName && !playing && songName === getSongNameByIndex(rowid)) {
+        } else if (isLoaded) {
           resumeSong();
         } else {
           playSong(rowid);

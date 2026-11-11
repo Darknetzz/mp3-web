@@ -139,6 +139,14 @@ body {
 .coverPlay .lucide {
   font-size: 1.3em !important;
 }
+/* The song that is playing shows a pause button instead */
+.coverPlay .icon-pause,
+body.songIsPlaying tr.table-active .coverPlay .icon-play {
+  display: none;
+}
+body.songIsPlaying tr.table-active .coverPlay .icon-pause {
+  display: inline-block;
+}
 tbody > tr:hover .coverPlay,
 tr.songSelected .coverPlay {
   opacity: 1;

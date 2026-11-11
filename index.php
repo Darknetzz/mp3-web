@@ -403,7 +403,7 @@ foreach ($musicFiles as $file) {
       <td class="text-muted">
         '.($i).'
       </td>
-      <td class="coverCell"><span class="coverThumb"><img class="coverImg" src="'.$coverSrc.'" alt="" width="40" height="40" loading="lazy" decoding="async" onerror="this.hidden=true"><span class="coverPlay" aria-hidden="true">'.icon('play', margin: 0, filled: true).'</span></span></td>
+      <td class="coverCell"><span class="coverThumb"><img class="coverImg" src="'.$coverSrc.'" alt="" width="40" height="40" loading="lazy" decoding="async" onerror="this.hidden=true"><span class="coverPlay" aria-hidden="true">'.icon('play', margin: 0, filled: true).icon('pause', margin: 0, filled: true).'</span></span></td>
       <td>
         '.htmlspecialchars($audioName).'
       </td>
