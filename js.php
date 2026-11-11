@@ -50,6 +50,7 @@
   var startShuffle          = <?= json_encode((bool) getConfig("start_shuffle")) ?>;
   var startLoop             = <?= json_encode((bool) getConfig("start_loop")) ?>;
   var rememberPosition      = <?= json_encode((bool) getConfig("remember_position")) ?>;
+  var castEndAction         = <?= json_encode((string) getConfig("cast_end_action")) ?>; // "continue" or "pause"
   var stateKey              = "playerState";
   var songName              = null;
   var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
@@ -118,6 +119,11 @@
   // (set by cast.js while a Cast session is active).
   var player = {
     remote: null,
+    // Start time of a local load that hasn't been applied yet (no metadata so
+    // far). getTime() reports it, so a handoff to a speaker right after a load
+    // still starts at the right position.
+    pendingStart: null,
+    loadedAt: 0,
     audio: function() {
       return $("audio")[0];
     },
@@ -129,26 +135,52 @@
       var autoplay  = opts.autoplay !== false;
       var startTime = opts.startTime || 0;
       if (this.remote) {
+        this.pendingStart = null;
         this.remote.load(songUrl(name), name, startTime, autoplay);
         return;
       }
+      var self = this;
       var a = this.audio();
+      $(a).off("loadedmetadata.start");
+      this.pendingStart = startTime > 0 ? startTime : null;
+      this.loadedAt = Date.now();
       $("#audioSource").attr("src", songUrl(name));
       a.load();
       if (startTime > 0) {
-        $(a).one("loadedmetadata", function() { a.currentTime = startTime; });
+        $(a).one("loadedmetadata.start", function() {
+          a.currentTime = startTime;
+          self.pendingStart = null;
+        });
       }
       if (autoplay) {
-        this.play();
+        this.playLocal();
       }
     },
-    play: function() {
-      if (this.remote) return this.remote.play();
+    // The local <audio> has nothing it can play: no source, a failed load, or
+    // a source that never started loading. Play then reloads the song instead
+    // of doing nothing (e.g. after switching back from a cast device).
+    localBroken: function() {
+      var a = this.audio();
+      if (!$("#audioSource").attr("src")) return true;
+      if (a.error) return true;
+      return a.networkState === a.NETWORK_NO_SOURCE && a.readyState === 0 && Date.now() - this.loadedAt > 2000;
+    },
+    playLocal: function() {
       var p = this.audio().play();
       if (p && p.catch) p.catch(function(e) {
         console.log("Playback was blocked:", e);
         if (e && e.name === "NotAllowedError" && window.sessionSync) sessionSync.playBlocked();
       });
+    },
+    play: function() {
+      if (this.remote) return this.remote.play();
+      if (songName && this.localBroken()) {
+        var t = this.getTime() || 0;
+        console.log("Player: nothing loaded locally, reloading " + songName + " at " + Math.round(t) + "s");
+        this.load(songName, { startTime: t, autoplay: true });
+        return;
+      }
+      this.playLocal();
     },
     pause: function() {
       if (this.remote) return this.remote.pause();
@@ -158,12 +190,24 @@
       if (this.remote) return this.remote.stop();
       var a = this.audio();
       a.pause();
+      $(a).off("loadedmetadata.start");
+      this.pendingStart = null;
       $("#audioSource").attr("src", "");
       a.removeAttribute("src");
       a.load();
     },
     seek: function(t) {
       if (this.remote) return this.remote.seek(t);
+      if (this.pendingStart !== null) {
+        // Not loaded yet: move the pending start instead
+        var a = this.audio(), self = this;
+        this.pendingStart = t;
+        $(a).off("loadedmetadata.start").one("loadedmetadata.start", function() {
+          a.currentTime = t;
+          self.pendingStart = null;
+        });
+        return;
+      }
       this.audio().currentTime = t;
     },
     setVolume: function(v) {
@@ -172,11 +216,17 @@
     },
     getTime: function() {
       if (this.remote) return this.remote.getTime();
+      if (this.pendingStart !== null) return this.pendingStart;
       return this.audio().currentTime;
     },
     getDuration: function() {
       var d = this.remote ? this.remote.getDuration() : this.audio().duration;
       return (isFinite(d) && d > 0) ? d : 0;
+    },
+    // Where playback is and whether it is playing, for moving it to another
+    // device. Read it before switching `remote`.
+    handoff: function() {
+      return { time: this.getTime() || 0, playing: !!playing };
     },
   };
 
@@ -1137,6 +1187,31 @@
       player.setVolume(v);
       updateVolumeIcon(v);
     });
+
+    /* ────────────────────────────── NOTE: volumeWheel ────────────────────────── */
+    // Scroll adjusts volume while the pointer is over (or within a few px of)
+    // the volume group. Trackpads fire many small deltas, so accumulate pixels
+    // and step 5% per 100px (one Chrome wheel notch); line/page-mode wheels
+    // (Firefox) step once per notch.
+    var volumeWheelAcc = 0;
+    document.addEventListener('wheel', function(e) {
+      var group = document.querySelector('.volumeGroup');
+      if (!group || !group.offsetParent) return;
+      var r = group.getBoundingClientRect(), pad = 12;
+      if (e.clientX < r.left - pad || e.clientX > r.right + pad ||
+          e.clientY < r.top - pad || e.clientY > r.bottom + pad) return;
+      e.preventDefault();
+      var dy = e.deltaY;
+      if (e.deltaMode !== 0) {
+        if (dy) changeVolume(dy < 0 ? 0.05 : -0.05);
+        return;
+      }
+      volumeWheelAcc += dy;
+      while (Math.abs(volumeWheelAcc) >= 100) {
+        changeVolume(volumeWheelAcc < 0 ? 0.05 : -0.05);
+        volumeWheelAcc -= volumeWheelAcc < 0 ? -100 : 100;
+      }
+    }, { passive: false });
 
     /* ────────────────────────────── NOTE: volumeIcon ─────────────────────────── */
     $(".volumeIcon").on('click', function() {
