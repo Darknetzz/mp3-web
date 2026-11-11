@@ -301,6 +301,19 @@ body.player-top .audio-player-container {
 .playerRight .btn .lucide {
   font-size: 1.05rem !important;
 }
+/* Idle controls stay neutral; color is kept for play and toggled-on buttons */
+.playerControls .btn-ghost-secondary,
+.playerRight .btn-ghost-secondary,
+.playerMini .btn-ghost-secondary,
+.volumeGroup .volumeIcon {
+  color: var(--tblr-secondary);
+}
+.playerControls .btn-ghost-secondary:hover,
+.playerRight .btn-ghost-secondary:hover,
+.playerMini .btn-ghost-secondary:hover,
+.volumeGroup .volumeIcon:hover {
+  color: var(--tblr-body-color);
+}
 .playerControls .playMain {
   width: 38px;
   height: 38px;

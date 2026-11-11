@@ -193,19 +193,19 @@ echo '
 
     <div class="playerMini">
       <button type="button" class="btn btn-pill btn-success ctrlBtn playPauseBtn" onclick="toggleSong()" disabled aria-label="Play or pause">'.icon("play", filled: true).'</button>
-      <button type="button" class="btn btn-pill btn-outline-primary ctrlBtn" onclick="nextSong()" disabled aria-label="Next song">'.icon("skip-forward", filled: true).'</button>
+      <button type="button" class="btn btn-pill btn-ghost-secondary ctrlBtn" onclick="nextSong()" disabled aria-label="Next song">'.icon("skip-forward", filled: true).'</button>
       <button type="button" class="btn btn-pill btn-ghost-secondary playerExpandBtn" aria-expanded="false" aria-controls="playerCenter playerRight" aria-label="More player controls" title="More controls">'.icon("chevron-up").'</button>
     </div>
 
     <div class="playerCenter" id="playerCenter">
       <div class="playerControls">
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary toggleShuffleBtn" onclick="toggleShuffle()" title="Shuffle (S)" aria-label="Shuffle">'.icon('shuffle', margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-danger ctrlBtn stopBtn" onclick="stopSong()" disabled title="Stop" aria-label="Stop">'.icon('square', filled: true, margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary ctrlBtn" onclick="prevSong()" disabled title="Previous (Shift+←)" aria-label="Previous song">'.icon('skip-back', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleShuffleBtn" onclick="toggleShuffle()" title="Shuffle (S)" aria-label="Shuffle">'.icon('shuffle', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn stopBtn" onclick="stopSong()" disabled title="Stop" aria-label="Stop">'.icon('square', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn" onclick="prevSong()" disabled title="Previous (Shift+←)" aria-label="Previous song">'.icon('skip-back', filled: true, margin: 0).'</button>
         <button type="button" class="btn btn-icon btn-pill btn-success ctrlBtn playPauseBtn playMain" onclick="toggleSong()" disabled title="Play/pause (Space)" aria-label="Play or pause">'.icon("play", filled: true).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary ctrlBtn" onclick="nextSong()" disabled title="Next (Shift+→)" aria-label="Next song">'.icon('skip-forward', filled: true, margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary toggleLoopBtn" onclick="toggleLoop()" title="Repeat (L)" aria-label="Repeat">'.icon('repeat', margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn" onclick="nextSong()" disabled title="Next (Shift+→)" aria-label="Next song">'.icon('skip-forward', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleLoopBtn" onclick="toggleLoop()" title="Repeat (L)" aria-label="Repeat">'.icon('repeat', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end', margin: 0).'</button>
       </div>
       <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
         <source id="audioSource" src="" type="audio/mpeg">
@@ -231,10 +231,10 @@ echo '
       </div>';
       }
 echo '
-      <button type="button" class="btn btn-icon btn-pill btn-ghost-primary lyricsToggleBtn" aria-controls="lyricsPanel" aria-expanded="false" aria-label="Lyrics" title="Lyrics (Y)">'.icon('mic-vocal', margin: 0).'</button>
-      <button type="button" class="btn btn-icon btn-pill btn-ghost-primary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music', margin: 0).'</button>
+      <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary lyricsToggleBtn" aria-controls="lyricsPanel" aria-expanded="false" aria-label="Lyrics" title="Lyrics (Y)">'.icon('mic-vocal', margin: 0).'</button>
+      <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music', margin: 0).'</button>
       <span class="castGroup" style="display:none;">
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-primary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast', margin: 0).'</button>
       </span>
     </div>
   </div>
