@@ -54,6 +54,7 @@
   var songName              = null;
   var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
   var displayName           = <?= json_encode(sessionDisplayName()) ?>;
+  var userPrefs             = <?= json_encode(userPrefs()) ?>;
 
   /* ───────────────────────── Listening session hooks ──────────────────────── */
   // session.js defines window.sessionSync. These stay no-ops outside a session.

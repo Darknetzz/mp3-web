@@ -179,7 +179,7 @@ do {
     /* ─────────────────────────── Listening sessions ─────────────────────── */
     if ($action === 'createSession') {
         require_csrf_token();
-        createSession($_POST['name'] ?? '', !empty($_POST['public']));
+        createSession($_POST['name'] ?? '', !empty($_POST['public']), !empty($_POST['allow_all']));
     }
 
     if ($action === 'joinSession') {
@@ -208,6 +208,11 @@ do {
     if ($action === 'setDisplayName') {
         require_csrf_token();
         setDisplayName($_POST['name'] ?? '');
+    }
+
+    if ($action === 'setUserPrefs') {
+        require_csrf_token();
+        setUserPrefs($_POST['prefs'] ?? null);
     }
 
     if ($action === 'sessionSettings') {

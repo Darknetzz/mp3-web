@@ -23,6 +23,34 @@ echo '
         </div>
       </form>
 
+      <!-- # NOTE: Session defaults (per user; saved by session.js via setUserPrefs) -->
+      <div class="mx-2 mb-3">
+        <a class="text-muted small d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" href="#sessionDefaults"
+           role="button" aria-expanded="false" aria-controls="sessionDefaults">
+          '.icon("settings", 1, 0).' Session defaults
+        </a>
+        <div class="collapse" id="sessionDefaults">
+          <div class="card card-body mt-2" style="max-width: 520px;">
+            <p class="text-muted small mb-2">Used for sessions you create.</p>
+            <label class="form-check form-switch d-flex align-items-center gap-2 mb-2">
+              <input class="form-check-input m-0" type="checkbox" data-pref="session_allow_all">
+              <span>Let everyone control playback</span>
+            </label>
+            <label class="form-check form-switch d-flex align-items-center gap-2 mb-2">
+              <input class="form-check-input m-0" type="checkbox" data-pref="session_public">
+              <span>Make sessions public</span>
+            </label>
+            <label class="form-check form-switch d-flex align-items-center gap-2 mb-2">
+              <input class="form-check-input m-0" type="checkbox" data-pref="session_share_playback">
+              <span>Start with what I&rsquo;m playing <small class="text-muted">(off: start with nothing playing)</small></span>
+            </label>
+            <label class="form-label small mb-1" for="prefSessionName">Default session name</label>
+            <input type="text" class="form-control" id="prefSessionName" data-pref="session_name" maxlength="40"
+                   placeholder="Leave empty for &ldquo;Session ABCD1234&rdquo;">
+          </div>
+        </div>
+      </div>
+
       <!-- # NOTE: Not in a session: create / join -->
       <div class="sessionLobby">
       <div class="d-flex flex-column flex-md-row justify-content-around">
@@ -37,10 +65,14 @@ echo '
             </a>
             <form class="sessionForm" id="createSessionForm" style="display:none;" method="POST">
               <input type="text" class="form-control m-1 w-100" name="name" maxlength="40" placeholder="Session name (optional)">
-              <div class="m-2">
+              <div class="m-2 d-flex flex-column align-items-center gap-1">
                 <label class="form-check d-inline-flex align-items-center gap-2">
                   <input type="checkbox" class="form-check-input m-0" name="public" value="1">
                   <span>Public <small class="text-muted">(listed for anyone on this server to join)</small></span>
+                </label>
+                <label class="form-check d-inline-flex align-items-center gap-2">
+                  <input type="checkbox" class="form-check-input m-0" name="allow_all" value="1">
+                  <span>Let everyone control playback</span>
                 </label>
               </div>
               <div class="btn-group w-100 m-1">

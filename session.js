@@ -162,6 +162,58 @@
     });
   }
 
+  /* ──────────────────────────── Session defaults ──────────────────────────── */
+  // userPrefs comes from the server (js.php). A copy is kept in localStorage so
+  // the prefs survive the PHP session expiring, like the display name.
+  var PREFS_KEY = "sessionPrefs";
+  var prefsTimer = null;
+
+  function storedPrefs() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "null"); } catch (e) { return null; }
+  }
+
+  function storePrefs() {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(userPrefs)); } catch (e) {}
+  }
+
+  function renderPrefs() {
+    $("[data-pref]").each(function () {
+      var el = $(this), v = userPrefs[el.data("pref")];
+      if (el.is(":checkbox")) el.prop("checked", !!v);
+      else if (!el.is(":focus")) el.val(v == null ? "" : v);
+    });
+  }
+
+  function saveUserPrefs(prefs, quiet) {
+    return request("POST", "setUserPrefs", { prefs: JSON.stringify(prefs) }).then(function (res) {
+      if (res.status !== "success") {
+        if (!quiet) showToast(res.response, "danger");
+        return;
+      }
+      userPrefs = res.data.prefs;
+      storePrefs();
+      renderPrefs();
+      fillCreateForm();
+      if (!quiet) showToast(res.response, "success");
+    });
+  }
+
+  function prefsDiffer(a, b) {
+    for (var k in a) {
+      if (Object.prototype.hasOwnProperty.call(b, k) && a[k] !== b[k]) return true;
+    }
+    return false;
+  }
+
+  // Prefill the create form from the defaults (the user can still change it).
+  function fillCreateForm() {
+    var form = $("#createSessionForm");
+    if (form.is(":visible")) return; // don't clobber what's being typed
+    form.find("[name=name]").val(userPrefs.session_name || "");
+    form.find("[name=public]").prop("checked", !!userPrefs.session_public);
+    form.find("[name=allow_all]").prop("checked", !!userPrefs.session_allow_all);
+  }
+
   /* ─────────────────────────── Apply remote state ─────────────────────────── */
   function expectedPosition(st) {
     var pos = +st.position || 0;
@@ -429,6 +481,28 @@
     var saved = storedName();
     if (saved && saved !== displayName) saveDisplayName(saved, true);
 
+    // Restore saved defaults if the server has forgotten them (PHP session expired).
+    var savedPrefs = storedPrefs();
+    if (savedPrefs && prefsDiffer(savedPrefs, userPrefs)) {
+      saveUserPrefs(savedPrefs, true);
+    } else {
+      storePrefs();
+    }
+    renderPrefs();
+    fillCreateForm();
+
+    $(document).on("change", "[data-pref]", function () {
+      var el = $(this), key = el.data("pref"), patch = {};
+      patch[key] = el.is(":checkbox") ? el.is(":checked") : el.val().trim();
+      if (patch[key] === userPrefs[key]) return;
+      $.extend(userPrefs, patch); // keep the create form in step right away
+      clearTimeout(prefsTimer);
+      prefsTimer = setTimeout(function () { saveUserPrefs(userPrefs, false); }, 300);
+    });
+    $(".cancelSessionBtn").on("click", function () {
+      setTimeout(fillCreateForm, 0); // after js.php hides the form
+    });
+
     $(".displayNameForm").on("submit", function (e) {
       e.preventDefault();
       var name = $("#displayNameInput").val().trim();
@@ -440,17 +514,18 @@
       e.preventDefault();
       var form = $(this);
       request("POST", "createSession", {
-        name:   form.find("[name=name]").val(),
-        public: form.find("[name=public]").is(":checked") ? 1 : 0,
+        name:      form.find("[name=name]").val(),
+        public:    form.find("[name=public]").is(":checked") ? 1 : 0,
+        allow_all: form.find("[name=allow_all]").is(":checked") ? 1 : 0,
       }).then(function (res) {
         if (res.status !== "success") {
           showToast(res.response, "danger");
           return;
         }
         showToast(res.response, "success");
-        form[0].reset();
         $(".sessionForm").hide();
-        enterSession(res.data, { publishLocal: true });
+        fillCreateForm();
+        enterSession(res.data, { publishLocal: userPrefs.session_share_playback !== false });
       }, function () {
         showToast("Could not create the session.", "danger");
       });

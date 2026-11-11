@@ -238,8 +238,59 @@ function sessionCleanState($state, array $previous): array {
     ];
 }
 
+/* ──────────────────────────── User preferences ──────────────────────────── */
+// Per-user defaults (currently: for new sessions). userPrefs() and userPrefsSave()
+// are the only places that know where prefs are stored. Today that is the PHP
+// session (mirrored to localStorage by session.js); with a user DB, read and
+// write the logged-in user's row here instead and nothing else has to change.
+
+function userPrefsDefaults(): array {
+    return [
+        "session_allow_all"      => false, // let everyone control playback in new sessions
+        "session_public"         => false, // list new sessions publicly
+        "session_name"           => "",    // default name for new sessions
+        "session_share_playback" => true,  // new sessions start with what you're playing
+    ];
+}
+
+/** Sanitize prefs against the defaults: unknown keys dropped, types enforced. */
+function userPrefsClean($prefs): array {
+    $clean = [];
+    if (!is_array($prefs)) return $clean;
+    foreach (userPrefsDefaults() as $key => $default) {
+        if (!array_key_exists($key, $prefs)) continue;
+        $v = $prefs[$key];
+        if (is_bool($default)) {
+            $clean[$key] = ($v === true || $v === 'true' || $v === '1' || $v === 1);
+        } else {
+            $clean[$key] = sessionCleanName($v);
+        }
+    }
+    return $clean;
+}
+
+function userPrefs(): array {
+    return array_merge(userPrefsDefaults(), userPrefsClean($_SESSION['user_prefs'] ?? []));
+}
+
+function userPrefsSave(array $prefs): array {
+    $_SESSION['user_prefs'] = array_merge(userPrefs(), userPrefsClean($prefs));
+    return userPrefs();
+}
+
+/** API: save some or all prefs (JSON object or array). */
+function setUserPrefs($prefs): void {
+    if (is_string($prefs)) {
+        $prefs = json_decode($prefs, true);
+    }
+    if (!is_array($prefs)) {
+        apiResponse("error", "Invalid preferences.");
+    }
+    apiResponse("success", "Session defaults saved.", ["prefs" => userPrefsSave($prefs)]);
+}
+
 /* ─────────────────────────────── Actions ────────────────────────────────── */
-function createSession(string $name = "", bool $public = false): void {
+function createSession(string $name = "", bool $public = false, bool $allowAll = false): void {
     sessionEnsureDir();
     sessionCleanup();
     if (!empty($_SESSION['session_code'])) {
@@ -258,14 +309,14 @@ function createSession(string $name = "", bool $public = false): void {
 
     $now = time();
     $displayName = sessionDisplayName();
-    [$data] = sessionWithLock($code, function ($existing) use ($code, $name, $public, $member, $now, $displayName) {
+    [$data] = sessionWithLock($code, function ($existing) use ($code, $name, $public, $allowAll, $member, $now, $displayName) {
         return [
             "code"      => $code,
             "name"      => $name,
             "public"    => $public,
             "created"   => date("c", $now),
             "host"      => $member,
-            "allow_all" => false,
+            "allow_all" => $allowAll,
             "version"   => 1,
             "state"     => [
                 "song" => null, "position" => 0, "playing" => false,
