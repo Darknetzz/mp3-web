@@ -118,10 +118,13 @@
       var info        = new chrome.cast.media.MediaInfo(url, mimeFor(name));
       info.streamType = chrome.cast.media.StreamType.BUFFERED;
       var metadata       = new chrome.cast.media.MusicTrackMediaMetadata();
-      metadata.title     = name;
-      metadata.albumName = siteTitle;
+      var tags           = songInfo(name);
+      metadata.title     = tags.title;
+      metadata.artist    = tags.artist;
+      metadata.albumName = tags.album || siteTitle;
       metadata.images    = [new chrome.cast.Image(art)];  // absolute URL
       info.metadata      = metadata;
+      info.customData    = { file: name };  // the title may be a tag, not the file name
 
       var request         = new chrome.cast.media.LoadRequest(info);
       request.currentTime = startTime || 0;
@@ -186,7 +189,8 @@
     var media = session.getMediaSession();
     if (resumed && media && media.media) {
       watchMedia(media);
-      var title = media.media.metadata && media.media.metadata.title;
+      var title = (media.media.customData && media.media.customData.file) ||
+                  (media.media.metadata && media.media.metadata.title);
       if (title) {
         var index = findIndexByFilename(title);
         if (index !== null) {

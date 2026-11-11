@@ -214,10 +214,12 @@
   // Artwork is the song's cover once known (see resolveCover), else the app logo.
   function updateMediaMetadata(title) {
     if (!('mediaSession' in navigator) || typeof MediaMetadata === "undefined") return;
-    var art = coverKnown(title) ? coverCache[title] : null;
+    var art  = coverKnown(title) ? coverCache[title] : null;
+    var info = songInfo(title);
     navigator.mediaSession.metadata = new MediaMetadata({
-      title:   title,
-      artist:  siteTitle,
+      title:   info.title,
+      artist:  info.artist || siteTitle,
+      album:   info.album,
       artwork: [ art ? { src: art } : { src: fallbackArtwork, sizes: "512x512", type: "image/png" } ],
     });
   }
@@ -413,7 +415,11 @@
     if (title.length === 0) {
       title = "No song selected";
     }
-    $("#songtitle").text(title);
+    var info = findIndexByFilename(title) !== null ? songInfo(title) : null;
+    if (info) title = info.title;
+    $("#songtitle").text(title).attr("title", title);
+    $("#songartist").text(info ? info.artist : "").attr("hidden", !(info && info.artist));
+    if (info && info.artist) title += " – " + info.artist;
     updateCoverArt(songName);
     // if (playing) {
     //   title = playIcon + title;
@@ -481,6 +487,17 @@
     if (!row) return "";
     var text = new DOMParser().parseFromString(String(row.name || ""), "text/html").body.textContent.trim();
     return text || row._song;
+  }
+  // Title and artist to show for a song file: its ID3 tags when it has them,
+  // else the display name and no artist. Tag cells are server-escaped HTML.
+  function songInfo(name) {
+    var id  = name ? findIndexByFilename(name) : null;
+    var row = id !== null ? getSongByIndex(id) : null;
+    var text = function (html) {
+      return new DOMParser().parseFromString(String(html || ""), "text/html").body.textContent.trim();
+    };
+    if (!row) return { title: name || "", artist: "", album: "" };
+    return { title: text(row.title) || songTitle(id), artist: text(row.artist), album: text(row.album) };
   }
   function downloadSong(id) {
     var file = getSongNameByIndex(id);

@@ -410,6 +410,16 @@ body.player-top .audio-player-container {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.playerArtist {
+  font-size: .8rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.playerArtist[hidden] {
+  display: none;
+}
 .playerTitle .castStatus,
 .playerTitle .sessionStatus {
   display: block;

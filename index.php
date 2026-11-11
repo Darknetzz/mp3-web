@@ -228,6 +228,7 @@ echo '
           <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
           <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
         </div>
+        <div id="songartist" class="playerArtist text-secondary" hidden></div>
         <small class="castStatus text-muted" style="display:none;"></small>
         <div class="sessionStatus text-muted small" style="display:none;"></div>
       </div>
