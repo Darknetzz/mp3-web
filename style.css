@@ -172,10 +172,10 @@ tr.songSelected .coverPlay {
 }
 /* Phones: fit the song table to the screen so names get the room */
 @media (max-width: 576px) {
-  .container > .card.m-3 {
+  .appLayout > .card.m-3 {
     margin: .5rem 0 !important;
   }
-  .container > .card.m-3 > .card-body {
+  .appLayout > .card.m-3 > .card-body {
     padding: .75rem .5rem;
   }
   #playlistTable > tbody > tr > td:not(.coverCell),
@@ -998,6 +998,97 @@ body.player-top .toast-container {
 .plPill.plAdd {
   border-style: dashed;
   background: transparent;
+}
+
+/* ─────────────────────────── Playlist sidebar ────────────────────────────── */
+/* The same #playlistBar, moved into an <aside>: a vertical list beside the
+   songs on wide screens, the usual pill row above them on smaller ones. */
+.sideNavTitle {
+  display: none;
+}
+@media (max-width: 991.98px) {
+  .sideNav.card {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    margin-bottom: 0 !important;
+  }
+}
+@media (max-width: 576px) {
+  .sideNav.card {
+    margin: .5rem 0 0 !important;
+  }
+}
+@media (min-width: 992px) {
+  body.nav-sidebar .appLayout {
+    display: flex;
+    align-items: flex-start;
+  }
+  body.nav-sidebar .mainCard {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  body.nav-sidebar .sideNav {
+    flex: 0 0 240px;
+    width: 240px;
+    margin-right: 0 !important;
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - var(--player-h, 0px) - 2rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding: 0.75rem 0.5rem;
+  }
+  body.nav-sidebar.player-top .sideNav {
+    top: calc(var(--player-h, 0px) + 1rem);
+  }
+  body.nav-sidebar .sideNavTitle {
+    display: block;
+    padding: 0 0.6rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tblr-secondary);
+  }
+  body.nav-sidebar .sideNav .playlistBar {
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+    padding: 0;
+  }
+  body.nav-sidebar .sideNav .plPill {
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 0.5rem 0.6rem;
+    text-align: left;
+    font-weight: 500;
+  }
+  body.nav-sidebar .sideNav .plPill > span:not(.plCount) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.nav-sidebar .sideNav .plPill .plCount {
+    margin-left: auto;
+  }
+  body.nav-sidebar .sideNav .plPill:hover {
+    background: color-mix(in oklab, var(--tblr-body-color) 8%, transparent);
+  }
+  body.nav-sidebar .sideNav .plPill.active {
+    background: color-mix(in oklab, var(--tblr-primary) 18%, transparent);
+    color: var(--tblr-body-color);
+    font-weight: 600;
+  }
+  body.nav-sidebar .sideNav .plPill.plFav.active .lucide {
+    color: #e5484d;
+  }
+  body.nav-sidebar .sideNav .plPill.plAdd {
+    margin-top: 0.4rem;
+    border: 1px dashed var(--tblr-border-color);
+    color: var(--tblr-secondary);
+  }
 }
 .playlistHeader {
   display: flex;

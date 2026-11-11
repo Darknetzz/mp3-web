@@ -122,7 +122,7 @@ $settingsCategories = [
   "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
   "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "auto_scroll_on_end", "use_legacy_player"]],
   "appearance" => ["name" => "Appearance", "icon" => "palette",         "keys" => ["player_theme", "custom_base", "custom_background", "custom_surface", "custom_text", "accent_color", "custom_accent"]],
-  "layout"     => ["name" => "Layout",     "icon" => "panels-top-left", "keys" => ["player_position", "show_waveform", "show_quick_buttons", "show_upload", "compact_rows", "fluid-container"]],
+  "layout"     => ["name" => "Layout",     "icon" => "panels-top-left", "keys" => ["player_position", "playlist_nav", "show_waveform", "show_quick_buttons", "show_upload", "compact_rows", "fluid-container"]],
   "background" => ["name" => "Background", "icon" => "image",           "keys" => ["background_image", "background_dim", "background_blur"]],
   "other"      => ["name" => "Other",      "icon" => "ellipsis", "keys" => []],
 ];

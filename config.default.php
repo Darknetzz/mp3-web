@@ -242,6 +242,16 @@ $config = [
             "top"    => "Top",
         ],
     ],
+    "playlist_nav" => [
+        "name"        => "Playlist list",
+        "description" => "Where All songs and your playlists are listed. Small screens always show them above the songs.",
+        "value"       => "sidebar",
+        "type"        => "selection",
+        "options"     => [
+            "sidebar" => "Left sidebar",
+            "top"     => "Above the songs",
+        ],
+    ],
     "show_waveform" => [
         "name"        => "Waveform",
         "description" => "The animated bars next to the song title.",

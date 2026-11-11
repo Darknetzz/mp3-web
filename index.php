@@ -42,7 +42,7 @@ $theme = themeSetup();
     <?php if ($theme["css"] !== "") { echo "<style>" . $theme["css"] . "</style>"; } ?>
     <?= $theme["script"] ?>
   </head>
-<body class="<?= getConfig('player_position') === 'top' ? 'player-top' : 'player-bottom' ?>">
+<body class="<?= getConfig('player_position') === 'top' ? 'player-top' : 'player-bottom' ?> <?= getConfig('playlist_nav') === 'top' ? 'nav-top' : 'nav-sidebar' ?>">
 <?php
 
 
@@ -325,8 +325,17 @@ echo '
 </aside>
 ';
 
+$navSidebar = getConfig('playlist_nav') !== 'top';
+echo '<div class="appLayout">';
+if ($navSidebar) {
+  echo '
+<aside class="sideNav card m-3" aria-label="Playlists">
+  <div class="sideNavTitle">Your library</div>
+  <div id="playlistBar" class="playlistBar"></div>
+</aside>';
+}
 echo '
-<div class="card m-3">
+<div class="card m-3 mainCard">
   <div class="card-header d-flex justify-content-between">
       <div>
         <h2>'.getConfig("site_title").' <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
@@ -374,8 +383,10 @@ if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
     echo '<p>Upload some music files to the <code>'.getConfig("audio_path").'/</code> directory.</p>';
 }
+if (!$navSidebar) {
+  echo '<div id="playlistBar" class="playlistBar" aria-label="Playlists"></div>';
+}
 echo '
-<div id="playlistBar" class="playlistBar" aria-label="Playlists"></div>
 <div id="playlistHeader" class="playlistHeader" style="display:none;"></div>
 <div id="toolbar"></div>
 <table id="playlistTable" data-toolbar="#toolbar" class="table table-striped'.(getConfig('compact_rows') ? ' table-sm' : '').'"'.$sortAttrs.'
@@ -473,6 +484,7 @@ foreach ($musicFiles as $file) {
 }
 echo '</tbody></table>';
 echo '</div></div>';
+echo '</div>'; // .appLayout
 ?>
 
 
