@@ -13,7 +13,7 @@
 
 const LYRICS_API          = 'https://lrclib.net/api';
 const LYRICS_CACHE_DIR    = __DIR__ . '/cache/lyrics';
-const LYRICS_CACHE_FORMAT = 3;            // bump to invalidate old cache entries
+const LYRICS_CACHE_FORMAT = 4;            // bump to invalidate old cache entries
 const LYRICS_RETRY_AFTER  = 30 * 86400;   // look a "not found" up again after 30 days
 const LYRICS_MAX_DIFF     = 3;            // seconds a search result's duration may differ
 
@@ -88,8 +88,9 @@ function lyricsCandidates(string $path, ?float &$duration, ?string &$haystack = 
         $add(lyricsFirstArtist($m[1]), lyricsCleanTitle($m[2]));
     } elseif (preg_match('/^(.+?)-(.+)$/u', $name, $m)) {   // "BassHunter-Tetris"
         $add(trim($m[1]), lyricsCleanTitle($m[2]));
+    } else {
+        $add('', lyricsCleanTitle($name));                  // just a title
     }
-    $add('', lyricsCleanTitle($name));
 
     $haystack = lyricsNorm(basename($path) . ' ' . $tagArtist . ' ' . $tagTitle);
     return array_values($out);
@@ -164,7 +165,8 @@ function lyricsResultMatches(array $r, string $title, string $haystack): bool {
     $artistOk = false;
     foreach (preg_split('/\s*(?:,|&|\bx\b|\band\b|\bog\b|\bft\.?|\bfeat\.?|\bfeaturing\b|\bvs\.?)\s*/iu', (string) ($r['artistName'] ?? '')) as $a) {
         $a = lyricsNorm($a);
-        if (mb_strlen($a) >= 3 && mb_strpos($haystack, $a) !== false) { $artistOk = true; break; }
+        if ($a === $want) return false; // our "title" is just the artist's name
+        if (mb_strlen($a) >= 3 && mb_strpos($haystack, $a) !== false) { $artistOk = true; }
     }
     if (!$artistOk) return false;
     return mb_strlen($want) >= 4 && mb_strlen($got) >= 4
