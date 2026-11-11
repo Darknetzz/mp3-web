@@ -1,5 +1,11 @@
 # Codebase Improvements Recommendations
 
+> **Status (checked against the code on 2026-11-11):** this list predates many changes and its line numbers no
+> longer match. Already resolved: #1 (`remove()` uses `basename()` and a `realpath()` check), #6 (`getDuration()`
+> returns early when the file is missing), #20 (covers, tags and lyrics are cached in `cache/`), #31 (CSRF tokens on
+> state-changing requests). Still applies: #35 (the commented-out `download()`; the `dl` API action calls it).
+> Other items were not re-checked.
+
 ## 🔒 Security Issues
 
 ### 1. **Path Traversal Vulnerability in `remove()` function** (Critical)

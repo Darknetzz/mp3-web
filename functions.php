@@ -1,8 +1,86 @@
 <?php
 
     /* ───────────────────────────── FUNCTION: icon ───────────────────────────── */
-    function icon(string $icon = "", float $size = 1.5, int $margin = 1): string {
-        return '<i class="bi bi-' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . ' m-' . $margin . '" style="font-size: ' . $size . 'em;"></i>';
+    // Lucide icon from the local sprite (assets/icons/lucide.svg, built by
+    // assets/icons/build.py — add new names there). Sized by font-size (1em
+    // box) and coloured by currentColor; $filled fills solid shapes (play,
+    // heart, ...). lucideIcon() in js.php outputs the same markup.
+    define('ICON_SPRITE', 'assets/icons/lucide.svg?v=' . @filemtime(__DIR__ . '/assets/icons/lucide.svg'));
+    function icon(string $icon = "", float $size = 1.5, int $margin = 1, bool $filled = false): string {
+        $name = htmlspecialchars($icon, ENT_QUOTES, 'UTF-8');
+        return '<svg class="lucide icon-' . $name . ' m-' . $margin . ($filled ? ' filled' : '') . '" style="font-size: ' . $size . 'em;" aria-hidden="true" focusable="false"><use href="' . ICON_SPRITE . '#' . $name . '"></use></svg>';
+    }
+
+    /* ─────────────────────────── FUNCTION: themeSetup ───────────────────────── */
+    // Works out the <html> attributes, inline CSS and auto-theme script for the
+    // configured theme, accent and background. All values are validated here.
+    function themeSetup(): array {
+        $lightThemes = ["light", "arctic"];
+        $theme  = (string) getConfig("player_theme");
+        $accent = (string) getConfig("accent_color");
+        $isHex  = function ($v) { return is_string($v) && preg_match('/^#[0-9a-f]{6}$/i', $v); };
+
+        if ($theme === "auto") {
+            $base = "dark"; // corrected before first paint by the inline script
+        } elseif ($theme === "custom") {
+            $base = getConfig("custom_base") === "light" ? "light" : "dark";
+        } else {
+            $base = in_array($theme, $lightThemes, true) ? "light" : "dark";
+        }
+
+        $attrs = [
+            "data-bs-theme"  => $base,
+            "data-app-theme" => preg_replace('/[^a-z]/', '', $theme),
+            "data-accent"    => preg_replace('/[^a-z]/', '', $accent),
+        ];
+        $css = "";
+
+        if ($theme === "custom") {
+            $bg      = getConfig("custom_background");
+            $surface = getConfig("custom_surface");
+            $text    = getConfig("custom_text");
+            if ($isHex($bg) && $isHex($surface) && $isHex($text)) {
+                $css .= "html[data-app-theme=\"custom\"]{"
+                      . "--tblr-body-bg:$bg;--tblr-bg-surface-secondary:$bg;"
+                      . "--tblr-bg-surface:$surface;--tblr-bg-forms:$surface;"
+                      . "--tblr-bg-surface-tertiary:color-mix(in oklab,$surface 92%,$text);"
+                      . "--tblr-secondary-bg:color-mix(in oklab,$surface 90%,$text);"
+                      . "--tblr-border-color:color-mix(in oklab,$surface 82%,$text);"
+                      . "--tblr-body-color:$text;}";
+            }
+        }
+
+        if ($accent === "custom") {
+            $hex = getConfig("custom_accent");
+            if ($isHex($hex)) {
+                $rgb  = implode(",", array_map('hexdec', str_split(substr($hex, 1), 2)));
+                $css .= "html[data-accent=\"custom\"]{--tblr-success:$hex;--tblr-success-rgb:$rgb;}";
+            }
+        }
+
+        // Background image: http(s) URL or a relative path without anything that could break out of url("…").
+        $image = trim((string) getConfig("background_image"));
+        if ($image !== "" && !preg_match('/["\'()\\\\<>\s;]/', $image)
+            && (preg_match('#^https?://#i', $image) || !preg_match('#^[a-z][a-z0-9+.-]*:#i', $image))) {
+            $attrs["data-has-bg"] = "1";
+            $dim  = max(0, min(1, (float) getConfig("background_dim")));
+            $blur = max(0, min(20, (float) getConfig("background_blur")));
+            $css .= "html[data-has-bg]{--app-bg-image:url(\"$image\");--app-bg-dim:$dim;--app-bg-blur:{$blur}px;}";
+        }
+
+        $html = "";
+        foreach ($attrs as $name => $value) {
+            $html .= " " . $name . '="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '"';
+        }
+
+        $script = "";
+        if ($theme === "auto") {
+            $script = "<script>(function(){var m=window.matchMedia('(prefers-color-scheme: dark)');"
+                    . "function a(){document.documentElement.setAttribute('data-bs-theme',m.matches?'dark':'light');}"
+                    . "a();if(m.addEventListener)m.addEventListener('change',a);})();</script>";
+        }
+
+        return ["attributes" => $html, "css" => $css, "script" => $script];
     }
 
     /* ───────────────────────────── FUNCTION: alert ──────────────────────────── */
@@ -52,8 +130,60 @@
             $duration = sprintf("%d:%02d", $minutes, $seconds);
             return $duration;
         } catch (Exception $e) {
+            // Only Exception is caught: an Error from Mp3Info (e.g. DivisionByZeroError on
+            // some MPEG-2 files) still propagates and stops the page.
             return "0:00";
         }
+    }
+
+    /* ────────────────────────── FUNCTION: getSongMeta ───────────────────────── */
+    // ID3 title/artist/album/year plus duration, read in one pass. Results are
+    // cached in cache/meta/ (git-ignored) until the file changes. Missing tags are ''.
+    function getSongMeta(string $file): array {
+        $meta = ['title' => '', 'artist' => '', 'album' => '', 'year' => '', 'duration' => '0:00'];
+        if (!is_file($file)) {
+            return $meta;
+        }
+        $mtime    = filemtime($file);
+        $cacheDir = __DIR__ . '/cache/meta';
+        $cached   = $cacheDir . '/' . sha1(realpath($file) ?: $file) . '.json';
+        if (is_file($cached) && filemtime($cached) >= $mtime) {
+            $data = json_decode((string) @file_get_contents($cached), true);
+            if (is_array($data)) {
+                return array_merge($meta, array_intersect_key($data, $meta));
+            }
+        }
+
+        $clean = function ($v): string {
+            if (!is_string($v) && !is_numeric($v)) return '';
+            $v = (string) $v;
+            if (!mb_check_encoding($v, 'UTF-8')) {
+                $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
+            }
+            // Strip NULs/control chars left over from fixed-width id3v1 fields
+            return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $v) ?? '');
+        };
+        if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'mp3') {
+            try {
+                $info = new wapmorgan\Mp3Info\Mp3Info($file, true);
+                $tags = (array) $info->tags;
+                $meta['title']  = $clean($tags['song'] ?? '');
+                $meta['artist'] = $clean($tags['artist'] ?? '');
+                $meta['album']  = $clean($tags['album'] ?? '');
+                $meta['year']   = $clean($tags['year'] ?? '');
+                $d = (int) round((float) $info->duration);
+                $meta['duration'] = sprintf("%d:%02d", intdiv($d, 60), $d % 60);
+            } catch (Throwable $e) {
+                $meta['duration'] = getDuration($file);
+            }
+        } else {
+            $meta['duration'] = getDuration($file);
+        }
+
+        if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+            @file_put_contents($cached, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+        return $meta;
     }
 
     /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */
@@ -95,100 +225,95 @@
     }
 
     /* ─────────────────────────── FUNCTION: saveConfig ───────────────────────── */
+    // Writes the full (merged) configuration to the active config file.
     function saveConfig(array $config): void {
-        $tab = function($amt = 1) {
-            $tabs = "";
-            for ($i = 0; $i < $amt; $i++) {
-                $tabs .= "    ";
-            }
-            return $tabs;
-        };
-        $configContent = "<?php\n\n";
-        $configContent .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
-        $configContent .= "/*                                 Configuration                              */\n";
-        $configContent .= "/* ────────────────────────────────────────────────────────────────────────── */\n\n";
-        $configContent .= "\$config = [\n";
-    
-        foreach ($config as $key => $setting) {
+        $content  = "<?php\n\n";
+        $content .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
+        $content .= "/*                                 Configuration                              */\n";
+        $content .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
+        $content .= "# Written by the settings dialog. Defaults live in config.default.php.\n\n";
+        $content .= "\$config = " . var_export($config, true) . ";\n";
 
-            $name        = $setting['name'];
-            $description = $setting['description'];
-            $value       = $setting['value'];
-            $type        = $setting['type'];
-            $options     = (isset($setting['options'])) ? $setting['options'] : [];
-            $attributes  = (isset($setting['attributes'])) ? $setting['attributes'] : [];
-
-            $configContent .= $tab(1)."\"$key\" => [\n";
-            $configContent .= $tab(2)."\"name\" => \"" . addslashes($name) . "\",\n";
-            $configContent .= $tab(2)."\"description\" => \"" . addslashes($description) . "\",\n";
-            $configContent .= $tab(2)."\"type\" => \"" . addslashes($type) . "\",\n";
-
-            # NOTE: Options
-            if (!empty($options) && is_array($options)) {
-                $configContent .= $tab(2)."\"options\" => [\n";
-                foreach ($options as $option => $name) {
-                    $configContent .= $tab(3)."\"" . addslashes($option) . "\" => \"" . addslashes($name) . "\",\n";
-                }
-                $configContent .= $tab(2)."],\n";
-            }
-
-            # NOTE: Value
-            $configContent .= $tab(2)."\"value\" => ";
-            if ($type == "range") {
-                $configContent .= $value;
-            } elseif ($type === "selection") {
-                $configContent .= '"' . addslashes($value) . '"';
-            } elseif ($type === "multiselect") {
-                $configContent .= '<input type="checkbox" name="multiselect" value="1" '.($value ? 'checked' : '').'>';
-            } elseif ($type === "array") {
-                $configContent .= '["' . implode('", "', $value) . '"]';
-            } elseif ($type === "bool") {
-                $value = ($value === true || $value === "true") ? "true" : "false";
-                $configContent .= $value;
-            } else {
-                $configContent .= "\"" . addslashes($value) . "\"";
-            }
-            # NOTE: End of value
-            $configContent .= ",\n";
-
-            # NOTE: Attributes
-            if (!empty($attributes) && is_array($attributes)) {
-                $configContent .= $tab(2)."\"attributes\" => [\n";
-                foreach ($attributes as $attrKey => $attrValue) {
-                    $configContent .= $tab(3)."\"$attrKey\" => \"$attrValue\",\n";
-                }
-                # NOTE: End of Attributes
-                $configContent .= $tab(1)."],\n";
-            }
-            $configContent .= $tab(2)."],\n";
+        // Write in place (not temp + rename) so the file keeps its owner, mode and ACLs.
+        if (@file_put_contents(CONFIG_FILE, $content, LOCK_EX) === false) {
+            apiResponse("error", "Could not write <code>" . htmlspecialchars(CONFIG_FILE, ENT_QUOTES, 'UTF-8') . "</code>. Check that it is writable by the web server.");
         }
-
-        # NOTE: End of config file
-        $configContent .= "];\n\n";
-        $configContent .= "?>";
-    
-        file_put_contents(CONFIG_FILE, $configContent);
+        if (function_exists('opcache_invalidate')) {
+            @opcache_invalidate(CONFIG_FILE, true);
+        }
         apiResponse("success", "The configuration has been saved.");
+    }
+
+    /* ────────────────────────── FUNCTION: cleanConfigValue ──────────────────── */
+    // Validates and normalises a submitted value for a setting. Dies with an error if invalid.
+    function cleanConfigValue(array $setting, $value) {
+        $type  = $setting['type'] ?? 'string';
+        $attrs = $setting['attributes'] ?? [];
+        $name  = htmlspecialchars($setting['name'] ?? 'Value', ENT_QUOTES, 'UTF-8');
+
+        switch ($type) {
+            case 'bool':
+                return ($value === true || $value === 'true' || $value === '1' || $value === 1 || $value === 'on');
+
+            case 'range':
+            case 'number':
+                if (!is_numeric($value)) {
+                    apiResponse("error", "$name must be a number.");
+                }
+                $value = ($type === 'number' && floor((float) $value) == (float) $value) ? (int) $value : (float) $value;
+                if (isset($attrs['min']) && $value < (float) $attrs['min']) $value = (float) $attrs['min'];
+                if (isset($attrs['max']) && $value > (float) $attrs['max']) $value = (float) $attrs['max'];
+                return $value;
+
+            case 'selection':
+                $options = $setting['options'] ?? [];
+                if (!is_array($options) || !array_key_exists((string) $value, $options)) {
+                    apiResponse("error", "That is not a valid choice for $name.");
+                }
+                return (string) $value;
+
+            case 'multiselect':
+                $options = $setting['options'] ?? [];
+                $value   = is_array($value) ? $value : [];
+                return array_values(array_filter($value, function ($v) use ($options) {
+                    return in_array($v, $options, true);
+                }));
+
+            case 'color':
+                if (!is_string($value) || !preg_match('/^#[0-9a-f]{6}$/i', $value)) {
+                    apiResponse("error", "$name must be a color like #1db954.");
+                }
+                return strtolower($value);
+
+            case 'array':
+                $value = is_array($value) ? $value : [];
+                $clean = [];
+                foreach ($value as $item) {
+                    $item = trim((string) $item);
+                    if ($item !== '' && !in_array($item, $clean, true)) $clean[] = $item;
+                }
+                return $clean;
+
+            default:
+                return trim((string) $value);
+        }
     }
 
     /* ─────────────────────────── FUNCTION: setConfig ────────────────────────── */
     function setConfig(string $key, $newValue): void {
         $config = getConfig();
-    
-        if (!isset($config[$key])) {
-            apiResponse("error", "Key does not exist"); // Key does not exist
+
+        if ($key === '' || !isset($config[$key])) {
+            apiResponse("error", "That setting does not exist.");
         }
+
+        $newValue = cleanConfigValue($config[$key], $newValue);
 
         if ($newValue === $config[$key]['value']) {
-            apiResponse("error", "Value is the same"); // Value is the same
+            apiResponse("success", "No change.");
         }
 
-        if (empty($key) || empty($newValue)) {
-            apiResponse("error", "Key or value is empty"); // Key or value is empty
-        }
-    
         $config[$key]['value'] = $newValue;
-    
         saveConfig($config);
     }
 
@@ -261,7 +386,7 @@
                     "download" => 
                         "<a href='javascript:void(0);' class='link-success downloadBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("download")."</a>",
                     "delete"   => 
-                        "<a href='javascript:void(0);' class='link-danger deleteBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("trash-can")."</a>",
+                        "<a href='javascript:void(0);' class='link-danger deleteBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("trash-2")."</a>",
                 ];
                 $i++;
             }
@@ -405,65 +530,5 @@
         if ($returnResult) return $result;
         apiResponse("success", $result["response"], $result["data"]);
     }
-
-    /* ───────────────────────── FUNCTION: createSession ──────────────────────── */
-    function createSession(?string $id = null, bool $public = false): void {
-        global $_SESSION;
-        if (!empty($_SESSION["session_code"])) {
-            $sessionCode = $_SESSION["session_code"];
-            apiResponse("error", "Session <code>".htmlspecialchars($sessionCode, ENT_QUOTES, 'UTF-8')."</code> is already active.");
-        }
-        if (empty($id)) {
-            $id = bin2hex(random_bytes(4));
-        }
-        if (preg_match('/[^a-zA-Z0-9]/', $id) || strlen($id) !== 8) {
-            apiResponse("error", "The session code is invalid. It must be 8 characters long and alphanumeric.");
-        }
-        $sessionDir = 'session';
-        if (!is_dir($sessionDir)) {
-            $createDir = mkdir($sessionDir, 0755, true);
-            if (!$createDir) {
-                apiResponse("error", "The session directory <code>".htmlspecialchars($sessionDir, ENT_QUOTES, 'UTF-8')."</code> could not be created.");
-            }
-        }
-        if (!is_dir($sessionDir) || !is_writable($sessionDir)) {
-            apiResponse("error", "The session directory <code>".htmlspecialchars($sessionDir, ENT_QUOTES, 'UTF-8')."</code> is not writable.");
-        }
-        if (file_exists($sessionDir . '/' . $id . '.json')) {
-            apiResponse("error", "The session code <code>".htmlspecialchars($id, ENT_QUOTES, 'UTF-8')."</code> already exists.");
-        }
-
-        $session = [
-            "session_code" => $id,
-            "created"      => date("Y-m-d H:i:s"),
-            "public"       => $public
-        ];
-
-        $sessionFile = $sessionDir . '/' . $id . '.json';
-        touch($sessionFile);
-        chmod($sessionFile, 0644);
-        file_put_contents($sessionFile, json_encode($session, JSON_PRETTY_PRINT));
-        if (!file_exists($sessionFile) || !is_file($sessionFile)) {
-            apiResponse("error", "The session file <code>".htmlspecialchars($sessionFile, ENT_QUOTES, 'UTF-8')."</code> could not be created.");
-        }
-
-        $_SESSION["session_code"] = $id;
-        apiResponse("success", "The session <code>".htmlspecialchars($id, ENT_QUOTES, 'UTF-8')."</code> has been created.", ["session_code" => $id]);
-    }
-
-    /* ───────────────────────── FUNCTION: joinSession ─────────────────────────── */
-    function joinSession(?string $id = null): void {
-        global $_SESSION;
-        if (empty($id)) {
-            apiResponse("error", "The session code is empty.");
-        }
-        if (!file_exists('session/' . $id . '.json') || !is_file('session/' . $id . '.json')) {
-            apiResponse("error", "The session code is invalid.");
-        }
-        $_SESSION["session_code"] = $id;
-        apiResponse("success", "You have joined session <code>".htmlspecialchars($id, ENT_QUOTES, 'UTF-8')."</code>.", ["session_code" => $id]);
-    }
-
-
 
 ?>
