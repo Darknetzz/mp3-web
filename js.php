@@ -68,7 +68,14 @@
     if (window.sessionSync) sessionSync.localChange(override);
   }
   // Called when the current song finishes (locally or on a Cast speaker).
+  // True while the next song starts because the last one finished, so
+  // scrollToActiveSong can leave the list where the user put it.
+  var advancingOnEnd = false;
   function onSongEnded() {
+    advancingOnEnd = true;
+    try { advanceOnEnd(); } finally { advancingOnEnd = false; }
+  }
+  function advanceOnEnd() {
     if (!autoplayNext && !loop) {
       // Stop at the end of the song instead of moving on.
       if (window.sessionSync && sessionSync.active() && !sessionSync.canControl()) return;
@@ -435,6 +442,7 @@
     if (!autoScroll) {
         return;
     }
+    if (advancingOnEnd && !<?= json_encode((bool) getConfig("auto_scroll_on_end")) ?>) return;
     var row = $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0];
     if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
   }

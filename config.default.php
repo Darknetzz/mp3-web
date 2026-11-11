@@ -130,6 +130,12 @@ $config = [
         "value"       => true,
         "type"        => "bool",
     ],
+    "auto_scroll_on_end" => [
+        "name"        => "Scroll when a song ends",
+        "description" => "Also scroll to the next song when it starts because the last one finished.",
+        "value"       => false,
+        "type"        => "bool",
+    ],
     "use_legacy_player" => [
         "name"        => "Legacy player",
         "description" => "Use the browser's built-in audio controls.",
