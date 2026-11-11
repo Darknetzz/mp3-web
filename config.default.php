@@ -93,6 +93,12 @@ $config = [
         "type"        => "range",
         "attributes"  => ["min" => 0, "max" => 1, "step" => 0.05, "format" => "percent"],
     ],
+    "loudness_equalization" => [
+        "name"        => "Loudness equalization",
+        "description" => "Even out the volume between quiet and loud songs (and within them) with a compressor. Applies to this browser only, not while casting.",
+        "value"       => false,
+        "type"        => "bool",
+    ],
     "autoplay_next" => [
         "name"        => "Play the next song automatically",
         "description" => "Default for the autoplay button in the playbar (each browser remembers its own choice). When off, playback stops at the end of each song.",

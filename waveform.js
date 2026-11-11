@@ -39,27 +39,15 @@
     return true;
   }
 
-  // Must run inside a user gesture: once the <audio> element is routed through
-  // an AudioContext, a suspended context would silence it.
-  function ensureGraph() {
-    if (audioCtx) return;
-    var AC = window.AudioContext || window.webkitAudioContext;
-    var audio = document.querySelector("audio");
-    if (!AC || !audio) return;
-    try {
-      audioCtx = new AC();
-      var source = audioCtx.createMediaElementSource(audio);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.75;
-      source.connect(analyser);
-      analyser.connect(audioCtx.destination);
-      freqData = new Uint8Array(analyser.frequencyBinCount);
-    } catch (e) {
-      console.warn("Waveform: Web Audio unavailable, using simulated bars", e);
-      audioCtx = null;
-      analyser = null;
-    }
+  // The <audio> element's Web Audio route lives in audiograph.js; the analyser
+  // just taps its output.
+  function attachAnalyser(ac, output) {
+    audioCtx = ac;
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 64;
+    analyser.smoothingTimeConstant = 0.75;
+    output.connect(analyser);
+    freqData = new Uint8Array(analyser.frequencyBinCount);
   }
 
   // Heights in the range 0..1, one per bar
@@ -157,14 +145,7 @@
   function init() {
     if (!setupCanvas()) return;
     drawFlat();
-    var onGesture = function () {
-      ensureGraph();
-      if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-      document.removeEventListener("pointerdown", onGesture, true);
-      document.removeEventListener("keydown", onGesture, true);
-    };
-    document.addEventListener("pointerdown", onGesture, true);
-    document.addEventListener("keydown", onGesture, true);
+    if (window.audioGraph) window.audioGraph.request(attachAnalyser);
   }
 
   if (document.readyState === "loading") {

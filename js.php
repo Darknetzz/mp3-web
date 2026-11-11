@@ -37,6 +37,7 @@
   var demoMode              = <?= json_encode(getConfig("env") === "demo") ?>; // file and playlist actions are disabled
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
+  window.loudnessEqualization = <?= json_encode((bool) getConfig("loudness_equalization")) ?>; // read by audiograph.js
   // Autoplay (play the next song when one ends): the playbar toggle is remembered
   // per browser; the autoplay_next setting is the default.
   var autoplayNext          = (function() {
