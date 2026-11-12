@@ -199,6 +199,30 @@ The Cast button sits on the right of the playbar, next to the queue button.
   continues locally (paused) from where the speaker left off.
 - In Safari the button opens the AirPlay picker instead.
 
+### Accounts and sign-in
+
+Everyone signs in with their own account (turn this off with the *Require sign-in* setting or `AUTH_REQUIRED=false`).
+
+- **First run**: a fresh install opens a short setup screen: create the admin account, pick the music folders, set
+  the site title, theme and whether sign-in is required, and optionally start looking up song info online. With
+  `ADMIN_USERNAME` and `ADMIN_PASSWORD` in the environment the admin is created on first start and the setup screen
+  is skipped (see [Environment](#environment-env)). On an existing install, the first account takes over the
+  playlists, Favorites and sidebar order that were there before.
+- **Admins** manage users (Settings → Users: add, set a new password, change role, delete), the music folders and
+  every setting marked *All users*, and can upload, delete and edit songs and run *Fetch metadata*. **Users** play
+  music and keep their own playlists, Favorites and look.
+- **Your own settings**: playback, appearance, player bar, layout and background settings are saved per account;
+  site title, music folders, file types, online lookups and sign-in are shared (marked *All users*).
+- **Account** (Settings → Account, or the menu under your name): display name, password (changing it signs out your
+  other devices), *Show others what I'm playing*, and sign out. *Keep me signed in* on the sign-in page lasts 30 days.
+- **Activity**: the radio button in the header lists what other users are playing right now (only those who share
+  it). *Play* starts the same song; *Listen along* joins their listening session if they are in one, or plays the
+  song from where they are.
+- After 5 failed sign-ins from one address, sign-in is blocked for 5 minutes.
+- Accounts are stored in a SQLite database, `data/mp3web.sqlite` (or `$DATA_DIR`), which must be writable by the
+  web server. Song and cover links carry a signed token, so Cast devices and exported `.m3u` playlists work without
+  a session.
+
 ### Listening sessions
 
 Click the people button in the header to **create** or **join** a session.
@@ -211,8 +235,8 @@ Click the people button in the header to **create** or **join** a session.
 - **The host controls playback** (play/pause, seek, skip, queue, loop, shuffle). Listeners' controls are dimmed.
   The host can switch on *Let everyone control playback* to make the session a shared jukebox, or tick it in the
   Create form so the session starts that way.
-- Set **your name** at the top of the dialog (it is remembered in this browser and can be changed at any time, even
-  mid-session). The session card lists every member by name, with the host marked and idle members shown as *away*.
+- Set **your name** at the top of the dialog (with an account this is your display name; without one it is remembered
+  in this browser). It can be changed at any time, even mid-session. The session card lists every member by name, with the host marked and idle members shown as *away*.
 - **Session defaults** (under your name) set how sessions you create start: let everyone control playback, make it
   public, a default name, and whether it starts with what you're playing or empty. They prefill the Create form. They
   are kept in the PHP session and mirrored to `localStorage`, so they belong to this browser.
@@ -236,19 +260,22 @@ between **All songs**, **Favorites** and your playlists.
   inside the playlist you started from, even if you switch the list to another view.
 - **Reorder** by dragging songs (when the list isn't sorted or searched), or with *Move up* / *Move down* in the ⋯ menu.
 - **Rename**, **export** (`.m3u` with links to the songs, playable in e.g. VLC) or **delete** from the playlist's ⋯ menu.
-- Playlists are stored as JSON files in `playlists/` and shared by everyone using this server. If a song file is
-  removed, it stays in the playlist (shown as "not in library") and comes back if the file returns.
+- Playlists and Favorites are **your own**. To share a playlist, pick *Sharing* in its ⋯ menu: *Everyone can listen*
+  (others see it, marked with the share icon and your name, read-only) or *Everyone can edit*. Only the owner can
+  change sharing or delete it. Favorites can't be shared.
+- Playlists are stored as JSON files in `playlists/` (Favorites in `playlists/favorites/<user id>.json`). If a song
+  file is removed, it stays in the playlist (shown as "not in library") and comes back if the file returns.
 
 ## Requirements
 
 - PHP 8.x with a web server (Apache, nginx + PHP-FPM, etc.)
-- PHP extensions: `mbstring` (required), `curl` (lyrics), `gd` (optional: resizes cover art; without it covers are sent at full size)
+- PHP extensions: `mbstring` and `pdo_sqlite` (required), `curl` (lyrics), `gd` (optional: resizes cover art; without it covers are sent at full size)
 - [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`, `james-heinrich/getid3`)
 - Write access for the web server user to:
   - the first music folder (uploads), any folder you delete songs from, and the app folder, where deleted songs are moved to `deleted/`
 - Read access for the web server user to every music folder
   - the active config file (settings dialog)
-  - `session/` and `playlists/`
+  - `session/`, `playlists/` and `data/` (accounts)
   - `cache/` (optional: covers, tags and lyrics are cached there)
 - Outbound HTTPS to `lrclib.net` for lyrics (optional)
 
@@ -271,11 +298,18 @@ docker build -t mp3-web:main .
 docker run -d -p 9096:80 mp3-web:main
 ```
 
-To use your own music, mount it over the music folder:
+To use your own music, mount it over the music folder. Mount `data/` and `playlists/` too, so accounts and playlists
+survive a new container:
 
 ```bash
-docker run -d -p 9096:80 -v /path/to/your/music:/var/www/html/music mp3-web:main
+docker run -d -p 9096:80 \
+  -v /path/to/your/music:/var/www/html/music \
+  -v mp3-data:/var/www/html/data -v mp3-playlists:/var/www/html/playlists \
+  mp3-web:main
 ```
+
+Open the page and the setup screen walks you through the admin account and music folders. To skip it, pass
+`-e ADMIN_USERNAME=… -e ADMIN_PASSWORD=… -e MUSIC_FOLDERS=music` (see [Environment](#environment-env)).
 
 ### Docker Compose
 
@@ -289,7 +323,18 @@ services:
       - "9096:80"
     volumes:
       - /path/to/your/music:/var/www/html/music
+      - mp3-data:/var/www/html/data
+      - mp3-playlists:/var/www/html/playlists
+    environment:
+      # Optional: skip the setup screen on first start
+      # ADMIN_USERNAME: admin
+      # ADMIN_PASSWORD: change-me
+      # MUSIC_FOLDERS: music
     restart: unless-stopped
+
+volumes:
+  mp3-data:
+  mp3-playlists:
 ```
 
 ### Manual
@@ -299,11 +344,11 @@ services:
    ```bash
    composer install
    ```
-3. Make sure a `.env` file exists in the project root (copy `.env.example`; see [Environment](#environment-env)).
+3. Optional: copy `.env.example` to `.env` (see [Environment](#environment-env)).
 4. Optional: create `config.local.php` for your settings, so the tracked `config.php` stays unchanged
    (see [Settings](#settings)).
 5. Put some music in the `music` folder, or add your own folders in Settings → Library.
-6. Open the page in a browser and start listening.
+6. Open the page in a browser: the setup screen creates the admin account. Then start listening.
 
 For a quick local try without a web server, PHP's built-in server works:
 
@@ -395,15 +440,22 @@ look. Combine any theme with an accent color, and optionally a background image.
 
 ### Environment (`.env`)
 
-Loaded with [`vlucas/phpdotenv`](https://github.com/vlucas/phpdotenv). The app refuses to start without it, and
-`ENV` and `VERSION` must be set (they are read without a fallback). Copy [`.env.example`](.env.example) to start.
+Loaded with [`vlucas/phpdotenv`](https://github.com/vlucas/phpdotenv) when the file exists. Real environment
+variables (e.g. `docker run -e`) win over `.env`. Copy [`.env.example`](.env.example) to start.
 
-| Variable | Required | Used for |
+| Variable | Default | Used for |
 | --- | --- | --- |
-| `VERSION` | yes | Shown next to the site title in the header |
-| `URL` | yes | Link target of that version label |
-| `ENV` | yes | Read into `$env` in `_includes.php` but not otherwise used. The environment that changes behaviour is the `env` *setting* |
-| `APP_NAME`, `AUTHOR` | no | Not read by the code |
+| `VERSION` | `dev` | Shown next to the site title in the header |
+| `URL` | GitHub repo | Link target of that version label |
+| `ENV` | `prod` | Read into `$env` in `_includes.php` but not otherwise used. The environment that changes behaviour is the `env` *setting* |
+| `AUTH_REQUIRED` | (setting) | `true`/`false`: require sign-in. Overrides the *Require sign-in* setting and locks it |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | | On first start (no accounts yet), create this admin and skip the setup screen |
+| `ADMIN_DISPLAY_NAME` | | Display name for that admin |
+| `MUSIC_FOLDERS` | | With `ADMIN_*`: music folders to set, separated by `:` (end a path with `!` to skip its subfolders) |
+| `SITE_TITLE` | | With `ADMIN_*`: the site title to set |
+| `SETUP_TOKEN` | | If set, the setup screen asks for it, so a fresh server reachable by others can't be claimed by them |
+| `DATA_DIR` | `data/` | Where the accounts database is kept |
+| `APP_NAME`, `AUTHOR` | | Not read by the code |
 
 ```ini
 APP_NAME = "mp3-web"
@@ -433,6 +485,10 @@ VERSION  = "vX.Y.Z"
 | `tools/fetch-metadata.php` | Command-line runner for the *Fetch metadata* job (also usable from cron) |
 | `songedit.php` | Edited song info: app overrides (`metadata/`) and writing ID3 tags with getID3 |
 | `songedit.js` | Song editor dialog and the *Fetch metadata* panel in Settings |
+| `auth.php` | Accounts: SQLite storage, sign-in, remember-me, setup, media tokens, user management |
+| `login.php`, `setup.php` | Sign-in page and first-run setup screen |
+| `activity.php`, `activity.js` | What other users are playing (Activity panel), Listen along |
+| `account.js` | Settings → Account and Users, sign out |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |
@@ -450,6 +506,7 @@ VERSION  = "vX.Y.Z"
 | `music/` | Default music folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
 | `playlists/` | Playlist JSON files (created at runtime, git-ignored) |
+| `data/` | Accounts database `mp3web.sqlite` (created at runtime, git-ignored) |
 | `metadata/` | Edited song info and covers (created at runtime, git-ignored) |
 | `cache/` | `covers/`, `meta/` (ID3 tags and durations) and `lyrics/` caches (created at runtime, git-ignored) |
 | `deleted/` | Songs deleted from the UI are moved here, not erased (created at runtime, git-ignored) |
@@ -465,18 +522,29 @@ All actions live in `api.php`. Responses are JSON shaped like
 returns an `.m3u` file.
 
 The action is passed as `action` in the query string or POST body. Actions marked POST require a POST with a valid
-`csrf_token` (from the PHP session; the frontend sends it automatically). Identity for sessions and preferences is the
-PHP session cookie. When the `env` setting is `demo`, every action returns an error.
+`csrf_token` (from the PHP session; the frontend sends it automatically). Every action except `login`, `logout`,
+`setupFinish` (and `browseDirs` during setup) needs a signed-in session while sign-in is required; without one the
+response is HTTP 401 with `data.auth = false`. Actions marked *admin* answer 403 for other users. When the `env`
+setting is `demo`, every action returns an error.
 
 | Action | Method | Parameters | Description |
 | --- | --- | --- | --- |
 | `ls` | GET | | List songs in every music folder |
 | `dl` | GET | `file` | Calls `download()`, which is commented out in `functions.php`, so this action currently fails. The UI downloads songs by opening their `stream.php` URL |
-| `rm` | POST | `file` (song key) | Move a song to `deleted/` |
-| *(upload)* | POST | `files[]`, no `action` | A multipart request with files and no `action` uploads them to the first music folder. Extensions must be in `allowed_types`; characters other than `A-Z a-z 0-9 . _ -` in the file name become `_` |
+| `login` | POST | `username`, `password`, optional `remember` | Sign in (`remember`: stay signed in for 30 days) |
+| `logout` | POST | | Sign out |
+| `setupFinish` | POST | `username`, `password`, `password2`, `display_name`, `music_folders` (JSON), `site_title`, `auth_required`, `player_theme`, `share_playing`, optional `setup_token` | First-run setup; only works until it's done |
+| `me` | GET | | The current user, and whether sign-in is required |
+| `accountUpdate` | POST | `display_name`, `share_playing`, or `current_password` + `new_password` | Change your own account |
+| `usersList` / `usersCreate` / `usersUpdate` / `usersDelete` | GET / POST | `username`, `password`, `role`, `display_name`; `id` for update/delete | *Admin.* Manage accounts. Deleting a user deletes their private playlists; shared ones pass to you |
+| `nowPlaying` | POST | `song`, `position`, `playing` | Report what you're playing (ignored unless your account shares it; empty `song` clears it) |
+| `activity` | GET | | What other users are playing now |
+| `setPlaylistSharing` | POST | `id`, `shared`, `collab` | Owner only: share a playlist with everyone, read-only or editable |
+| `rm` | POST | `file` (song key) | *Admin.* Move a song to `deleted/` |
+| *(upload)* | POST | `files[]`, no `action` | *Admin.* A multipart request with files and no `action` uploads them to the first music folder. Extensions must be in `allowed_types`; characters other than `A-Z a-z 0-9 . _ -` in the file name become `_` |
 | `getconfig` | GET | optional `key` | All settings, or one setting's value in `data.value` |
-| `browseDirs` | GET | optional `path` | Subfolders (names only) of a folder on the server, for the music folder browser. Starts at the app folder |
-| `setconfig` | POST | `config[key]`, `config[value]` | Update one setting in the active config file |
+| `browseDirs` | GET | optional `path` | *Admin.* Subfolders (names only) of a folder on the server, for the music folder browser. Starts at the app folder |
+| `setconfig` | POST | `config[key]`, `config[value]` | Update one setting: per-user settings go to your account, *All users* settings (admin only) to the active config file |
 | `createSession` | POST | `name`, `public`, `allow_all` | Create a listening session and join it as host |
 | `joinSession` / `leaveSession` | POST | `sessionCode` (join) | Join or leave a listening session |
 | `listSessions` | GET | | Public sessions with active listeners |
@@ -537,6 +605,18 @@ The upload box itself only accepts `.mp3` files up to 10 MB each (Dropzone optio
 (seen with low sample rate MPEG-2 files), which is not caught and stops the page. Re-encoding the file to a common
 format (44.1 kHz) avoids it.
 
-### "The Composer autoload file is missing." / "The .env file is missing."
+### "The Composer autoload file is missing."
 
-Run `composer install` in the project directory and make sure `.env` exists.
+Run `composer install` in the project directory.
+
+### "The data folder … is not writable" / "attempt to write a readonly database"
+
+The web server must own (or be able to write) `data/` and every file in it, including `mp3web.sqlite-wal` and
+`-shm`. These appear when anything opens the database, so don't open it as another user (e.g. with `sqlite3` as
+yourself) while the app runs, or fix the owner afterwards: `chown -R www-data:www-data data`.
+
+### Locked out
+
+An admin can set a new password for anyone in Settings → Users. If no admin can sign in, set
+`AUTH_REQUIRED=false` (or `auth_required` → `false` in the config file), open the app (you act as the first
+admin), set a new password, and turn sign-in back on.

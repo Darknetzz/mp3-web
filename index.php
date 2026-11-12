@@ -1,6 +1,8 @@
 <?php 
 require_once('_includes.php');
+requireLogin(); // sends to setup.php / login.php when needed
 $theme = themeSetup();
+$me = currentUser();
 ?>
 
 <!DOCTYPE html>
@@ -201,6 +203,7 @@ $columns = [
     "align"   => "center",
   ],
 ];
+if (!isAdmin()) unset($columns["delete"]); // only admins delete songs
 
 /* ──────────────────────────────────── Reload ─────────────────────────────── */
 if (isset($_GET['reload'])) {
@@ -380,13 +383,13 @@ echo '
           '.icon("users").'
           <span class="badge bg-green text-green-fg sessionBadge ms-1" style="display:none;"></span>
         </button>
-      </div>
+      </div>'.(isSignedIn() ? userMenusHtml($me) : '').'
     </div>
   </div>
 <div class="card-body">
 ';
 
-if (getConfig('show_upload')) {
+if (getConfig('show_upload') && isAdmin()) {
   echo '
 <div id="musicDropzone" class="border border-secondary align-items-center p-3">
       <h3>Upload Music</h3>
@@ -503,7 +506,7 @@ foreach ($musicFiles as $file => $filePath) {
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-primary queueBtn">'.icon('circle-plus', margin: 0).'</a></td>
       <td class="action"></td>
       <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-success downloadBtn">'.icon('download', margin: 0).'</a></td>
-      <td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-2', margin: 0).'</a></td>
+      '.(isAdmin() ? '<td class="action"><a href="javascript:void(0);" data-filename="' . $urlFilename . '" class="link-danger deleteBtn">'.icon('trash-2', margin: 0).'</a></td>' : '').'
     </tr>';
     $i++;
 }
@@ -528,7 +531,9 @@ echo '</div>'; // .appLayout
 <script src="queue.js?v=<?= @filemtime(__DIR__ . '/queue.js') ?>"></script>
 <script src="lyrics.js?v=<?= @filemtime(__DIR__ . '/lyrics.js') ?>"></script>
 <script src="songinfo.js?v=<?= @filemtime(__DIR__ . '/songinfo.js') ?>"></script>
-<script src="songedit.js?v=<?= @filemtime(__DIR__ . '/songedit.js') ?>"></script>
+<?php if (isAdmin()): ?><script src="songedit.js?v=<?= @filemtime(__DIR__ . '/songedit.js') ?>"></script><?php endif; ?>
+<script src="account.js?v=<?= @filemtime(__DIR__ . '/account.js') ?>"></script>
+<script src="activity.js?v=<?= @filemtime(__DIR__ . '/activity.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

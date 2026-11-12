@@ -10,6 +10,7 @@
  * Extracted/resized covers are cached in cache/covers/ (git-ignored).
  */
 require_once('_includes.php');
+requireMediaAccess(); // a session, or a signed token (?t=) for Cast devices
 // Covers don't need the session; release its lock so thumbnails load in parallel.
 session_write_close();
 

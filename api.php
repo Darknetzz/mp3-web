@@ -23,6 +23,35 @@ function require_csrf_token(): void
     }
 }
 
+$action = (string) ($_POST['action'] ?? $_GET['action'] ?? '');
+
+/* ───────────────────────── Before sign-in: login and setup ─────────────────── */
+if ($action === 'login') {
+    require_csrf_token();
+    authLogin($_POST['username'] ?? '', $_POST['password'] ?? '', !empty($_POST['remember']));
+}
+if ($action === 'logout') {
+    require_csrf_token();
+    authLogout();
+}
+if ($action === 'setupFinish') {
+    require_csrf_token();
+    setupFinish($_POST);
+}
+$inSetup = $action === 'browseDirs' && setupNeeded();
+if ($inSetup) {
+    setupRequireOpen(); // the wizard's folder picker
+} else {
+    requireLogin();
+}
+
+// Actions only admins may use (the rest check per item, e.g. playlists).
+const ADMIN_ACTIONS = ['rm', 'upload', 'browseDirs', 'songEdit', 'songEditReset', 'songCover', 'songWriteTags',
+                       'metaJobStart', 'metaJobStop', 'usersList', 'usersCreate', 'usersUpdate', 'usersDelete'];
+if (!$inSetup && ((!empty($_FILES) && empty($_POST['action'])) || in_array($action, ADMIN_ACTIONS, true))) {
+    requireAdmin();
+}
+
 do {
 
     // Demo mode rejects every action, read-only ones (ls, lyrics, playlists, sessions) included.
@@ -68,7 +97,14 @@ do {
             $text  = is_bool($value) ? ($value ? 'true' : 'false') : (is_scalar($value) ? (string) $value : json_encode($value));
             apiResponse("success", $text, ["value" => $value]);
         }
-        apiResponse("success", "ok", ["config" => getConfig()]);
+        $visible = getConfig();
+        if (!isAdmin()) {
+            // Global settings (keys, folders) are for admins; site title is public anyway.
+            $visible = array_filter($visible, function ($s, $k) {
+                return $k === 'site_title' || (is_array($s) && configIsUserScope($s));
+            }, ARRAY_FILTER_USE_BOTH);
+        }
+        apiResponse("success", "ok", ["config" => $visible]);
     }
 
     # REVIEW:
@@ -184,6 +220,10 @@ do {
         require_csrf_token();
         setPlaylistOrder($_POST['ids'] ?? []);
     }
+    if ($action === 'setPlaylistSharing') {
+        require_csrf_token();
+        setPlaylistSharing($_POST['id'] ?? '', $_POST['shared'] ?? '', $_POST['collab'] ?? '');
+    }
     if ($action === 'setPlaylistPinned') {
         require_csrf_token();
         setPlaylistPinned($_POST['id'] ?? '', $_POST['pinned'] ?? '');
@@ -191,6 +231,40 @@ do {
     if ($action === 'importPlaylist') {
         require_csrf_token();
         importPlaylist($_FILES['playlist'] ?? []);
+    }
+
+    /* ─────────────────────────── Account and users ─────────────────────── */
+    if ($action === 'me') {
+        $u = currentUser();
+        apiResponse("success", "ok", ["user" => $u ? userPublic($u) : null, "signed_in" => isSignedIn(), "login_required" => authRequired()]);
+    }
+    if ($action === 'accountUpdate') {
+        require_csrf_token();
+        accountUpdate($_POST);
+    }
+    if ($action === 'usersList') {
+        usersList();
+    }
+    if ($action === 'usersCreate') {
+        require_csrf_token();
+        usersCreate($_POST);
+    }
+    if ($action === 'usersUpdate') {
+        require_csrf_token();
+        usersUpdate($_POST);
+    }
+    if ($action === 'usersDelete') {
+        require_csrf_token();
+        usersDelete($_POST);
+    }
+
+    /* ──────────────────────────────── Activity ──────────────────────────── */
+    if ($action === 'nowPlaying') {
+        require_csrf_token();
+        nowPlaying($_POST['song'] ?? '', $_POST['position'] ?? 0, $_POST['playing'] ?? false);
+    }
+    if ($action === 'activity') {
+        activityList();
     }
 
     /* ──────────────────────── Folder picker (settings) ─────────────────── */

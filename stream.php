@@ -5,6 +5,7 @@
  * so songs are served from here, with Range support for seeking and casting.
  * ────────────────────────────────────────────────────────────────────────── */
 require_once __DIR__ . '/_includes.php';
+requireMediaAccess(); // a session, or a signed token (?t=) for Cast devices
 session_write_close(); // don't hold the session lock for the whole download
 
 const STREAM_TYPES = [

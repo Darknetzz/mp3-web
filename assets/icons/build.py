@@ -39,6 +39,8 @@ ICONS = [
     "pin", "pin-off", "image-off",
     # music folders (settings)
     "folder", "folder-plus", "corner-left-up",
+    # accounts, sharing, activity
+    "radio", "share-2", "lock", "key-round", "user-cog", "log-in",
 ]
 
 # bootstrap-table option name -> Lucide icon (see the icons config in index.php)

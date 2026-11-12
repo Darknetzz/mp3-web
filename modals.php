@@ -181,6 +181,71 @@ function metaJobHtml(): string {
             </div>';
 }
 
+/* ───────────────────────────── Account and users ──────────────────────── */
+# Settings → Account: your name, password and sharing (account.js).
+function accountHtml(): string {
+  $u = currentUser();
+  if (!$u || (int) $u['id'] <= 0) {
+    return '<div class="settingsCard"><div class="settingRow"><div class="settingText"><div class="settingDesc">'
+         . 'Sign-in is off and nobody has an account yet. Create one under <a href="#settings-users" class="openSettingsSection" data-section="settings-users">Users</a>.</div></div></div></div>';
+  }
+  return '
+            <div class="settingsCard accountCard" data-search="account name password sign out share playing activity">
+              <div class="settingRow">
+                <div class="settingText">
+                  <div class="settingName">'.(isSignedIn() ? 'Signed in as ' : 'Using the account ').settingsEsc($u['username']).'</div>
+                  <div class="settingDesc">'.(!isSignedIn() ? 'Sign-in is off, so everyone uses this account. Turn on “Require sign-in” under Users to give people their own.' : ($u['role'] === 'admin' ? 'Admin: you manage users, music folders and settings for everyone.' : 'Your playlists, favorites and look are your own.')).'</div>
+                </div>'.(isSignedIn() ? '
+                <div class="settingControl"><button type="button" class="btn btn-sm btn-outline-secondary btn-pill logoutBtn">'.icon("log-out", 0.9, 1).'Sign out</button></div>' : '').'
+              </div>
+              <div class="settingRow">
+                <div class="settingText">
+                  <div class="settingName"><label for="accountDisplayName">Display name</label></div>
+                  <div class="settingDesc">Shown to others in listen-together sessions and the Activity panel.</div>
+                </div>
+                <div class="settingControl"><input type="text" class="form-control accountDisplayName" id="accountDisplayName" maxlength="'.AUTH_DISPLAY_MAX.'" value="'.settingsEsc(userDisplayName($u)).'"></div>
+              </div>
+              <div class="settingRow">
+                <div class="settingText">
+                  <div class="settingName">Show others what I\'m playing</div>
+                  <div class="settingDesc">Other users see your song in their Activity panel and can listen along.</div>
+                </div>
+                <div class="settingControl"><label class="form-check form-switch settingSwitch m-0"><input class="form-check-input accountSharePlaying" type="checkbox" role="switch" aria-label="Show others what I\'m playing"'.(!empty($u['share_playing']) ? ' checked' : '').'></label></div>
+              </div>
+              <form class="settingRow settingRowWide accountPassword" autocomplete="on">
+                <div class="settingText">
+                  <div class="settingName">Change password</div>
+                  <div class="settingDesc">Signs you out on your other devices.</div>
+                </div>
+                <div class="accountPasswordFields">
+                  <input type="text" name="username" value="'.settingsEsc($u['username']).'" autocomplete="username" hidden>
+                  <input type="password" class="form-control" name="current_password" placeholder="Current password" autocomplete="current-password" aria-label="Current password" required>
+                  <input type="password" class="form-control" name="new_password" placeholder="New password" autocomplete="new-password" minlength="'.AUTH_PASSWORD_MIN.'" aria-label="New password" required>
+                  <button type="submit" class="btn btn-sm btn-success btn-pill">'.icon("key-round", 0.9, 1).'Change</button>
+                </div>
+              </form>
+            </div>';
+}
+
+# Settings → Users (admins): the people who can sign in (account.js fills the list).
+function usersHtml(): string {
+  if (!isAdmin()) return '';
+  return '
+            <div class="settingsCard usersCard" data-search="users accounts admin add user password role delete">
+              <div class="usersList" aria-live="polite"><div class="text-secondary small p-2">Loading…</div></div>
+              <form class="usersAdd" autocomplete="off">
+                <div class="settingName mb-2">'.icon("user-plus", 1, 0).' Add a user</div>
+                <div class="usersAddFields">
+                  <input type="text" class="form-control" name="username" placeholder="Username" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._\-]{2,32}" aria-label="Username" required>
+                  <input type="text" class="form-control" name="display_name" placeholder="Display name (optional)" maxlength="'.AUTH_DISPLAY_MAX.'" aria-label="Display name">
+                  <input type="password" class="form-control" name="password" placeholder="Password" autocomplete="new-password" minlength="'.AUTH_PASSWORD_MIN.'" aria-label="Password" required>
+                  <select class="form-select" name="role" aria-label="Role"><option value="user">User</option><option value="admin">Admin</option></select>
+                  <button type="submit" class="btn btn-success btn-pill">Add</button>
+                </div>
+              </form>
+            </div>';
+}
+
 /* ─────────────────────────────── Song editor ──────────────────────────── */
 # Edit a song's info (songedit.js): saved as an app override, or into the file's tags.
 $editFields = [
@@ -253,6 +318,8 @@ echo '
 
 # Settings are grouped by key; anything not listed here ends up under "Other".
 $settingsCategories = [
+  "account"    => ["name" => "Account",    "icon" => "user-cog",        "keys" => [], "extra" => "accountHtml"],
+  "users"      => ["name" => "Users",      "icon" => "users",           "keys" => ["auth_required"], "extra" => "usersHtml"],
   "general"    => ["name" => "General",    "icon" => "sliders-horizontal", "keys" => ["site_title", "no_song_text", "env"]],
   "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["music_folders", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
   "songinfo"   => ["name" => "Song info",  "icon" => "disc-3",          "keys" => ["online_metadata", "acoustid_key"], "extra" => "metaJobHtml"],
@@ -443,8 +510,12 @@ foreach ($settingsCategories as $catKey => $cat) {
   foreach ($cat["keys"] as $settingKey) $categoryOf[$settingKey] = $catKey;
 }
 $categoryRows = array_fill_keys(array_keys($settingsCategories), []);
+$settingsAdmin = isAdmin();
+$settingsHaveAccounts = currentUserId() > 0;
 foreach (CONFIG as $key => $setting) {
   if (!is_array($setting)) continue;
+  $global = !configIsUserScope($setting);
+  if ($global && !$settingsAdmin) continue; // only admins see and change these
   $name   = $setting["name"] ?? $key;
   $desc   = $setting["description"] ?? "";
   $search = strtolower($name . " " . $desc . " " . $key);
@@ -454,18 +525,19 @@ foreach (CONFIG as $key => $setting) {
   $categoryRows[$categoryOf[$key] ?? "other"][$key] = '
             <div class="settingRow'.($wide ? ' settingRowWide' : '').'" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.($reload ? ' data-reload="1"' : '').'>
               <div class="settingText">
-                <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).' <span class="settingSaved">'.icon("circle-check", 0.9, 0).'</span></div>
+                <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).($global && $settingsHaveAccounts ? ' <span class="badge bg-secondary-lt settingScope" title="Applies to every user">All users</span>' : '').' <span class="settingSaved">'.icon("circle-check", 0.9, 0).'</span></div>
                 <div class="settingDesc">'.settingsEsc($desc).($reload ? ' <span class="settingReloadNote">Requires reload</span>' : '').'</div>
               </div>
-              <div class="settingControl">'.renderSettingControl($key, $setting).'</div>
+              <div class="settingControl">'.(($key === "auth_required" && envBool("AUTH_REQUIRED") !== null) ? '<span class="text-secondary small">Set by <code>AUTH_REQUIRED</code></span>' : renderSettingControl($key, $setting)).'</div>
             </div>';
 }
 
 $navHtml = "";
 $sectionsHtml = "";
 foreach ($settingsCategories as $catKey => $cat) {
-  $rows = $categoryRows[$catKey];
-  if (empty($rows)) continue;
+  $rows  = $categoryRows[$catKey];
+  $extra = isset($cat["extra"]) ? $cat["extra"]() : '';
+  if (empty($rows) && $extra === '') continue;
   $ordered = [];
   foreach ($cat["keys"] as $settingKey) {
     if (isset($rows[$settingKey])) {
@@ -477,8 +549,8 @@ foreach ($settingsCategories as $catKey => $cat) {
   $sectionsHtml .= '
           <section class="settingsSection" id="settings-'.$catKey.'">
             <h2 class="settingsSectionTitle">'.$cat["name"].'</h2>
-            <div class="settingsCard">'.implode("", $ordered).implode("", $rows).'
-            </div>'.(isset($cat["extra"]) ? $cat["extra"]() : '').'
+            '.($ordered || $rows ? '<div class="settingsCard">'.implode("", $ordered).implode("", $rows).'
+            </div>' : '').$extra.'
           </section>';
 }
 
@@ -508,7 +580,7 @@ echo '
               <button type="button" class="btn btn-sm btn-warning" onclick="window.location.reload()">Reload</button>
             </div>'.$sectionsHtml.'
             <div class="settingsEmpty text-secondary" style="display:none;">No settings match your search.</div>
-            <div class="settingsFile text-secondary small">Saved to <code>'.settingsEsc(CONFIG_FILE).'</code></div>
+            <div class="settingsFile text-secondary small">'.($settingsHaveAccounts ? 'Settings marked “All users” are saved to <code>'.settingsEsc(CONFIG_FILE).'</code>; the rest are saved to your account.' : 'Saved to <code>'.settingsEsc(CONFIG_FILE).'</code>').'</div>
           </div>
         </div>
       </div>

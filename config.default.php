@@ -11,13 +11,24 @@
 $config = [
 
     /* ─────────────────────────────── General ──────────────────────────────── */
+    # Settings are per user (each account keeps its own value, starting from the
+    # value here) unless marked "scope" => "global".
+    "auth_required" => [
+        "scope"       => "global",
+        "name"        => "Require sign-in",
+        "description" => "Everyone needs an account to use the player. Off: anyone who can reach the server acts as the first admin. AUTH_REQUIRED in the environment overrides this.",
+        "value"       => true,
+        "type"        => "bool",
+    ],
     "site_title" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "Site title",
         "description" => "Shown in the header and the browser tab.",
         "value"       => "Music Player",
         "type"        => "string",
     ],
     "env" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "Environment",
         "description" => "Demo disables uploads, deletes and settings changes.",
         "value"       => "dev",
@@ -29,6 +40,7 @@ $config = [
         ],
     ],
     "no_song_text" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "No song text",
         "description" => "Shown in the player when nothing is selected.",
         "value"       => "No song selected",
@@ -37,12 +49,14 @@ $config = [
 
     /* ─────────────────────────────── Library ──────────────────────────────── */
     "music_folders" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "Music folders",
         "description" => "Folders with your audio files. Uploads go to the first one.",
         "value"       => [["path" => "music", "recursive" => true]],
         "type"        => "folders",
     ],
     "allowed_types" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "File types",
         "description" => "Extensions that are listed and accepted for upload.",
         "value"       => ["mp3", "ogg", "wav"],
@@ -87,12 +101,14 @@ $config = [
     ],
 
     "online_metadata" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "Online song info",
         "description" => "Look songs up on MusicBrainz, Wikipedia and ListenBrainz when you open the song info card: release details, artist bio, similar artists and a cover for songs without one.",
         "value"       => true,
         "type"        => "bool",
     ],
     "acoustid_key" => [
+        "scope"       => "global", // same for everyone; only admins change it
         "name"        => "AcoustID API key",
         "description" => "Optional. Identifies badly tagged songs by their sound. Needs fpcalc (Chromaprint) on the server; get a free key at acoustid.org.",
         "value"       => "",

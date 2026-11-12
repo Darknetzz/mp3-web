@@ -34,6 +34,15 @@
   var successClass          = "text-success border border-success is-valid";
   var csrfToken             = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>';
   var demoMode              = <?= json_encode(getConfig("env") === "demo") ?>; // file and playlist actions are disabled
+  // Signed-in user (or the stand-in when login is off). isAdminUser only hides
+  // controls; the server checks every action itself.
+  var currentUser           = <?= json_encode(currentUser() ? userPublic(currentUser()) + ["signed_in" => isSignedIn()] : null) ?>;
+  var isAdminUser           = <?= json_encode(isAdmin()) ?>;
+  // Cast devices and external players have no session: media URLs carry a signed token.
+  var mediaToken            = <?= json_encode(authRequired() ? streamToken() : "") ?>;
+  function withMediaToken(url) {
+    return mediaToken ? url + (url.indexOf("?") === -1 ? "?" : "&") + "t=" + encodeURIComponent(mediaToken) : url;
+  }
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
   window.loudnessEqualization = <?= json_encode((bool) getConfig("loudness_equalization")) ?>; // read by audiograph.js
@@ -127,7 +136,7 @@
   // Absolute, encoded URL for a song (Cast devices need an absolute URL).
   // stream.php serves it, since music folders can be outside the web root.
   function songUrl(name) {
-    return new URL("stream.php?file=" + encodeURIComponent(name), window.location.href).href;
+    return new URL(withMediaToken("stream.php?file=" + encodeURIComponent(name)), window.location.href).href;
   }
 
   /* ──────────────────────────────── player ────────────────────────────────── */
@@ -323,6 +332,7 @@
     var url = m ? m[1].replace(/&amp;/g, "&") : "cover.php?file=" + encodeURIComponent(name) + "&size=sm";
     url = url.replace(/([?&])size=sm\b/, "$1size=" + (size || "sm"));
     if (coverBust[name]) url += "&o=" + coverBust[name];
+    if (size === "lg") url = withMediaToken(url); // used by Cast and the media session
     return new URL(url, window.location.href).href;
   }
   // The song info card found a cover online for a song without one (metadata.php):

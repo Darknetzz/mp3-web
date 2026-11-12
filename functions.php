@@ -315,7 +315,7 @@
 
     /* ─────────────────────────── FUNCTION: saveConfig ───────────────────────── */
     // Writes the full (merged) configuration to the active config file.
-    function saveConfig(array $config, array $data = []): void {
+    function writeConfigFile(array $config): bool {
         $content  = "<?php\n\n";
         $content .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
         $content .= "/*                                 Configuration                              */\n";
@@ -325,12 +325,24 @@
 
         // Write in place (not temp + rename) so the file keeps its owner, mode and ACLs.
         if (@file_put_contents(CONFIG_FILE, $content, LOCK_EX) === false) {
-            apiResponse("error", "Could not write <code>" . htmlspecialchars(CONFIG_FILE, ENT_QUOTES, 'UTF-8') . "</code>. Check that it is writable by the web server.");
+            return false;
         }
         if (function_exists('opcache_invalidate')) {
             @opcache_invalidate(CONFIG_FILE, true);
         }
+        return true;
+    }
+
+    function saveConfig(array $config, array $data = []): void {
+        if (!writeConfigFile($config)) {
+            apiResponse("error", "Could not write <code>" . htmlspecialchars(CONFIG_FILE, ENT_QUOTES, 'UTF-8') . "</code>. Check that it is writable by the web server.");
+        }
         apiResponse("success", "The configuration has been saved.", $data);
+    }
+
+    /** Settings are per user unless marked "scope" => "global". */
+    function configIsUserScope(array $setting): bool {
+        return ($setting['scope'] ?? 'user') !== 'global';
     }
 
     /* ────────────────────────── FUNCTION: cleanConfigValue ──────────────────── */
@@ -421,17 +433,40 @@
         if ($key === '' || !isset($config[$key])) {
             apiResponse("error", "That setting does not exist.");
         }
+        // Per-user settings go to the signed-in user's account; the rest (and
+        // everything while nobody has an account) to the config file.
+        $perUser = configIsUserScope($config[$key]) && currentUserId() > 0;
+        if (!$perUser) {
+            requireAdmin();
+        }
+        if ($key === 'auth_required' && envBool('AUTH_REQUIRED') !== null) {
+            apiResponse("error", "Login is set by the AUTH_REQUIRED environment variable.");
+        }
 
         $newValue = cleanConfigValue($config[$key], $newValue);
 
         if ($newValue === $config[$key]['value']) {
             apiResponse("success", "No change.");
         }
+        if ($key === 'auth_required' && $newValue === true && userCount() === 0) {
+            apiResponse("error", "Create an admin account first (Users, below).");
+        }
 
         $config[$key]['value'] = $newValue;
         // The page applies theme changes live from this, without a reload.
         $theme = themeSetup(array_map(function ($s) { return is_array($s) ? ($s['value'] ?? null) : null; }, $config));
-        saveConfig($config, ["value" => $newValue, "theme" => ["attrs" => $theme["attrs"], "css" => $theme["css"]]]);
+        $payload = ["value" => $newValue, "theme" => ["attrs" => $theme["attrs"], "css" => $theme["css"]]];
+
+        if ($perUser) {
+            $mine = userJson(currentUser(), 'settings');
+            $mine[$key] = $newValue;
+            userUpdate(currentUserId(), ['settings' => json_encode($mine, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)]);
+            apiResponse("success", "Saved for your account.", $payload);
+        }
+
+        $global = GLOBAL_CONFIG;
+        $global[$key]['value'] = $newValue;
+        saveConfig($global, $payload);
     }
 
 
@@ -643,4 +678,37 @@
         apiResponse("success", $result["response"], $result["data"]);
     }
 
+?><?php
+    /* ───────────────────────── FUNCTION: userMenusHtml ──────────────────────── */
+    // Header buttons for signed-in users: the Activity panel and the user menu.
+    function userMenusHtml(array $me): string {
+        $esc  = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
+        $name = userDisplayName($me);
+        $admin = $me['role'] === 'admin';
+        return '
+      <div class="dropdown activityMenu">
+        <button type="button" class="btn btn-sm btn-pill btn-outline-primary activityBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="What others are playing" aria-label="What others are playing">
+          '.icon("radio").'
+          <span class="badge bg-green text-green-fg activityBadge ms-1" style="display:none;"></span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end activityPanel">
+          <div class="activityHead">Listening now</div>
+          <div class="activityList"><div class="activityEmpty text-secondary">Loading…</div></div>
+          <div class="activityFoot text-secondary small"></div>
+        </div>
+      </div>
+      <div class="dropdown userMenu">
+        <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary userMenuBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Signed in as '.$esc($me['username']).'">
+          <span class="userAvatar" aria-hidden="true">'.$esc(mb_strtoupper(mb_substr($name, 0, 1))).'</span>
+          <span class="d-none d-lg-inline userMenuName">'.$esc($name).'</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end">
+          <span class="dropdown-header">'.$esc($me['username']).($admin ? ' · admin' : '').'</span>
+          <a href="#settings-account" class="dropdown-item openSettingsSection" data-section="settings-account">'.icon("user-cog", 1, 0).' Account</a>'.($admin ? '
+          <a href="#settings-users" class="dropdown-item openSettingsSection" data-section="settings-users">'.icon("users", 1, 0).' Users</a>' : '').'
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item logoutBtn">'.icon("log-out", 1, 0).' Sign out</a>
+        </div>
+      </div>';
+    }
 ?>
