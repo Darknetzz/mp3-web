@@ -238,13 +238,13 @@ echo '
 <div class="audio-player-container" role="region" aria-label="Player">
   <div class="playerBar">
     <div class="playerLeft">
-      <span class="coverThumb playerCover"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
+      <span class="coverThumb playerCover playerSongInfo" role="button" tabindex="0" aria-controls="songInfoPanel" aria-expanded="false" aria-label="Song info (I)" title="Song info (I)"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
       <div class="playerTitle">
         <div class="playerTitleRow">
-          <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
+          <h3 id="songtitle" class="playerSongInfo m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
           <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
         </div>
-        <div id="songartist" class="playerArtist text-secondary" hidden></div>
+        <div id="songartist" class="playerArtist playerSongInfo text-secondary" hidden></div>
         <small class="castStatus text-muted" style="display:none;"></small>
         <div class="sessionStatus text-muted small" style="display:none;"></div>
       </div>
@@ -338,6 +338,16 @@ echo '
     <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary lyricsPanelClose" aria-label="Close the lyrics" title="Close (Y)">'.icon('x', margin: 0).'</button>
   </div>
   <div class="queuePanelBody lyricsBody" tabindex="-1" aria-live="polite"></div>
+</aside>
+';
+
+echo '
+<aside id="songInfoPanel" class="queuePanel songInfoPanel card" aria-label="Song info" hidden>
+  <div class="queuePanelHead">
+    <h3 class="m-0 songInfoHeading">Song info</h3>
+    <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary songInfoClose" aria-label="Close the song info" title="Close (I)">'.icon('x', margin: 0).'</button>
+  </div>
+  <div class="queuePanelBody songInfoBody"></div>
 </aside>
 ';
 
@@ -517,6 +527,7 @@ echo '</div>'; // .appLayout
 <script src="playlists.js?v=<?= @filemtime(__DIR__ . '/playlists.js') ?>"></script>
 <script src="queue.js?v=<?= @filemtime(__DIR__ . '/queue.js') ?>"></script>
 <script src="lyrics.js?v=<?= @filemtime(__DIR__ . '/lyrics.js') ?>"></script>
+<script src="songinfo.js?v=<?= @filemtime(__DIR__ . '/songinfo.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

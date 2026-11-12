@@ -274,6 +274,7 @@
     if (window.waveform) {
       window.waveform.setPlaying(isPlaying);
     }
+    if (window.songInfoPanel) songInfoPanel.refresh();
     // Keeps media keys working while casting (see cast.js)
     if (window.castKeepAlive) {
       window.castKeepAlive.update(isPlaying);
@@ -659,6 +660,7 @@
     activeRow.addClass(activeClass).children().addClass(activeClass);
     scrollToActiveSong();
     if (window.playlistsUI) playlistsUI.songChanged();
+    if (window.songInfoPanel) songInfoPanel.refresh();
     queueChanged();
     sessionChanged({ position: opts.startTime || 0, playing: opts.autoplay !== false });
   }
@@ -1343,6 +1345,7 @@
         case 'KeyA':       toggleAutoplay(); break;
         case 'KeyQ':       if (window.queuePanel) queuePanel.toggle(); break;
         case 'KeyY':       if (window.lyricsPanel) lyricsPanel.toggle(); break;
+        case 'KeyI':       if (window.songInfoPanel) songInfoPanel.toggle(); break;
         default:           handled = false;
       }
       if (handled) e.preventDefault();

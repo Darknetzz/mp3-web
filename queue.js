@@ -113,6 +113,7 @@
   /* ──────────────────────────────── Open/close ────────────────────────────── */
   function setOpen(on, opts) {
     if (on && window.lyricsPanel) lyricsPanel.close();
+    if (on && window.songInfoPanel) songInfoPanel.close();
     panel.prop("hidden", !on);
     $("body").toggleClass("queue-open", on);
     $(".queueToggleBtn").toggleClass("active", on).attr("aria-expanded", on ? "true" : "false");

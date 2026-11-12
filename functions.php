@@ -140,6 +140,18 @@
         }
     }
 
+    /* ────────────────────────── FUNCTION: songTagText ──────────────────────── */
+    // An ID3 tag value as clean UTF-8 text ('' for anything that isn't text).
+    function songTagText($v): string {
+        if (!is_string($v) && !is_numeric($v)) return '';
+        $v = (string) $v;
+        if (!mb_check_encoding($v, 'UTF-8')) {
+            $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
+        }
+        // Strip NULs/control chars left over from fixed-width id3v1 fields
+        return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $v) ?? '');
+    }
+
     /* ────────────────────────── FUNCTION: getSongMeta ───────────────────────── */
     // ID3 title/artist/album/year plus duration, read in one pass. Results are
     // cached in cache/meta/ (git-ignored) until the file changes. Missing tags are ''.
@@ -158,15 +170,7 @@
             }
         }
 
-        $clean = function ($v): string {
-            if (!is_string($v) && !is_numeric($v)) return '';
-            $v = (string) $v;
-            if (!mb_check_encoding($v, 'UTF-8')) {
-                $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
-            }
-            // Strip NULs/control chars left over from fixed-width id3v1 fields
-            return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $v) ?? '');
-        };
+        $clean = 'songTagText';
         if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'mp3') {
             try {
                 $info = new wapmorgan\Mp3Info\Mp3Info($file, true);
@@ -188,6 +192,84 @@
             @file_put_contents($cached, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
         return $meta;
+    }
+
+    /* ───────────────────────── FUNCTION: getSongDetails ─────────────────────── */
+    // Everything the song info card shows: getSongMeta() plus genre, track,
+    // comment and the audio stream (bitrate, sample rate, channels). Cached in
+    // cache/meta/ under its own key, so the song table's lighter read stays cheap.
+    function getSongDetails(string $file): array {
+        $details = getSongMeta($file) + [
+            'genre' => '', 'track' => '', 'comment' => '', 'seconds' => 0,
+            'bitrate' => 0, 'sampleRate' => 0, 'channels' => '', 'vbr' => false,
+            'format' => strtoupper(pathinfo($file, PATHINFO_EXTENSION)),
+            'size' => 0, 'modified' => 0,
+        ];
+        if (!is_file($file)) {
+            return $details;
+        }
+        $details['size']     = filesize($file);
+        $details['modified'] = filemtime($file);
+        $cacheDir = __DIR__ . '/cache/meta';
+        $cached   = $cacheDir . '/' . sha1('details:' . (realpath($file) ?: $file)) . '.json';
+        if (is_file($cached) && filemtime($cached) >= $details['modified']) {
+            $data = json_decode((string) @file_get_contents($cached), true);
+            if (is_array($data)) {
+                return array_merge($details, array_intersect_key($data, $details));
+            }
+        }
+
+        if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'mp3') {
+            try {
+                $info = new wapmorgan\Mp3Info\Mp3Info($file, true);
+                $tags = (array) $info->tags;
+                $details['genre']   = songGenreName(songTagText($tags['genre'] ?? ''));
+                $details['track']   = songTagText($tags['track'] ?? '');
+                $details['comment'] = songTagText($tags['comment'] ?? '');
+                $details['seconds'] = (int) round((float) $info->duration);
+                $details['bitrate'] = (int) round((int) $info->bitRate / 1000);
+                $details['sampleRate'] = (int) $info->sampleRate;
+                $details['vbr']     = (bool) $info->isVbr;
+                $channels = [
+                    wapmorgan\Mp3Info\Mp3Info::STEREO       => 'Stereo',
+                    wapmorgan\Mp3Info\Mp3Info::JOINT_STEREO => 'Joint stereo',
+                    wapmorgan\Mp3Info\Mp3Info::DUAL_MONO    => 'Dual mono',
+                    wapmorgan\Mp3Info\Mp3Info::MONO         => 'Mono',
+                ];
+                $details['channels'] = $channels[$info->channel] ?? '';
+            } catch (Throwable $e) {
+                // Keep what getSongMeta() found
+            }
+        }
+
+        if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+            @file_put_contents($cached, json_encode($details, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+        return $details;
+    }
+
+    /* ───────────────────────── FUNCTION: songGenreName ─────────────────────── */
+    // ID3 genres are often stored as a number ("17", "(17)" or "(17)Rock").
+    // Turn the common ID3v1 numbers into names; leave anything else as written.
+    function songGenreName(string $genre): string {
+        static $names = ['Blues', 'Classic Rock', 'Country', 'Dance', 'Disco', 'Funk', 'Grunge', 'Hip-Hop',
+            'Jazz', 'Metal', 'New Age', 'Oldies', 'Other', 'Pop', 'R&B', 'Rap', 'Reggae', 'Rock', 'Techno',
+            'Industrial', 'Alternative', 'Ska', 'Death Metal', 'Pranks', 'Soundtrack', 'Euro-Techno', 'Ambient',
+            'Trip-Hop', 'Vocal', 'Jazz+Funk', 'Fusion', 'Trance', 'Classical', 'Instrumental', 'Acid', 'House',
+            'Game', 'Sound Clip', 'Gospel', 'Noise', 'Alternative Rock', 'Bass', 'Soul', 'Punk', 'Space',
+            'Meditative', 'Instrumental Pop', 'Instrumental Rock', 'Ethnic', 'Gothic', 'Darkwave',
+            'Techno-Industrial', 'Electronic', 'Pop-Folk', 'Eurodance', 'Dream', 'Southern Rock', 'Comedy',
+            'Cult', 'Gangsta', 'Top 40', 'Christian Rap', 'Pop/Funk', 'Jungle', 'Native American', 'Cabaret',
+            'New Wave', 'Psychedelic', 'Rave', 'Showtunes', 'Trailer', 'Lo-Fi', 'Tribal', 'Acid Punk',
+            'Acid Jazz', 'Polka', 'Retro', 'Musical', 'Rock & Roll', 'Hard Rock'];
+        if (preg_match('/^\(?(\d{1,3})\)?(.*)$/', $genre, $m)) {
+            $rest = trim($m[2]);
+            if ($rest !== '') return $rest;
+            return $names[(int) $m[1]] ?? $genre;
+        }
+        if ($genre === 'RX') return 'Remix';
+        if ($genre === 'CR') return 'Cover';
+        return $genre;
     }
 
     /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */

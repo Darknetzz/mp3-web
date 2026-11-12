@@ -180,6 +180,24 @@ function listPlaylists(): void {
     apiResponse("success", count($lists) . " playlist(s).", ["playlists" => $lists]);
 }
 
+/** Playlists (id + name) that contain $song, Favorites first. */
+function playlistsContaining(string $song): array {
+    $found = [];
+    foreach (glob(PLAYLIST_DIR . '/*.json') ?: [] as $file) {
+        $p = json_decode((string) @file_get_contents($file), true);
+        if (!is_array($p) || !isset($p['id'], $p['songs']) || !playlistValidId($p['id'])) continue;
+        if (in_array($song, (array) $p['songs'], true)) {
+            $found[] = ["id" => $p['id'], "name" => (string) ($p['name'] ?? '')];
+        }
+    }
+    usort($found, function ($a, $b) {
+        if ($a['id'] === PLAYLIST_FAVORITES) return -1;
+        if ($b['id'] === PLAYLIST_FAVORITES) return 1;
+        return strcasecmp($a['name'], $b['name']);
+    });
+    return $found;
+}
+
 function getPlaylist($id): void {
     $id = playlistRequireId($id);
     if ($id !== PLAYLIST_FAVORITES && !is_file(playlistPath($id))) {

@@ -174,6 +174,20 @@ do {
         importPlaylist($_FILES['playlist'] ?? []);
     }
 
+    /* ─────────────────────────────── Song info ──────────────────────────── */
+    if ($action === 'songInfo') {
+        $file = basename(str_replace('\\', '/', (string) ($_GET['file'] ?? '')));
+        $path = getConfig("audio_path") . '/' . $file;
+        if ($file === '' || $file === '.' || $file === '..' || !is_file($path)
+            || !in_array(pathinfo($file, PATHINFO_EXTENSION), (array) getConfig('allowed_types'), true)) {
+            apiResponse("error", "Song not found.");
+        }
+        $details = getSongDetails($path);
+        $details['file']      = $file;
+        $details['playlists'] = playlistsContaining($file);
+        apiResponse("success", "ok", $details);
+    }
+
     /* ──────────────────────────────── Lyrics ─────────────────────────────── */
     if ($action === 'lyrics') {
         getLyrics($_GET['song'] ?? '');

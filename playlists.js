@@ -133,6 +133,7 @@ function moreFormatter(value, row) {
       refreshHearts();
     }
     if (window.queuePanel) queuePanel.refresh(); // "Next from" follows playlist edits
+    if (window.songInfoPanel) songInfoPanel.playlistsChanged();
   }
 
   /* ──────────────────────────────── Views ───────────────────────────────── */
@@ -240,6 +241,7 @@ function moreFormatter(value, row) {
         .find("svg").toggleClass("filled", on);
     });
     updatePlayerHeart();
+    if (window.songInfoPanel) songInfoPanel.refresh();
   }
 
   function updatePlayerHeart() {
@@ -600,6 +602,7 @@ function moreFormatter(value, row) {
       );
     }
     items.push(
+      { label: "Song info", icon: "info", run: function () { if (window.songInfoPanel) songInfoPanel.openFor(song); } },
       { label: "Download", icon: "download", run: function () { downloadSong(id); } },
       { label: "Copy song name", icon: "copy", run: function () { copyText(songTitle(id)); } }
     );
@@ -884,6 +887,14 @@ function moreFormatter(value, row) {
       return idsFor(cache[id].songs);
     },
     isFavorite: function (song) { return favorites.has(song); },
+    toggleFavorite: toggleFavorite,
+    // The "Add to playlist" menu for one song, under anchor (the song info card uses it).
+    addToPlaylistMenu: function (anchor, song) {
+      openMenu(anchor, addToPlaylistItems([song]), { label: "Add to playlist" });
+    },
+    showPlaylist: function (id) {
+      if (id === FAVORITES || listById(id)) showPlaylist(id);
+    },
     songOf: songOf,
     songChanged: updatePlayerHeart,
     // Display name of a playlist, or null if it's unknown.

@@ -1556,11 +1556,13 @@ body.player-top .queuePanel {
 /* Wide screens: the page makes room for the panel instead of hiding under it */
 @media (min-width: 1200px) {
   body.queue-open,
-  body.lyrics-open {
+  body.lyrics-open,
+  body.songinfo-open {
     padding-right: 360px;
   }
   body.queue-open .toast-container,
-  body.lyrics-open .toast-container {
+  body.lyrics-open .toast-container,
+  body.songinfo-open .toast-container {
     right: 360px !important;
   }
 }
@@ -1649,4 +1651,149 @@ body.player-top .queuePanel {
 .lyricsToggleBtn.active,
 .queueToggleBtn.active {
   color: var(--tblr-success);
+}
+
+/* ───────────────────────────── Song info panel ───────────────────────────── */
+/* Same spot and shell as the queue panel (.queuePanel); slides in from the right.
+   Opened by clicking the song in the playbar (.playerSongInfo). */
+.playerSongInfo {
+  cursor: pointer;
+}
+#songtitle.playerSongInfo:hover,
+.playerArtist.playerSongInfo:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.playerCover.playerSongInfo:focus-visible {
+  outline: 2px solid var(--tblr-success, #2fb344);
+  outline-offset: 2px;
+}
+.songInfoPanel {
+  transform: translateX(100%);
+  transition: transform .22s ease-out;
+}
+.songInfoPanel.siIn {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .songInfoPanel { transition: none; }
+}
+.songInfoBody {
+  padding: 1rem 1.25rem 1.5rem;
+}
+.siHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.coverThumb.siCover {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25), inset 0 0 0 1px var(--tblr-border-color-translucent, rgba(128,128,128,.2));
+}
+.coverThumb.siCover::before {
+  inset: 32%;
+}
+.siTitle {
+  margin: 1rem 0 .15rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.siArtist {
+  font-size: .95rem;
+  overflow-wrap: anywhere;
+}
+.siArtist[hidden],
+.siAlbum[hidden] {
+  display: none;
+}
+.siAlbum {
+  margin-top: .15rem;
+}
+.siActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: .35rem;
+  margin-top: 1rem;
+}
+.siActions .lucide {
+  font-size: 1.15rem;
+}
+.siFav.on {
+  color: var(--tblr-danger, #d63939);
+}
+.siDetails {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--tblr-border-color);
+  padding-top: 1rem;
+}
+.siLoading {
+  text-align: center;
+}
+.siList {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .4rem 1rem;
+  margin: 0 0 1rem;
+  font-size: .875rem;
+}
+.siList dt {
+  font-weight: 500;
+  color: var(--tblr-secondary);
+}
+.siList dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.siList .siFile {
+  font-family: var(--tblr-font-monospace, monospace);
+  font-size: .8rem;
+}
+.siComment {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  border-left: 3px solid var(--tblr-border-color);
+  padding-left: .75rem;
+}
+.siPlaylists .qpTitle {
+  margin-left: 0;
+}
+.siChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.siChip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  max-width: 100%;
+  padding: .25rem .7rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: .85rem;
+}
+.siChip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.siChip:hover,
+.siChip:focus-visible {
+  border-color: var(--tblr-success, #2fb344);
+  background: rgba(var(--tblr-success-rgb, 47, 179, 68), .1);
+}
+.siChip .icon-heart {
+  color: var(--tblr-danger, #d63939);
 }

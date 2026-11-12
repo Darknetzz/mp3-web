@@ -40,6 +40,7 @@ Taken with a generated demo library.
 - [x] Queue ("Add to queue" and "Play next"), shuffle and loop
 - [x] **Previous** works like other players: after 3 seconds it restarts the song; otherwise it goes back to the song actually played before (a play history, also with shuffle on), and Next then retraces the songs you stepped back from
 - [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
+- [x] **Song info card**: click the song in the playbar (or pick *Song info* in a song's menu) to slide in a card with its cover, tags, audio details (bitrate, sample rate, channels), file size, date added and the playlists it is in
 - [x] **Lyrics** for the current song from [LRCLIB](https://lrclib.net), synced line by line when available (see below)
 - [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
@@ -63,6 +64,7 @@ Taken with a generated demo library.
 | <kbd>A</kbd> | Toggle autoplay (play the next song when one ends) |
 | <kbd>Q</kbd> | Show / hide the queue panel |
 | <kbd>Y</kbd> | Show / hide the lyrics panel |
+| <kbd>I</kbd> | Show / hide the song info card for the current song |
 
 **In the song list.** Clicking a song selects it and gives the list keyboard focus. While the list has focus:
 
