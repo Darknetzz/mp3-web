@@ -230,6 +230,14 @@
     return s === cast.framework.CastState.CONNECTING || s === cast.framework.CastState.CONNECTED;
   }
 
+  // Point the volume slider (and icon) at whichever device is playing.
+  function showVolume(v) {
+    if (typeof v !== "number" || !isFinite(v)) return;
+    v = Math.round(Math.min(1, Math.max(0, v)) * 100) / 100;
+    $("#volumeSlider").val(v);
+    updateVolumeIcon(v);
+  }
+
   function onConnected(session, resumed) {
     if (player.remote) return;
     var audio = player.audio();
@@ -242,6 +250,11 @@
     player.remote = remote;   // set first so the local pause event is ignored
     audio.pause();
     if (window.waveform) window.waveform.setRemote(true);
+
+    // The speaker keeps its own volume. VOLUME_LEVEL_CHANGED only fires when it
+    // changes, so read it now (RemotePlayer may not have caught up yet).
+    var speakerVolume = session.getVolume ? session.getVolume() : null;
+    showVolume(speakerVolume !== null && speakerVolume !== undefined ? speakerVolume : remotePlayer.volumeLevel);
 
     var device = session.getCastDevice();
     $(".castStatus").text("Casting to " + (device ? device.friendlyName : "speaker")).show();
@@ -295,9 +308,7 @@
     setPlayingUI(false);
 
     // Hand the volume slider back to the local player
-    var localVolume = player.localVolume();
-    $("#volumeSlider").val(localVolume);
-    updateVolumeIcon(localVolume);
+    showVolume(player.localVolume());
 
     if (!songName) return;
     player.load(songName, { startTime: resumeAt, autoplay: false });
@@ -357,8 +368,7 @@
 
     controller.addEventListener(E.VOLUME_LEVEL_CHANGED, function () {
       if (!player.remote) return;
-      $("#volumeSlider").val(remotePlayer.volumeLevel);
-      updateVolumeIcon(remotePlayer.volumeLevel);
+      showVolume(remotePlayer.volumeLevel);
     });
   }
 
