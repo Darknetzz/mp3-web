@@ -548,7 +548,24 @@
     if (!autoScroll) return;
     if (advancingOnEnd && !autoScrollOnEnd) return;
     var row = $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0];
-    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Leave the list alone when the song is already on screen (e.g. it was
+    // just tapped): moving it under the finger on a phone made the next tap
+    // land on another row, such as the playing song's pause button.
+    if (row && !rowOnScreen(row)) row.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  // The part of the window not covered by the fixed playbar.
+  function visibleBand() {
+    var top = 0, bottom = window.innerHeight;
+    var bar = $(".audio-player-container")[0];
+    if (bar) {
+      var b = bar.getBoundingClientRect();
+      if (b.top <= 1) top = b.bottom; else bottom = b.top;
+    }
+    return { top: top, bottom: bottom };
+  }
+  function rowOnScreen(row) {
+    var r = row.getBoundingClientRect(), band = visibleBand();
+    return r.top >= band.top && r.bottom <= band.bottom;
   }
 
   /* ─────────────────────────────── Row selection ──────────────────────────── */
@@ -576,12 +593,7 @@
   // Scroll a row into view, keeping clear of the fixed playbar.
   function ensureRowVisible(row) {
     var r = row.getBoundingClientRect();
-    var top = 0, bottom = window.innerHeight;
-    var bar = $(".audio-player-container")[0];
-    if (bar) {
-      var b = bar.getBoundingClientRect();
-      if (b.top <= 1) top = b.bottom; else bottom = b.top;
-    }
+    var band = visibleBand(), top = band.top, bottom = band.bottom;
     if (r.top < top) window.scrollBy(0, r.top - top - 8);
     else if (r.bottom > bottom) window.scrollBy(0, r.bottom - bottom + 8);
   }
