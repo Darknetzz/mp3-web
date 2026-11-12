@@ -41,6 +41,8 @@ ICONS = [
     "folder", "folder-plus", "corner-left-up",
     # accounts, sharing, activity
     "radio", "share-2", "lock", "key-round", "user-cog", "log-in",
+    # session members (make host, remove)
+    "crown", "user-x",
 ]
 
 # bootstrap-table option name -> Lucide icon (see the icons config in index.php)

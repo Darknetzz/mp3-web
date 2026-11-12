@@ -103,16 +103,32 @@
     $("#sessionPlayHere").prop("checked", !onHostSpeaker);
   }
 
-  // The host is the speaker, so it is never silenced (a guest who becomes host
-  // starts playing out loud).
+  // Someone has to be heard. A silent guest who becomes host stays silent only
+  // while another active member still plays out loud (e.g. the old host after
+  // handing over); if the host left, the session plays on this device.
+  function othersAudible() {
+    return (view.members || []).some(function (m) { return !m.me && m.active && !m.remote; });
+  }
   function applySpeaker() {
-    var silent = isActive() && !!view && !view.is_host && onHostSpeaker;
+    var silent = isActive() && !!view && onHostSpeaker && (!view.is_host || othersAudible());
     if (silent === silenced) return;
     if (silenced && !silent && isActive() && view && view.is_host) {
-      showToast("You're the host now, so the session plays on this device.", "info");
+      showToast("No one else is playing the session out loud, so it plays on this device now.", "info");
     }
     silenced = silent;
     player.setMuted(silent);
+  }
+
+  // Tell this device when it gains or loses host.
+  var wasHost = null;
+  function noticeHostChange() {
+    if (!isActive() || !view) { wasHost = null; return; }
+    if (wasHost === false && view.is_host) showToast("You're now the host of the session.", "success");
+    if (wasHost === true && !view.is_host) {
+      var host = (view.members || []).filter(function (m) { return m.host; })[0];
+      showToast((host ? esc(host.name) : "Someone else") + " is now the host.", "info");
+    }
+    wasHost = !!view.is_host;
   }
 
   /* ─────────────────────────────── UI state ───────────────────────────────── */
@@ -122,6 +138,7 @@
     $(".sessionActive").toggle(!!active);
     $("body").toggleClass("session-readonly", !!active && !view.can_control);
     if (window.queuePanel) queuePanel.refresh(); // queue editing follows control rights
+    noticeHostChange();
     applySpeaker();
 
     if (!active) {
@@ -142,7 +159,7 @@
       .toggleClass("bg-green text-green-fg", view.is_host)
       .toggleClass("bg-secondary text-secondary-fg", !view.is_host);
     $(".sessionHostOnly").toggle(!!view.is_host);
-    $(".sessionGuestOnly").toggle(!view.is_host);
+    $(".sessionGuestOnly").toggle(!view.is_host || onHostSpeaker); // a silent host can turn it back on
     $("#sessionPlayHere").prop("checked", !onHostSpeaker);
     $("#sessionAllowAll").prop("checked", !!view.allow_all);
     $(".sessionBadge").text(view.listening).show();
@@ -150,7 +167,7 @@
     renderMembers(view.members || []);
 
     var status = "Session: " + esc(view.name) + " · " + view.listening + " listening · " + role;
-    if (silenced) status += " · on the host&rsquo;s speaker";
+    if (silenced) status += view.is_host ? " · silent here" : " · on the host&rsquo;s speaker";
     if (!$(".sessionStatus .tapToListen").length || !$(".sessionStatus").is(":visible")) {
       $(".sessionStatus").html(status).show();
     } else {
@@ -160,16 +177,43 @@
 
   function renderMembers(members) {
     var html = "";
+    var amHost = !!(view && view.is_host);
     members.forEach(function (m) {
+      var actions = "";
+      if (amHost && !m.me) {
+        actions =
+          '<button type="button" class="btn btn-sm btn-ghost-secondary btn-icon sessionPromoteBtn" data-member="' + esc(m.id) + '" data-name="' + esc(m.name) + '"' +
+            (m.active ? '' : ' disabled') + ' title="Make host" aria-label="Make ' + esc(m.name) + ' the host">' + lucideIcon("crown") + '</button>' +
+          '<button type="button" class="btn btn-sm btn-ghost-danger btn-icon sessionKickBtn" data-member="' + esc(m.id) + '" data-name="' + esc(m.name) + '"' +
+            ' title="Remove from session" aria-label="Remove ' + esc(m.name) + ' from the session">' + lucideIcon("user-x") + '</button>';
+      }
       html += '<div class="list-group-item d-flex align-items-center gap-2' + (m.active ? '' : ' text-muted') + '">' +
         '<span class="status-dot ' + (m.active ? 'status-dot-animated bg-green' : 'bg-secondary') + '"></span>' +
         '<span class="text-truncate flex-fill">' + esc(m.name) + (m.me ? ' <small class="text-muted">(you)</small>' : '') + '</span>' +
-        (m.remote ? '<small class="text-muted text-nowrap">on host&rsquo;s speaker</small>' : '') +
+        (m.remote ? '<small class="text-muted text-nowrap">' + (m.host ? 'silent' : 'on host&rsquo;s speaker') + '</small>' : '') +
         (m.host ? '<span class="badge bg-green text-green-fg">Host</span>' : '') +
         (m.active ? '' : '<small>away</small>') +
+        actions +
         '</div>';
     });
     $(".sessionMembers").html(html);
+  }
+
+  function memberAction(what, member) {
+    request("POST", "sessionMember", { "do": what, member: member }).then(function (res) {
+      showToast(res.response, res.status === "success" ? "success" : "danger");
+      if (res.data && res.data.in_session === false) {
+        exitSession();
+        return;
+      }
+      if (res.data && res.data.code) {
+        wasHost = !!res.data.is_host; // the toast above already says what changed
+        view = res.data;
+        renderUI();
+      }
+    }, function () {
+      showToast("Could not reach the server.", "danger");
+    });
   }
 
   /* ──────────────────────────── Display name ──────────────────────────────── */
@@ -374,7 +418,8 @@
       if (res.status === "success") {
         apply(res.data, false);
       } else if (res.data && res.data.in_session === false) {
-        exitSession("The session has ended.");
+        if (res.data.kicked && playing) player.pause();
+        exitSession(res.response || "The session has ended.");
         return;
       }
       schedulePoll();
@@ -639,6 +684,17 @@
           renderUI();
         }
       });
+    });
+
+    $(document).on("click", ".sessionPromoteBtn", function () {
+      var b = $(this);
+      if (!window.confirm("Make " + b.data("name") + " the host? They get the host controls, and you stay in the session as a member.")) return;
+      memberAction("promote", String(b.data("member")));
+    });
+    $(document).on("click", ".sessionKickBtn", function () {
+      var b = $(this);
+      if (!window.confirm("Remove " + b.data("name") + " from the session? They can't rejoin this session.")) return;
+      memberAction("kick", String(b.data("member")));
     });
 
     $(".leaveSessionBtn").on("click", function () {

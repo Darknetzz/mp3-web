@@ -390,6 +390,11 @@ do {
         setUserPrefs($_POST['prefs'] ?? null);
     }
 
+    if ($action === 'sessionMember') {
+        require_csrf_token();
+        sessionMemberAction($_POST['do'] ?? '', $_POST['member'] ?? '');
+    }
+
     if ($action === 'sessionSpeaker') {
         require_csrf_token();
         sessionSpeaker($_POST['remote'] ?? false);
