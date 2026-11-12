@@ -44,7 +44,21 @@ $theme = themeSetup();
     <?php if ($theme["css"] !== "") { echo "<style>" . $theme["css"] . "</style>"; } ?>
     <?= $theme["script"] ?>
   </head>
-<body class="<?= getConfig('player_position') === 'top' ? 'player-top' : 'player-bottom' ?> <?= getConfig('playlist_nav') === 'top' ? 'nav-top' : 'nav-sidebar' ?>">
+<?php
+# Player bar look (see "Player bar" in the settings); js.php previews changes live.
+$playerClasses = [
+  getConfig('player_position') === 'top' ? 'player-top' : 'player-bottom',
+  getConfig('playlist_nav') === 'top' ? 'nav-top' : 'nav-sidebar',
+  'player-size-' . preg_replace('/[^a-z]/', '', (string) getConfig('player_size')),
+  'player-progress-' . preg_replace('/[^a-z]/', '', (string) getConfig('player_progress')),
+];
+if (!getConfig('player_show_cover')) $playerClasses[] = 'player-no-cover';
+$shownButtons = (array) getConfig('player_buttons');
+foreach (array_keys(getConfig('player_buttons', 'options')) as $btn) {
+  if (!in_array($btn, $shownButtons, true)) $playerClasses[] = 'hide-pbtn-' . $btn;
+}
+?>
+<body class="<?= htmlspecialchars(implode(' ', $playerClasses), ENT_QUOTES, 'UTF-8') ?>">
 <?php
 
 
@@ -234,7 +248,7 @@ echo '
         <small class="castStatus text-muted" style="display:none;"></small>
         <div class="sessionStatus text-muted small" style="display:none;"></div>
       </div>
-      '.(getConfig('show_waveform') ? '<canvas class="waveform" aria-hidden="true"></canvas>' : '').'
+      <canvas class="waveform" aria-hidden="true"'.(getConfig('show_waveform') ? '' : ' hidden').'></canvas>
     </div>
 
     <div class="playerMini">
@@ -245,13 +259,13 @@ echo '
 
     <div class="playerCenter" id="playerCenter">
       <div class="playerControls">
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleShuffleBtn" onclick="toggleShuffle()" title="Shuffle (S)" aria-label="Shuffle">'.icon('shuffle', margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn stopBtn" onclick="stopSong()" disabled title="Stop" aria-label="Stop">'.icon('square', filled: true, margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn" onclick="prevSong()" disabled title="Previous (Shift+←)" aria-label="Previous song">'.icon('skip-back', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleShuffleBtn" data-pbtn="shuffle" onclick="toggleShuffle()" title="Shuffle (S)" aria-label="Shuffle">'.icon('shuffle', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn stopBtn" data-pbtn="stop" onclick="stopSong()" disabled title="Stop" aria-label="Stop">'.icon('square', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn" data-pbtn="prevnext" onclick="prevSong()" disabled title="Previous (Shift+←)" aria-label="Previous song">'.icon('skip-back', filled: true, margin: 0).'</button>
         <button type="button" class="btn btn-icon btn-pill btn-success ctrlBtn playPauseBtn playMain" onclick="toggleSong()" disabled title="Play/pause (Space)" aria-label="Play or pause">'.icon("play", filled: true).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn" onclick="nextSong()" disabled title="Next (Shift+→)" aria-label="Next song">'.icon('skip-forward', filled: true, margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleLoopBtn" onclick="toggleLoop()" title="Repeat (L)" aria-label="Repeat">'.icon('repeat', margin: 0).'</button>
-        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleAutoplayBtn" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary ctrlBtn" data-pbtn="prevnext" onclick="nextSong()" disabled title="Next (Shift+→)" aria-label="Next song">'.icon('skip-forward', filled: true, margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleLoopBtn" data-pbtn="repeat" onclick="toggleLoop()" title="Repeat (L)" aria-label="Repeat">'.icon('repeat', margin: 0).'</button>
+        <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary toggleAutoplayBtn" data-pbtn="autoplay" onclick="toggleAutoplay()" aria-label="Autoplay next song">'.icon('list-end', margin: 0).'</button>
       </div>
       <audio controls style="'.(getConfig('use_legacy_player') ? '' : 'display:none').';width:100%">
         <source id="audioSource" src="" type="audio/mpeg">
@@ -271,15 +285,15 @@ echo '
     <div class="playerRight" id="playerRight">';
       if (!getConfig('use_legacy_player')) {
         echo '
-      <div class="volumeGroup">
+      <div class="volumeGroup" data-pbtn="volume">
         <label for="volumeSlider" class="volumeIcon form-label mb-0">'.icon("volume-1", 2).'</label>
         <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="'.getConfig('default_volume').'" aria-label="Volume">
       </div>';
       }
 echo '
-      <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary lyricsToggleBtn" aria-controls="lyricsPanel" aria-expanded="false" aria-label="Lyrics" title="Lyrics (Y)">'.icon('mic-vocal', margin: 0).'</button>
-      <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary queueToggleBtn" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music', margin: 0).'</button>
-      <span class="castGroup" style="display:none;">
+      <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary lyricsToggleBtn" data-pbtn="lyrics" aria-controls="lyricsPanel" aria-expanded="false" aria-label="Lyrics" title="Lyrics (Y)">'.icon('mic-vocal', margin: 0).'</button>
+      <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary queueToggleBtn" data-pbtn="queue" aria-controls="queuePanel" aria-expanded="false" aria-label="Queue" title="Queue (Q)">'.icon('list-music', margin: 0).'</button>
+      <span class="castGroup" data-pbtn="cast" style="display:none;">
         <button type="button" class="btn btn-icon btn-pill btn-ghost-secondary castBtn" title="Cast to a speaker" aria-label="Cast">'.icon('cast', margin: 0).'</button>
       </span>
     </div>
@@ -495,6 +509,7 @@ echo '</div>'; // .appLayout
 
 <?php require_once('modals.php'); ?>
 <?php require_once('js.php'); ?>
+<script src="audiograph.js?v=<?= @filemtime(__DIR__ . '/audiograph.js') ?>"></script>
 <script src="waveform.js?v=<?= @filemtime(__DIR__ . '/waveform.js') ?>"></script>
 <script src="cast.js?v=<?= @filemtime(__DIR__ . '/cast.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>

@@ -297,16 +297,30 @@ Where settings live:
 | `remember_position` | `true` | Restore song, position, loop and shuffle after a refresh |
 | `auto_scroll` | `true` | Keep the playing song in view |
 | `auto_scroll_on_end` | `false` | Also scroll to the next song when it starts because the previous one finished |
-| `use_legacy_player` | `false` | Use the browser's built-in audio controls |
+| `cast_end_action` | `continue` | When casting stops: `continue` playing on this device or `pause` |
 | **Appearance** | | |
 | `player_theme` | `dark` | See [Themes](#themes) |
 | `accent_color` | `green` | green, blue, purple, pink, orange, red, teal, yellow or `custom` |
 | `custom_accent` | `#1db954` | Accent when `accent_color` is `custom` |
 | `custom_base`, `custom_background`, `custom_surface`, `custom_text` | dark, `#121212`, `#1e1e1e`, `#f0f0f0` | Colors for the `custom` theme |
-| **Layout** | | |
+| **Player bar** | | |
 | `player_position` | `bottom` | Player bar at the `bottom` or `top` |
+| `player_size` | `normal` | `compact`, `normal` or `large` |
+| `player_buttons` | all | Buttons shown: `shuffle`, `stop`, `prevnext`, `repeat`, `autoplay`, `volume`, `lyrics`, `queue`, `cast` |
+| `player_show_cover` | `true` | Show the cover art |
+| `player_progress` | `center` | Progress bar under the controls (`center`) or as a full-width line on the bar's `edge` |
+| `player_time_format` | `total` | Show the song's `total` length or the time `remaining` |
+| `show_waveform` | `true` | Show the waveform |
+| `waveform_placement` | `inline` | Next to the title (`inline`) or across the whole bar (`background`) |
+| `waveform_style` | `bars` | `bars`, `bottom` (bars from the bottom) or `line` (a smooth wave) |
+| `waveform_bars` | `0` | Number of bars; `0` is auto (20 inline, 64 as background) |
+| `waveform_color` / `waveform_custom_color` | `accent` / `#2fb344` | `accent`, `text` or `custom` |
+| `waveform_opacity` | `0.3` | Opacity of the background waveform |
+| `waveform_sensitivity` | `1` | Gain on the levels (0.5–2) |
+| `use_legacy_player` | `false` | Use the browser's built-in audio controls |
+| **Layout** | | |
 | `playlist_nav` | `sidebar` | List All songs and playlists in a left `sidebar` or `top` (above the songs) |
-| `show_waveform`, `show_quick_buttons`, `show_upload` | `true` | Show the waveform, the Play first/Random buttons in the page header, the upload box |
+| `show_quick_buttons`, `show_upload` | `true` | Show the Play first/Random buttons in the page header, the upload box |
 | `compact_rows` | `false` | Tighter song list rows |
 | `fluid-container` | `false` | Full-width layout |
 | **Background** | | |

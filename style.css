@@ -517,7 +517,7 @@ body.player-top .audio-player-container {
 }
 @media (max-width: 991.98px) {
   .playerBar { gap: .6rem; }
-  .waveform { display: none; }
+  .waveform:not(.waveformBg) { display: none; }
   #volumeSlider { width: 72px; }
 }
 
@@ -570,6 +570,99 @@ body.player-top .audio-player-container {
     flex: 1 1 auto;
   }
 }
+/* ───────────────────────── Player bar settings ───────────────────────── */
+/* Size */
+body.player-size-compact .playerBar { min-height: 60px; padding-top: .3rem; padding-bottom: .3rem; }
+body.player-size-compact .playerCover { width: 40px; height: 40px; }
+body.player-size-compact #songtitle { font-size: .875rem; }
+body.player-size-compact .playerControls .btn { width: 28px; height: 28px; }
+body.player-size-compact .playerControls .playMain { width: 32px; height: 32px; }
+body.player-size-large .playerBar { min-height: 100px; padding-top: .75rem; padding-bottom: .75rem; }
+body.player-size-large .playerCover { width: 76px; height: 76px; border-radius: 8px; }
+body.player-size-large #songtitle { font-size: 1.1rem; }
+body.player-size-large .playerArtist { font-size: .9rem; }
+body.player-size-large .playerControls .btn,
+body.player-size-large .playerRight .btn { width: 38px; height: 38px; }
+body.player-size-large .playerControls .playMain { width: 48px; height: 48px; }
+body.player-size-large .playerControls .btn .lucide,
+body.player-size-large .playerRight .btn .lucide { font-size: 1.25rem !important; }
+body.player-size-large .waveform:not(.waveformBg) { width: 96px; height: 36px; }
+
+/* Cover and buttons */
+body.player-no-cover .playerCover { display: none; }
+body.hide-pbtn-shuffle  [data-pbtn="shuffle"],
+body.hide-pbtn-stop     [data-pbtn="stop"],
+body.hide-pbtn-prevnext .playerControls [data-pbtn="prevnext"],
+body.hide-pbtn-repeat   [data-pbtn="repeat"],
+body.hide-pbtn-autoplay [data-pbtn="autoplay"],
+body.hide-pbtn-volume   [data-pbtn="volume"],
+body.hide-pbtn-lyrics   [data-pbtn="lyrics"],
+body.hide-pbtn-queue    [data-pbtn="queue"],
+body.hide-pbtn-cast     [data-pbtn="cast"] {
+  display: none !important;
+}
+
+/* Progress as a full-width line along the bar's edge (top edge, or the
+   bottom edge when the player sits at the top). Times sit under the controls. */
+body.player-progress-edge .playerProgress {
+  justify-content: center;
+  gap: 0;
+}
+body.player-progress-edge .audioCurrentTime::after {
+  content: " / ";
+  white-space: pre;
+}
+body.player-progress-edge .playerProgress .audioSlider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  transform: translateY(-50%);
+}
+body.player-top.player-progress-edge .playerProgress .audioSlider {
+  top: auto;
+  bottom: 0;
+  transform: translateY(50%);
+}
+body.player-progress-edge .audioSlider::-webkit-slider-runnable-track { height: 3px; }
+body.player-progress-edge .audioSlider::-moz-range-track { height: 3px; }
+body.player-progress-edge .audioSlider::-webkit-slider-thumb {
+  margin-top: -4.5px;
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+body.player-progress-edge .audioSlider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+body.player-progress-edge .audio-player-container:hover .audioSlider::-webkit-slider-thumb,
+body.player-progress-edge .audioSlider:focus-visible::-webkit-slider-thumb { opacity: 1; }
+body.player-progress-edge .audio-player-container:hover .audioSlider::-moz-range-thumb,
+body.player-progress-edge .audioSlider:focus-visible::-moz-range-thumb { opacity: 1; }
+
+/* Waveform across the whole bar, behind the controls */
+.waveform.waveformBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.waveform[hidden] { display: none !important; }
+body.waveform-bg .playerBar {
+  position: relative;
+  z-index: 1;
+}
+
 .castBtn:disabled {
   pointer-events: auto; /* keep the explanatory tooltip on hover */
   cursor: not-allowed;

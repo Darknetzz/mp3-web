@@ -152,9 +152,10 @@ echo '
 $settingsCategories = [
   "general"    => ["name" => "General",    "icon" => "sliders-horizontal", "keys" => ["site_title", "no_song_text", "env"]],
   "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
-  "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "auto_scroll_on_end", "use_legacy_player"]],
+  "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "loudness_equalization", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "auto_scroll_on_end", "cast_end_action"]],
   "appearance" => ["name" => "Appearance", "icon" => "palette",         "keys" => ["player_theme", "custom_base", "custom_background", "custom_surface", "custom_text", "accent_color", "custom_accent"]],
-  "layout"     => ["name" => "Layout",     "icon" => "panels-top-left", "keys" => ["player_position", "playlist_nav", "show_waveform", "show_quick_buttons", "show_upload", "compact_rows", "fluid-container"]],
+  "player"     => ["name" => "Player bar", "icon" => "music",           "keys" => ["player_position", "player_size", "player_buttons", "player_show_cover", "player_progress", "player_time_format", "show_waveform", "waveform_placement", "waveform_style", "waveform_bars", "waveform_color", "waveform_custom_color", "waveform_opacity", "waveform_sensitivity", "use_legacy_player"]],
+  "layout"     => ["name" => "Layout",     "icon" => "panels-top-left", "keys" => ["playlist_nav", "show_quick_buttons", "show_upload", "compact_rows", "fluid-container"]],
   "background" => ["name" => "Background", "icon" => "image",           "keys" => ["background_image", "background_dim", "background_blur"]],
   "other"      => ["name" => "Other",      "icon" => "ellipsis", "keys" => []],
 ];
@@ -169,6 +170,14 @@ $settingsShowWhen = [
   "background_dim"    => "background_image!=",
   "background_blur"   => "background_image!=",
   "auto_scroll_on_end" => "auto_scroll=true",
+  # Several rules joined with & must all hold
+  "waveform_placement"    => "show_waveform=true",
+  "waveform_style"        => "show_waveform=true",
+  "waveform_bars"         => "show_waveform=true",
+  "waveform_color"        => "show_waveform=true",
+  "waveform_custom_color" => "show_waveform=true&waveform_color=custom",
+  "waveform_opacity"      => "show_waveform=true&waveform_placement=background",
+  "waveform_sensitivity"  => "show_waveform=true",
 ];
 
 $accentSwatches = [
@@ -182,6 +191,7 @@ function settingsEsc($v): string {
 
 function formatRangeValue($value, string $format): string {
   if ($format === "px") return round((float) $value) . " px";
+  if ($format === "count") return (float) $value == 0 ? "Auto" : (string) round((float) $value);
   return round((float) $value * 100) . "%";
 }
 
@@ -262,10 +272,13 @@ function renderSettingControl(string $key, array $setting): string {
       $options  = is_array($setting["options"] ?? null) ? $setting["options"] : [];
       $selected = is_array($value) ? $value : [];
       $html = '<div class="settingMulti settingSegmented flex-wrap justify-content-end" data-key="'.$k.'">';
-      foreach ($options as $opt) {
+      // A list of values, or a value => label map
+      $labelled = !array_is_list($options);
+      foreach ($options as $optKey => $optLabel) {
+        $opt   = $labelled ? (string) $optKey : (string) $optLabel;
         $optId = $id . "-" . preg_replace('/[^a-z0-9_-]/i', '', $opt ?: "x") . "-" . substr(md5($opt), 0, 4);
         $html .= '<input type="checkbox" class="btn-check multiOpt" id="'.$optId.'" value="'.settingsEsc($opt).'"'.(in_array($opt, $selected, true) ? ' checked' : '').'>'
-              .  '<label class="segBtn" for="'.$optId.'">'.settingsEsc($opt).'</label>';
+              .  '<label class="segBtn" for="'.$optId.'">'.settingsEsc($optLabel).'</label>';
       }
       return $html . '</div>';
 
