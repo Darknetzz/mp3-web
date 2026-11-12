@@ -1220,6 +1220,62 @@ body.player-top .toast-container {
   }
 }
 
+/* ─────────────────────────────── Page header ─────────────────────────────── */
+/* Title on the left, buttons on the right; never wider than the screen
+   (a too-wide header makes phones zoom the whole page out). */
+.mainHeader {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+.mainTitle {
+  min-width: 0;
+}
+.mainHeaderButtons {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+@media (max-width: 576px) {
+  .mainHeader {
+    padding: .6rem .75rem;
+  }
+  .mainTitle h2 {
+    font-size: 1.1rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mainTitle h2 small {
+    font-size: .75rem;
+    margin: 0 0 0 .25rem !important;
+  }
+  .mainHeaderButtons {
+    gap: .35rem !important;
+  }
+  .mainHeaderButtons .btn-sm {
+    padding: .3rem .55rem;
+  }
+  .mainHeaderButtons .btn-sm .lucide.m-1 {
+    margin: 0 !important;
+  }
+  /* Upload: one compact line (there's nothing to drag on a phone) */
+  #musicDropzone {
+    padding: .5rem .75rem !important;
+  }
+  #musicDropzone h3 {
+    font-size: .95rem;
+    margin: 0 0 .1rem;
+  }
+  #musicDropzone .dropzoneSelect {
+    font-size: .8rem;
+  }
+  #dropzoneResponse {
+    margin: .5rem 0 !important;
+  }
+}
+
 /* ──────────────────────────────── Playlists ──────────────────────────────── */
 .playlistBar {
   display: flex;
