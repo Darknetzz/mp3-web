@@ -37,6 +37,7 @@
   var demoMode              = <?= json_encode(getConfig("env") === "demo") ?>; // file and playlist actions are disabled
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
+  window.loudnessEqualization = <?= json_encode((bool) getConfig("loudness_equalization")) ?>; // read by audiograph.js
   // Autoplay (play the next song when one ends): the playbar toggle is remembered
   // per browser; the autoplay_next setting is the default.
   var autoplayNext          = (function() {
@@ -50,6 +51,19 @@
   var startShuffle          = <?= json_encode((bool) getConfig("start_shuffle")) ?>;
   var startLoop             = <?= json_encode((bool) getConfig("start_loop")) ?>;
   var rememberPosition      = <?= json_encode((bool) getConfig("remember_position")) ?>;
+  var castEndAction         = <?= json_encode((string) getConfig("cast_end_action")) ?>; // "continue" or "pause"
+  var playerTimeFormat      = <?= json_encode((string) getConfig("player_time_format")) ?>; // "total" or "remaining"
+  // Read by waveform.js; the settings modal updates it live via waveform.configure()
+  window.waveformConfig     = {
+    enabled:     <?= json_encode((bool) getConfig("show_waveform")) ?>,
+    placement:   <?= json_encode((string) getConfig("waveform_placement")) ?>,
+    style:       <?= json_encode((string) getConfig("waveform_style")) ?>,
+    bars:        <?= json_encode((int) getConfig("waveform_bars")) ?>,
+    color:       <?= json_encode((string) getConfig("waveform_color")) ?>,
+    customColor: <?= json_encode((string) getConfig("waveform_custom_color")) ?>,
+    opacity:     <?= json_encode((float) getConfig("waveform_opacity")) ?>,
+    sensitivity: <?= json_encode((float) getConfig("waveform_sensitivity")) ?>,
+  };
   var stateKey              = "playerState";
   var songName              = null;
   var sessionCode           = <?= json_encode(sessionValidCode($_SESSION['session_code'] ?? null) ? $_SESSION['session_code'] : null) ?>;
@@ -118,6 +132,12 @@
   // (set by cast.js while a Cast session is active).
   var player = {
     remote: null,
+    // Start time of a local load that hasn't been applied yet (no metadata so
+    // far). getTime() reports it, so a handoff to a speaker right after a load
+    // still starts at the right position.
+    pendingStart: null,
+    loadedAt: 0,
+    lastTime: 0, // last real local position, survives the element being reset
     audio: function() {
       return $("audio")[0];
     },
@@ -129,26 +149,53 @@
       var autoplay  = opts.autoplay !== false;
       var startTime = opts.startTime || 0;
       if (this.remote) {
+        this.pendingStart = null;
         this.remote.load(songUrl(name), name, startTime, autoplay);
         return;
       }
+      var self = this;
       var a = this.audio();
+      $(a).off("loadedmetadata.start");
+      this.pendingStart = startTime > 0 ? startTime : null;
+      this.lastTime = startTime;
+      this.loadedAt = Date.now();
       $("#audioSource").attr("src", songUrl(name));
       a.load();
       if (startTime > 0) {
-        $(a).one("loadedmetadata", function() { a.currentTime = startTime; });
+        $(a).one("loadedmetadata.start", function() {
+          a.currentTime = startTime;
+          self.pendingStart = null;
+        });
       }
       if (autoplay) {
-        this.play();
+        this.playLocal();
       }
     },
-    play: function() {
-      if (this.remote) return this.remote.play();
+    // The local <audio> has nothing it can play: no source, a failed load, or
+    // a source that never started loading. Play then reloads the song instead
+    // of doing nothing (e.g. after switching back from a cast device).
+    localBroken: function() {
+      var a = this.audio();
+      if (!$("#audioSource").attr("src")) return true;
+      if (a.error) return true;
+      return a.networkState === a.NETWORK_NO_SOURCE && a.readyState === 0 && Date.now() - this.loadedAt > 2000;
+    },
+    playLocal: function() {
       var p = this.audio().play();
       if (p && p.catch) p.catch(function(e) {
         console.log("Playback was blocked:", e);
         if (e && e.name === "NotAllowedError" && window.sessionSync) sessionSync.playBlocked();
       });
+    },
+    play: function() {
+      if (this.remote) return this.remote.play();
+      if (songName && this.localBroken()) {
+        var t = this.getTime() || this.lastTime || 0;
+        console.log("Player: nothing loaded locally, reloading " + songName + " at " + Math.round(t) + "s");
+        this.load(songName, { startTime: t, autoplay: true });
+        return;
+      }
+      this.playLocal();
     },
     pause: function() {
       if (this.remote) return this.remote.pause();
@@ -158,25 +205,49 @@
       if (this.remote) return this.remote.stop();
       var a = this.audio();
       a.pause();
+      $(a).off("loadedmetadata.start");
+      this.pendingStart = null;
+      this.lastTime = 0;
       $("#audioSource").attr("src", "");
       a.removeAttribute("src");
       a.load();
     },
     seek: function(t) {
       if (this.remote) return this.remote.seek(t);
+      if (this.pendingStart !== null) {
+        // Not loaded yet: move the pending start instead
+        var a = this.audio(), self = this;
+        this.pendingStart = t;
+        $(a).off("loadedmetadata.start").one("loadedmetadata.start", function() {
+          a.currentTime = t;
+          self.pendingStart = null;
+        });
+        return;
+      }
       this.audio().currentTime = t;
     },
     setVolume: function(v) {
       if (this.remote) return this.remote.setVolume(v);
-      this.audio().volume = v;
+      if (window.audioGraph) window.audioGraph.setVolume(v);
+      else this.audio().volume = v;
+    },
+    // The local volume (the element may sit at 1 while the audio graph applies it)
+    localVolume: function() {
+      return window.audioGraph ? window.audioGraph.volume() : this.audio().volume;
     },
     getTime: function() {
       if (this.remote) return this.remote.getTime();
+      if (this.pendingStart !== null) return this.pendingStart;
       return this.audio().currentTime;
     },
     getDuration: function() {
       var d = this.remote ? this.remote.getDuration() : this.audio().duration;
       return (isFinite(d) && d > 0) ? d : 0;
+    },
+    // Where playback is and whether it is playing, for moving it to another
+    // device. Read it before switching `remote`.
+    handoff: function() {
+      return { time: this.getTime() || 0, playing: !!playing };
     },
   };
 
@@ -807,7 +878,7 @@
   /* ───────────────────────── FUNCTION: changeVolume ───────────────────────── */
   function changeVolume(delta) {
     var slider = $("#volumeSlider");
-    var current = slider.length ? parseFloat(slider.val()) : player.audio().volume;
+    var current = slider.length ? parseFloat(slider.val()) : player.localVolume();
     var v = Math.round(Math.min(1, Math.max(0, current + delta)) * 100) / 100;
     if (slider.length) {
       slider.val(v).trigger("input");
@@ -826,10 +897,13 @@
   /* ────────────────────────── FUNCTION: updateTime ────────────────────────── */
   function updateTime() {
     currentTime = player.getTime() || 0;
+    if (!player.isRemote() && player.audio().readyState > 0) player.lastTime = currentTime;
     var d = player.getDuration();
-    if (d) {
-      duration = d;
-      $(".audioDuration").text(formatTime(duration));
+    if (d) duration = d;
+    if (duration) {
+      $(".audioDuration").text(playerTimeFormat === "remaining"
+        ? "-" + formatTime(Math.max(0, duration - currentTime))
+        : formatTime(duration));
     }
     $(".audioCurrentTime").text(formatTime(currentTime));
     $(".audioSlider").attr("max", duration);
@@ -992,7 +1066,8 @@
     var initialVolume = (!isNaN(storedVolume) && storedVolume >= 0 && storedVolume <= 1) ? storedVolume : defaultVolume;
     console.log("Initial volume: " + initialVolume);
     $("#volumeSlider").val(initialVolume);
-    audioElement.volume = initialVolume;
+    if (window.audioGraph) window.audioGraph.setVolume(initialVolume);
+    else audioElement.volume = initialVolume;
     updateVolumeIcon(initialVolume);
 
     /* ───────────────────────── NOTE: Playbar size / phones ─────────────────── */
@@ -1138,6 +1213,31 @@
       updateVolumeIcon(v);
     });
 
+    /* ────────────────────────────── NOTE: volumeWheel ────────────────────────── */
+    // Scroll adjusts volume while the pointer is over (or within a few px of)
+    // the volume group. Trackpads fire many small deltas, so accumulate pixels
+    // and step 5% per 100px (one Chrome wheel notch); line/page-mode wheels
+    // (Firefox) step once per notch.
+    var volumeWheelAcc = 0;
+    document.addEventListener('wheel', function(e) {
+      var group = document.querySelector('.volumeGroup');
+      if (!group || !group.offsetParent) return;
+      var r = group.getBoundingClientRect(), pad = 12;
+      if (e.clientX < r.left - pad || e.clientX > r.right + pad ||
+          e.clientY < r.top - pad || e.clientY > r.bottom + pad) return;
+      e.preventDefault();
+      var dy = e.deltaY;
+      if (e.deltaMode !== 0) {
+        if (dy) changeVolume(dy < 0 ? 0.05 : -0.05);
+        return;
+      }
+      volumeWheelAcc += dy;
+      while (Math.abs(volumeWheelAcc) >= 100) {
+        changeVolume(volumeWheelAcc < 0 ? 0.05 : -0.05);
+        volumeWheelAcc -= volumeWheelAcc < 0 ? -100 : 100;
+      }
+    }, { passive: false });
+
     /* ────────────────────────────── NOTE: volumeIcon ─────────────────────────── */
     $(".volumeIcon").on('click', function() {
       if ($("#volumeSlider").val() == 0) {
@@ -1269,8 +1369,44 @@
     }
 
     // Live preview for preset themes and accents (custom ones need a reload).
+    // Player bar body classes: key -> class prefix
+    var playerClassKeys = { player_size: "player-size-", player_progress: "player-progress-" };
+    var waveformKeys = {
+      show_waveform: "enabled", waveform_placement: "placement", waveform_style: "style",
+      waveform_bars: "bars", waveform_color: "color", waveform_custom_color: "customColor",
+      waveform_opacity: "opacity", waveform_sensitivity: "sensitivity",
+    };
+
     function previewSetting(key, value) {
       var root = document.documentElement;
+      var body = document.body;
+      if (playerClassKeys[key]) {
+        var prefix = playerClassKeys[key];
+        body.className = body.className.split(/\s+/).filter(function(c) { return c.indexOf(prefix) !== 0; }).join(" ");
+        body.classList.add(prefix + value);
+      }
+      if (key === "player_position") {
+        body.classList.toggle("player-top", value === "top");
+        body.classList.toggle("player-bottom", value !== "top");
+      }
+      if (key === "player_show_cover") body.classList.toggle("player-no-cover", !value);
+      if (key === "player_buttons") {
+        settingsModal.find(".settingMulti[data-key='player_buttons'] .multiOpt").each(function() {
+          body.classList.toggle("hide-pbtn-" + this.value, (value || []).indexOf(this.value) === -1);
+        });
+      }
+      if (key === "player_time_format") {
+        playerTimeFormat = value;
+        updateTime();
+      }
+      if (waveformKeys[key] && window.waveform && waveform.configure) {
+        var opts = {};
+        var v = value;
+        if (key === "waveform_bars" || key === "waveform_opacity" || key === "waveform_sensitivity") v = parseFloat(value);
+        if (key === "show_waveform") v = value === true || value === "true";
+        opts[waveformKeys[key]] = v;
+        waveform.configure(opts);
+      }
       if (key === "player_theme" && previewThemes[value]) {
         root.setAttribute("data-app-theme", value);
         root.setAttribute("data-bs-theme", previewThemes[value]);
@@ -1285,15 +1421,15 @@
 
     function updateConditionalRows() {
       settingsModal.find(".settingRow[data-show-when]").each(function() {
-        var rule = String($(this).data("show-when"));
-        var show;
-        if (rule.indexOf("!=") !== -1) {
-          var parts = rule.split("!=");
-          show = String(settingValue(parts[0]) || "").trim() !== parts[1];
-        } else {
+        // Rules joined with & must all hold
+        var show = String($(this).data("show-when")).split("&").every(function(rule) {
+          if (rule.indexOf("!=") !== -1) {
+            var parts = rule.split("!=");
+            return String(settingValue(parts[0]) || "").trim() !== parts[1];
+          }
           var eq = rule.split("=");
-          show = String(settingValue(eq[0])) === eq[1];
-        }
+          return String(settingValue(eq[0])) === eq[1];
+        });
         $(this).toggleClass("settingCondHidden", !show);
       });
       updateSearch();
@@ -1370,8 +1506,14 @@
       // Range value label while dragging
       .on("input", ".settingRange", function() {
         var v = parseFloat($(this).val());
-        var label = $(this).data("format") === "px" ? Math.round(v) + " px" : Math.round(v * 100) + "%";
+        var format = $(this).data("format");
+        var label = format === "px" ? Math.round(v) + " px"
+                  : format === "count" ? (v === 0 ? "Auto" : String(Math.round(v)))
+                  : Math.round(v * 100) + "%";
         $(this).siblings(".settingRangeValue").text(label);
+        // Waveform sliders preview while dragging
+        var key = $(this).data("key");
+        if (waveformKeys[key]) previewSetting(key, v);
       })
       // Chips (array settings)
       .on("click", ".chipRemove", function() {
