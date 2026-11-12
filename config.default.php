@@ -36,17 +36,18 @@ $config = [
     ],
 
     /* ─────────────────────────────── Library ──────────────────────────────── */
-    "audio_path" => [
-        "name"        => "Music folder",
-        "description" => "Folder containing your audio files, relative to the app.",
-        "value"       => "music",
-        "type"        => "string",
+    "music_folders" => [
+        "name"        => "Music folders",
+        "description" => "Folders with your audio files. Uploads go to the first one.",
+        "value"       => [["path" => "music", "recursive" => true]],
+        "type"        => "folders",
     ],
     "allowed_types" => [
         "name"        => "File types",
         "description" => "Extensions that are listed and accepted for upload.",
         "value"       => ["mp3", "ogg", "wav"],
         "type"        => "array",
+        "audio_only"  => true, // only audio extensions are kept (see AUDIO_WHITELIST)
     ],
     "include_file_extension" => [
         "name"        => "Show file extensions",
@@ -82,7 +83,7 @@ $config = [
         "description" => "Columns shown in the song table.",
         "value"       => ["name", "duration", "queue"],
         "type"        => "multiselect",
-        "options"     => ["#", "filename", "size", "date", "name", "duration", "queue", "delete"],
+        "options"     => ["#", "filename", "folder", "size", "date", "name", "duration", "queue", "delete"],
     ],
 
     "online_metadata" => [

@@ -19,15 +19,7 @@ const LYRICS_MAX_DIFF     = 3;            // seconds a search result's duration 
 
 /** Absolute path of a song in the library, or null. */
 function lyricsSongPath($song): ?string {
-    $file = basename((string) $song);
-    if ($file === '' || $file === '.' || $file === '..') return null;
-    $audioDir = realpath((string) getConfig('audio_path'));
-    if ($audioDir === false) return null;
-    $path = realpath($audioDir . DIRECTORY_SEPARATOR . $file);
-    if ($path === false || strpos($path, $audioDir . DIRECTORY_SEPARATOR) !== 0 || !is_file($path)) return null;
-    $allowed = array_map('strtolower', (array) getConfig('allowed_types'));
-    if (!in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $allowed, true)) return null;
-    return $path;
+    return songPath($song);
 }
 
 /** "Dritfrækk (Produced By Bad Spit)" → "Dritfrækk"; drops (prod…), [..], feat… */

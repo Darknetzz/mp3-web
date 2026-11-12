@@ -216,13 +216,13 @@ function sessionCleanState($state, array $previous): array {
     }
     $song = $state['song'] ?? null;
     if ($song !== null && $song !== '') {
-        $song = basename((string) $song);
+        $song = songPath($song) !== null ? (string) $song : null;
     } else {
         $song = null;
     }
     $queue = [];
     foreach (array_slice((array) ($state['queue'] ?? []), 0, SESSION_QUEUE_MAX) as $q) {
-        if (is_string($q) && $q !== '') $queue[] = basename($q);
+        if (is_string($q) && songPath($q) !== null) $queue[] = $q;
     }
     $toBool = function ($v) {
         return $v === true || $v === 'true' || $v === '1' || $v === 1;

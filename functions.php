@@ -383,6 +383,30 @@
                     $item = trim((string) $item);
                     if ($item !== '' && !in_array($item, $clean, true)) $clean[] = $item;
                 }
+                // Only audio types: the library and stream.php serve these files
+                if (!empty($setting['audio_only'])) {
+                    $clean = array_values(array_intersect(array_map('strtolower', $clean), AUDIO_WHITELIST));
+                    if (!$clean) apiResponse("error", "$name must include at least one of: " . implode(", ", AUDIO_WHITELIST) . ".");
+                }
+                return $clean;
+
+            case 'folders':
+                $value = is_array($value) ? $value : [];
+                $clean = [];
+                $reals = [];
+                foreach ($value as $f) {
+                    $path = trim((string) (is_array($f) ? ($f['path'] ?? '') : $f));
+                    if ($path === '') continue;
+                    $real = musicFolderReal($path);
+                    $shown = htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
+                    if ($real === null) apiResponse("error", "The folder <code>$shown</code> does not exist.");
+                    if (!is_readable($real)) apiResponse("error", "The folder <code>$shown</code> is not readable by the web server.");
+                    if (isset($reals[$real])) continue;
+                    $reals[$real] = true;
+                    $clean[] = ['path' => $path, 'recursive' => !is_array($f) || !array_key_exists('recursive', $f) || cleanConfigValue(['type' => 'bool'], $f['recursive'])];
+                }
+                if (!$clean) apiResponse("error", "Add at least one music folder.");
+                if (count($clean) > 20) apiResponse("error", "At most 20 music folders.");
                 return $clean;
 
             default:
@@ -427,62 +451,47 @@
 
     /* ───────────────────────────── FUNCTION: remove ─────────────────────────── */
     function remove(string $file): void {
-        $file = urldecode($file);
-        // Prevent path traversal - only allow filename
-        $file = basename($file);
-        
-        $audioPath = getConfig("audio_path");
-        $filePath = realpath($audioPath . '/' . $file);
-        $audioPathReal = realpath($audioPath);
-        
-        // Verify file is within audio path directory (prevent path traversal)
-        if ($filePath === false || $audioPathReal === false || strpos($filePath, $audioPathReal) !== 0) {
-            apiResponse("error", "Invalid file path.");
+        // A song key (older pages sent it URL-encoded)
+        $filePath = songPath($file) ?? songPath(urldecode($file));
+        if ($filePath === null || !is_file($filePath)) {
+            apiResponse("error", "That song isn't in the library.");
         }
-        
+
         $deletedDir = 'deleted';
         if (!is_dir($deletedDir)) {
-            mkdir($deletedDir, 0755, true);
+            @mkdir($deletedDir, 0755, true);
         }
         if (!is_dir($deletedDir) || !is_writable($deletedDir)) {
-            apiResponse("error", "The directory <code>" . htmlspecialchars($audioPath, ENT_QUOTES, 'UTF-8') . "</code> is not writable.");
+            apiResponse("error", "The directory <code>" . htmlspecialchars($deletedDir, ENT_QUOTES, 'UTF-8') . "</code> is not writable.");
         }
-        if (!file_exists($filePath)) {
-            apiResponse("error", "The file <code>" . htmlspecialchars($filePath, ENT_QUOTES, 'UTF-8') . "</code> does not exist.");
+        // Songs from different folders can share a name
+        $name   = basename($filePath);
+        $target = $deletedDir . "/" . $name;
+        for ($n = 2; file_exists($target); $n++) {
+            $target = $deletedDir . "/" . pathinfo($name, PATHINFO_FILENAME) . " ($n)." . pathinfo($name, PATHINFO_EXTENSION);
         }
-        if (!is_file($filePath)) {
-            apiResponse("error", "The file <code>" . htmlspecialchars($filePath, ENT_QUOTES, 'UTF-8') . "</code> is not a regular file.");
+        if (!@rename($filePath, $target)) {
+            apiResponse("error", "The file could not be moved. Check that its folder is writable by the web server.");
         }
-        rename($filePath, $deletedDir . "/" . $file);
-        apiResponse("success", "The file " . htmlspecialchars(basename($filePath), ENT_QUOTES, 'UTF-8') . " has been removed.");
+        apiResponse("success", "The file " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . " has been removed.");
     }
 
     /* ─────────────────────────── FUNCTION: listSongs ────────────────────────── */
     function listSongs(): void {
-        $audioPath = getConfig("audio_path");
-        if (!is_dir($audioPath) || !is_readable($audioPath)) {
-            apiResponse("error", "The audio path is not readable.");
-        }
-        $files = array_diff(scandir($audioPath), array('..', '.'));
         $songs = [];
         $i = 0;
-        foreach ($files as $file) {
-            $filePath = $audioPath . '/' . $file;
-            if (is_file($filePath)) {
-                $songs[] = [
-                    "id"       => $i,
-                    "name"     => $file,
-                    "filename" => urlencode($file),
-                    "duration" => getDuration($filePath),
-                    "size"     => filesize($filePath),
-                    "date"     => date("Y-m-d H:i:s", filemtime($filePath)),
-                    "download" => 
-                        "<a href='javascript:void(0);' class='link-success downloadBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("download")."</a>",
-                    "delete"   => 
-                        "<a href='javascript:void(0);' class='link-danger deleteBtn' data-filename='".htmlspecialchars(urlencode($file), ENT_QUOTES, 'UTF-8')."'>".icon("trash-2")."</a>",
-                ];
-                $i++;
-            }
+        foreach (musicLibrary() as $key => $filePath) {
+            $enc = htmlspecialchars($key, ENT_QUOTES, 'UTF-8');
+            $songs[] = [
+                "id"       => $i++,
+                "name"     => $key,
+                "filename" => $key,
+                "duration" => getDuration($filePath),
+                "size"     => filesize($filePath),
+                "date"     => date("Y-m-d H:i:s", filemtime($filePath)),
+                "download" => "<a href='javascript:void(0);' class='link-success downloadBtn' data-filename='$enc'>".icon("download")."</a>",
+                "delete"   => "<a href='javascript:void(0);' class='link-danger deleteBtn' data-filename='$enc'>".icon("trash-2")."</a>",
+            ];
         }
         apiResponse("success", "OK", $songs);
     }
@@ -552,13 +561,17 @@
             apiResponse("error", $result["response"]);
         }
 
-        if (empty(getConfig("audio_path")) || !is_dir(getConfig("audio_path"))) {
-            $result = ["status" => "error", "response" => "The audio path is not set.", "data" => []];
+        // Uploads go to the first music folder
+        $folder = uploadFolder();
+        if ($folder === null || !is_writable($folder['real'])) {
+            $result = ["status" => "error", "response" => $folder === null
+                ? "None of the music folders exist. Check them in Settings → Library."
+                : "The music folder <code>" . htmlspecialchars($folder['path'], ENT_QUOTES, 'UTF-8') . "</code> is not writable by the web server.", "data" => []];
             if ($returnResult) return $result;
             apiResponse("error", $result["response"]);
         }
 
-        $targetDir  = rtrim(getConfig('audio_path'), DIRECTORY_SEPARATOR);
+        $targetDir  = $folder['real'];
         
         // Sanitize filename - prevent path traversal and dangerous characters
         $filename = basename($file["name"]);
@@ -566,8 +579,8 @@
         $fileExtension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         
         // Validate file extension
-        $allowedTypes = getConfig("allowed_types");
-        if (!in_array($fileExtension, array_map('strtolower', $allowedTypes))) {
+        $allowedTypes = audioTypes();
+        if (!in_array($fileExtension, $allowedTypes, true)) {
             $result = ["status" => "error", "response" => "Only ". implode(", ", $allowedTypes). " files are allowed.", "data" => []];
             if ($returnResult) return $result;
             apiResponse("error", $result["response"]);
@@ -579,7 +592,13 @@
             $mimeTypeMap = [
                 'mp3' => ['audio/mpeg', 'audio/mp3', 'audio/x-mpeg-3', 'audio/mpeg3'],
                 'ogg' => ['audio/ogg', 'audio/vorbis', 'application/ogg'],
-                'wav' => ['audio/wav', 'audio/wave', 'audio/x-wav']
+                'oga' => ['audio/ogg', 'application/ogg'],
+                'opus' => ['audio/opus', 'audio/ogg'],
+                'wav' => ['audio/wav', 'audio/wave', 'audio/x-wav'],
+                'flac' => ['audio/flac', 'audio/x-flac'],
+                'm4a' => ['audio/mp4', 'audio/x-m4a', 'audio/m4a'],
+                'aac' => ['audio/aac', 'audio/x-aac', 'audio/aacp'],
+                'webm' => ['audio/webm', 'video/webm'],
             ];
             
             // Build allowed MIME types list based on configured allowed_types
@@ -601,7 +620,7 @@
         $targetFile = $targetDir . "/" . $filename;
 
         if (file_exists($targetFile)) {
-            $result = ["status" => "error", "response" => "Sorry, file <code>".htmlspecialchars($targetFile, ENT_QUOTES, 'UTF-8')."</code> already exists.", "data" => []];
+            $result = ["status" => "error", "response" => "Sorry, file <code>".htmlspecialchars($filename, ENT_QUOTES, 'UTF-8')."</code> already exists.", "data" => []];
             if ($returnResult) return $result;
             apiResponse("error", $result["response"]);
         }

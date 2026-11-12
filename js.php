@@ -33,7 +33,6 @@
   var warningClass          = "text-warning border border-warning is-warning";
   var successClass          = "text-success border border-success is-valid";
   var csrfToken             = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>';
-  var audioPath             = <?= json_encode(getConfig("audio_path")) ?>;
   var demoMode              = <?= json_encode(getConfig("env") === "demo") ?>; // file and playlist actions are disabled
   var siteTitle             = <?= json_encode(getConfig("site_title")) ?>;
   var defaultVolume         = <?= json_encode((float) getConfig("default_volume")) ?>;
@@ -126,8 +125,9 @@
 
   /* ─────────────────────────── FUNCTION: songUrl ──────────────────────────── */
   // Absolute, encoded URL for a song (Cast devices need an absolute URL).
+  // stream.php serves it, since music folders can be outside the web root.
   function songUrl(name) {
-    return new URL(audioPath.replace(/\/+$/, "") + "/" + encodeURIComponent(name), window.location.href).href;
+    return new URL("stream.php?file=" + encodeURIComponent(name), window.location.href).href;
   }
 
   /* ──────────────────────────────── player ────────────────────────────────── */
@@ -1495,8 +1495,9 @@
       updateSearch();
     }
 
+    // Resolves to true when the server saved it.
     function saveSetting(key, value, row) {
-      $.ajax({
+      return $.ajax({
         url: apiURL,
         type: "POST",
         dataType: "json",
@@ -1504,21 +1505,150 @@
       }).then(function(res) {
         if (res.status !== "success") {
           showToast(res.response || "Could not save the setting.", "danger");
-          return;
+          return false;
         }
         if (row && row.length) {
           clearTimeout(row.data("savedTimer"));
           row.addClass("justSaved");
           row.data("savedTimer", setTimeout(function() { row.removeClass("justSaved"); }, 1500));
         }
-        if (res.response === "No change.") return;
+        if (res.response === "No change.") return true;
         if (row && row.is("[data-reload]")) settingsModal.find(".settingsReloadAlert").prop("hidden", false);
         applySetting(key, value);
         if (res.data && res.data.theme) applyTheme(res.data.theme);
+        return true;
       }, function() {
         showToast("Could not reach the server to save the setting.", "danger");
+        return false;
       });
     }
+
+    /* ───────────────────────── Music folders setting ─────────────────────── */
+    // A list of folders, each with an "include subfolders" switch, and a
+    // browser for the server's folders (api.php?action=browseDirs).
+    function folderValues(box) {
+      return box.find(".folderItem").map(function() {
+        return { path: $(this).attr("data-path"), recursive: $(this).find(".folderRecursive").is(":checked") ? 1 : 0 };
+      }).get();
+    }
+    // Save; on failure put the list back the way it was.
+    function saveFolders(box, undo) {
+      saveSetting(box.data("key"), folderValues(box), box.closest(".settingRow")).then(function(ok) {
+        if (!ok && undo) undo();
+      });
+    }
+    function folderItem(path) {
+      var id = "folderSub-" + Math.random().toString(36).slice(2, 10);
+      var li = $('<li class="folderItem">' + lucideIcon("folder") +
+        '<span class="folderInfo"><span class="folderName"></span><span class="folderStatus">Reload to scan</span></span>' +
+        '<label class="form-check form-switch folderSub m-0"><input class="form-check-input folderRecursive" type="checkbox" role="switch" checked>' +
+        '<span class="form-check-label">Subfolders</span></label>' +
+        '<button type="button" class="folderRemove">&times;</button></li>');
+      li.attr("data-path", path).find(".folderName").text(path);
+      li.find(".folderRecursive").attr("id", id).closest("label").attr("for", id);
+      li.find(".folderRemove").attr("aria-label", "Remove " + path);
+      return li;
+    }
+    function browseFolder(box, path) {
+      var list = box.find(".folderDirs").attr("aria-busy", "true");
+      $.getJSON(apiURL, { action: "browseDirs", path: path }).then(function(res) {
+        list.removeAttr("aria-busy");
+        if (res.status !== "success") {
+          showToast(res.response || "Could not open that folder.", "danger");
+          return;
+        }
+        var d = res.data;
+        box.data("browse", d);
+        box.find(".folderPathInput").val(d.path === "" ? "." : d.path);
+        box.find(".folderUp").prop("disabled", !d.parent);
+        list.empty();
+        if (!d.readable) list.append('<li class="folderDirsEmpty text-danger">The web server can’t read this folder.</li>');
+        else if (!d.dirs.length) list.append('<li class="folderDirsEmpty text-secondary">No subfolders.</li>');
+        d.dirs.forEach(function(name) {
+          var b = $('<button type="button" class="folderDir">' + lucideIcon("folder") + '<span></span></button>');
+          b.attr("data-name", name).find("span").text(name);
+          list.append($("<li>").append(b));
+        });
+      }, function() {
+        list.removeAttr("aria-busy");
+        showToast("Could not reach the server.", "danger");
+      });
+    }
+    function closeFolderBrowser(box) {
+      box.find(".folderBrowser").prop("hidden", true);
+      box.find(".folderAddBtn").attr("aria-expanded", "false").trigger("focus");
+    }
+
+    settingsModal
+      .on("change", ".folderRecursive", function() {
+        var input = $(this);
+        saveFolders(input.closest(".settingFolders"), function() { input.prop("checked", !input.is(":checked")); });
+      })
+      .on("click", ".folderRemove", function() {
+        var box = $(this).closest(".settingFolders");
+        var li = $(this).closest(".folderItem");
+        if (box.find(".folderItem").length === 1) {
+          showToast("Add another music folder before removing the last one.", "warning");
+          return;
+        }
+        var next = li.next(), list = li.parent();
+        li.detach();
+        saveFolders(box, function() { next.length ? li.insertBefore(next) : list.append(li); });
+      })
+      .on("click", ".folderAddBtn", function() {
+        var box = $(this).closest(".settingFolders");
+        var panel = box.find(".folderBrowser");
+        var open = panel.prop("hidden");
+        panel.prop("hidden", !open);
+        $(this).attr("aria-expanded", open ? "true" : "false");
+        if (open) {
+          browseFolder(box, "");
+          box.find(".folderPathInput").trigger("focus");
+        }
+      })
+      .on("click", ".folderDir", function() {
+        var box = $(this).closest(".settingFolders");
+        var d = box.data("browse");
+        if (d) browseFolder(box, d.absolute.replace(/\/+$/, "") + "/" + $(this).attr("data-name"));
+      })
+      .on("click", ".folderUp", function() {
+        var box = $(this).closest(".settingFolders");
+        var d = box.data("browse");
+        if (d && d.parent) browseFolder(box, d.parent);
+      })
+      .on("keydown", ".folderPathInput", function(e) {
+        var box = $(this).closest(".settingFolders");
+        if (e.key === "Enter") {
+          e.preventDefault();
+          browseFolder(box, $(this).val().trim());
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation(); // keep the settings dialog open
+          closeFolderBrowser(box);
+        }
+      })
+      .on("click", ".folderCancel", function() {
+        closeFolderBrowser($(this).closest(".settingFolders"));
+      })
+      .on("click", ".folderUse", function() {
+        var box = $(this).closest(".settingFolders");
+        var d = box.data("browse");
+        var typed = box.find(".folderPathInput").val().trim();
+        // A typed path that wasn't opened yet: open it first
+        if (!d || (typed !== (d.path === "" ? "." : d.path) && typed !== d.absolute)) {
+          browseFolder(box, typed);
+          return;
+        }
+        var path = d.path === "" ? "." : d.path;
+        var exists = box.find(".folderItem").filter(function() { return $(this).attr("data-path") === path; }).length;
+        if (exists) {
+          showToast("That folder is already in the list.", "warning");
+          return;
+        }
+        var li = folderItem(path).appendTo(box.find(".folderList"));
+        closeFolderBrowser(box);
+        saveFolders(box, function() { li.remove(); });
+      });
 
     function chipValues(chips) {
       return chips.find(".chipText").map(function() { return $(this).text(); }).get();

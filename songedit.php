@@ -22,7 +22,7 @@ const SONGEDIT_COVER_MAX_BYTES = 8388608;
 const SONGEDIT_COVER_SIZE = 1000;
 
 /* ─────────────────────────────── Storage ──────────────────────────────── */
-/** Every override, keyed by file name. Read once per request. */
+/** Every override, keyed by song key. Read once per request. */
 function songOverrides(bool $reload = false): array {
     static $all = null;
     if ($all === null || $reload) {
@@ -32,9 +32,9 @@ function songOverrides(bool $reload = false): array {
     return $all;
 }
 
-/** The override for one song (by file name or path), or []. */
+/** The override for one song (by key or path), or []. */
 function songOverride(string $file): array {
-    $o = songOverrides()[basename($file)] ?? [];
+    $o = songOverrides()[songKeyOf($file)] ?? [];
     return is_array($o) ? $o : [];
 }
 
@@ -58,7 +58,7 @@ function songUpdateOverride(string $file, callable $fn): array {
     flock($fh, LOCK_EX);
     $all = json_decode((string) stream_get_contents($fh), true);
     $all = is_array($all) ? $all : [];
-    $key = basename($file);
+    $key = songKeyOf($file);
     $new = $fn(is_array($all[$key] ?? null) ? $all[$key] : []);
     $new = is_array($new) ? array_filter($new, function ($v) { return $v !== '' && $v !== null; }) : [];
     if (count(array_diff(array_keys($new), ['updated'])) === 0) {
@@ -93,7 +93,7 @@ function songApplyOverride(string $file, array $meta): array {
     return $meta;
 }
 
-/** The override cover of a song (by path or file name), or null. */
+/** The override cover of a song (by key or path), or null. */
 function songOverrideCoverFile(string $file): ?string {
     $name = songOverride($file)['cover'] ?? '';
     if ($name === '' || basename($name) !== $name) return null;
@@ -331,7 +331,7 @@ function songSetCover($song, array $files, bool $remove): void {
         $data = songEditCoverBytes($files['cover'] ?? []);
         songEditEnsureDir(SONGEDIT_COVER_DIR);
         songRemoveOverrideCover($path);
-        $name = sha1(basename($path)) . '-' . substr(sha1($data), 0, 8) . '.jpg';
+        $name = sha1(songKeyOf($path)) . '-' . substr(sha1($data), 0, 8) . '.jpg';
         if (@file_put_contents(SONGEDIT_COVER_DIR . '/' . $name, $data, LOCK_EX) === false) {
             apiResponse("error", "The image could not be saved.");
         }
@@ -369,12 +369,12 @@ function songResetOverride($song): void {
 function songEditResult(string $path): array {
     $meta = getSongMeta($path);
     return [
-        'file'   => basename($path),
+        'file'   => songKeyOf($path),
         'title'  => $meta['title'],
         'artist' => $meta['artist'],
         'album'  => $meta['album'],
         'year'   => $meta['year'],
-        'cover'  => 'cover.php?file=' . rawurlencode(basename($path)) . '&size=sm&v=' . songCoverVersion($path),
-        'edit'   => songEditInfo(basename($path)),
+        'cover'  => 'cover.php?file=' . rawurlencode(songKeyOf($path)) . '&size=sm&v=' . songCoverVersion($path),
+        'edit'   => songEditInfo(songKeyOf($path)),
     ];
 }

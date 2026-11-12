@@ -254,7 +254,7 @@ echo '
 # Settings are grouped by key; anything not listed here ends up under "Other".
 $settingsCategories = [
   "general"    => ["name" => "General",    "icon" => "sliders-horizontal", "keys" => ["site_title", "no_song_text", "env"]],
-  "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
+  "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["music_folders", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
   "songinfo"   => ["name" => "Song info",  "icon" => "disc-3",          "keys" => ["online_metadata", "acoustid_key"], "extra" => "metaJobHtml"],
   "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "loudness_equalization", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "auto_scroll_on_end", "cast_end_action"]],
   "appearance" => ["name" => "Appearance", "icon" => "palette",         "keys" => ["player_theme", "custom_base", "custom_background", "custom_surface", "custom_text", "accent_color", "custom_accent"]],
@@ -300,6 +300,28 @@ function formatRangeValue($value, string $format): string {
 }
 
 /** The input for one setting. Every control carries .settingInput and data-key. */
+# One music folder in the "folders" setting (js.php builds the same markup for new ones).
+function folderItemHtml(string $path, bool $recursive, ?array $stats): string {
+  $id = "folderSub-" . substr(sha1($path), 0, 8);
+  if ($stats === null) {
+    $status = "";
+  } elseif (!$stats["exists"]) {
+    $status = '<span class="text-danger">Not found</span>';
+  } else {
+    $status = $stats["songs"] . ($stats["songs"] === 1 ? " song" : " songs")
+            . ($stats["hidden"] ? " · " . $stats["hidden"] . " hidden (also in an earlier folder)" : "");
+  }
+  return '<li class="folderItem" data-path="'.settingsEsc($path).'">
+            '.icon("folder", 1.1, 0).'
+            <span class="folderInfo"><span class="folderName">'.settingsEsc($path).'</span><span class="folderStatus">'.$status.'</span></span>
+            <label class="form-check form-switch folderSub m-0" for="'.$id.'">
+              <input class="form-check-input folderRecursive" type="checkbox" role="switch" id="'.$id.'"'.($recursive ? ' checked' : '').'>
+              <span class="form-check-label">Subfolders</span>
+            </label>
+            <button type="button" class="folderRemove" aria-label="Remove '.settingsEsc($path).'">&times;</button>
+          </li>';
+}
+
 function renderSettingControl(string $key, array $setting): string {
   global $accentSwatches;
   $type  = $setting["type"] ?? "string";
@@ -372,6 +394,27 @@ function renderSettingControl(string $key, array $setting): string {
       $html .= '<input type="text" class="chipAdd" placeholder="Add…" aria-label="Add item" size="6">';
       return $html . '</div>';
 
+    case "folders":
+      $stats = musicFolderStats();
+      $html  = '<div class="settingFolders" data-key="'.$k.'"><ul class="folderList">';
+      foreach (musicFolders() as $i => $f) {
+        $html .= folderItemHtml($f["path"], $f["recursive"], $stats[$i] ?? null);
+      }
+      return $html . '</ul>
+        <button type="button" class="btn btn-sm btn-outline-secondary btn-pill folderAddBtn" aria-expanded="false">'.icon("folder-plus", 1, 0).' Add folder…</button>
+        <div class="folderBrowser" hidden>
+          <div class="folderBrowserBar">
+            <button type="button" class="btn btn-sm btn-ghost-secondary folderUp" title="Up one folder" aria-label="Up one folder">'.icon("corner-left-up", 1.1, 0).'</button>
+            <input type="text" class="form-control form-control-sm folderPathInput" aria-label="Folder path" placeholder="/path/to/music" spellcheck="false" autocomplete="off">
+          </div>
+          <ul class="folderDirs" aria-label="Subfolders"></ul>
+          <div class="folderBrowserButtons">
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-pill folderCancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-success btn-pill folderUse">Add this folder</button>
+          </div>
+        </div>
+      </div>';
+
     case "multiselect":
       $options  = is_array($setting["options"] ?? null) ? $setting["options"] : [];
       $selected = is_array($value) ? $value : [];
@@ -393,7 +436,7 @@ function renderSettingControl(string $key, array $setting): string {
 
 # Build the rows per category
 # Settings that change server-rendered markup or the song list: they need a page reload.
-$settingsNeedReload = ["env", "audio_path", "allowed_types", "include_file_extension", "use_legacy_player", "playlist_nav", "show_upload", "default_table_cols"];
+$settingsNeedReload = ["env", "music_folders", "allowed_types", "include_file_extension", "use_legacy_player", "playlist_nav", "show_upload", "default_table_cols"];
 
 $categoryOf = [];
 foreach ($settingsCategories as $catKey => $cat) {
@@ -407,8 +450,9 @@ foreach (CONFIG as $key => $setting) {
   $search = strtolower($name . " " . $desc . " " . $key);
   $when   = isset($settingsShowWhen[$key]) ? ' data-show-when="'.settingsEsc($settingsShowWhen[$key]).'"' : '';
   $reload = in_array($key, $settingsNeedReload, true);
+  $wide   = ($setting["type"] ?? "") === "folders"; // control under the text, full width
   $categoryRows[$categoryOf[$key] ?? "other"][$key] = '
-            <div class="settingRow" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.($reload ? ' data-reload="1"' : '').'>
+            <div class="settingRow'.($wide ? ' settingRowWide' : '').'" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.($reload ? ' data-reload="1"' : '').'>
               <div class="settingText">
                 <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).' <span class="settingSaved">'.icon("circle-check", 0.9, 0).'</span></div>
                 <div class="settingDesc">'.settingsEsc($desc).($reload ? ' <span class="settingReloadNote">Requires reload</span>' : '').'</div>

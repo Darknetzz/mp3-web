@@ -42,6 +42,11 @@
     $config = [];
     include($configFile);
     $activeConfig = is_array($config) ? $config : [];
+    # Before music_folders there was one folder (audio_path), scanned flat.
+    if (isset($activeConfig['audio_path']['value']) && !isset($activeConfig['music_folders'])) {
+        $activeConfig['music_folders'] = ['value' => [['path' => (string) $activeConfig['audio_path']['value'], 'recursive' => true]]];
+    }
+    unset($activeConfig['audio_path']);
 
     $config = [];
     foreach ($defaultConfig as $key => $setting) {
@@ -60,10 +65,10 @@
     define('CONFIG', $config);
     define('ENV', $_ENV);
     define('CONFIG_FILE', $configFile);
-    define('AUDIO_PATH', CONFIG["audio_path"]["value"]);
 
     /* ──────────────────────────────── Functions ─────────────────────────────── */
     include_once('functions.php');
+    include_once('library.php');
     include_once('sessions.php');
     include_once('playlists.php');
     include_once('lyrics.php');

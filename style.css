@@ -949,7 +949,8 @@ body.player-top .toast-container {
   font-weight: 600;
   font-size: 0.85rem;
 }
-.chipRemove {
+.chipRemove,
+.folderRemove {
   border: 0;
   background: transparent;
   color: inherit;
@@ -959,7 +960,9 @@ body.player-top .toast-container {
   padding: 0 0.3rem;
   border-radius: 999px;
 }
-.chipRemove:hover {
+.chipRemove:hover,
+.folderRemove:hover,
+.folderRemove:focus-visible {
   opacity: 1;
   background: rgba(127, 127, 127, 0.2);
 }
@@ -1061,6 +1064,156 @@ body.player-top .toast-container {
     flex-wrap: wrap;
     justify-content: flex-start;
     max-width: none;
+  }
+}
+
+/* Music folders: the control sits under the text, full width */
+.settingRow.settingRowWide {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.settingRowWide .settingControl {
+  max-width: none;
+  justify-content: stretch;
+}
+.settingFolders {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.folderList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 10px;
+}
+.folderItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.6rem 0.5rem 0.85rem;
+}
+.folderItem + .folderItem {
+  border-top: 1px solid var(--tblr-border-color);
+}
+.folderItem > .lucide {
+  flex-shrink: 0;
+  color: var(--tblr-secondary);
+}
+.folderInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.folderName {
+  font-weight: 600;
+  font-family: var(--tblr-font-monospace, monospace);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.folderStatus {
+  font-size: 0.8rem;
+  color: var(--tblr-secondary-color, var(--tblr-muted));
+}
+.folderStatus:empty {
+  display: none;
+}
+.folderSub {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.folderSub .form-check-input {
+  float: none;
+  margin: 0;
+  cursor: pointer;
+}
+.folderAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.folderBrowser {
+  width: 100%;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 10px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.folderBrowser[hidden] {
+  display: none;
+}
+.folderBrowserBar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.folderBrowserBar .folderPathInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--tblr-font-monospace, monospace);
+}
+.folderDirs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.folderDirs[aria-busy="true"] {
+  opacity: 0.5;
+}
+.folderDir {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tblr-body-color);
+  text-align: left;
+  font-size: 0.875rem;
+}
+.folderDir:hover,
+.folderDir:focus-visible {
+  background: var(--tblr-secondary-bg, rgba(127, 127, 127, 0.15));
+  outline: none;
+}
+.folderDir .lucide {
+  flex-shrink: 0;
+  color: var(--tblr-secondary);
+}
+.folderDir span {
+  overflow-wrap: anywhere;
+}
+.folderDirsEmpty {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+}
+.folderBrowserButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+@media (max-width: 575.98px) {
+  .folderItem {
+    flex-wrap: wrap;
+  }
+  .folderSub {
+    margin-left: 1.85rem !important;
   }
 }
 

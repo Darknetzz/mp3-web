@@ -22,7 +22,7 @@ Taken with a generated demo library.
 
 ## Features
 
-- [x] Plays `mp3`, `ogg` and `wav` files from a configurable folder (allowed types are configurable)
+- [x] Plays `mp3`, `ogg` and `wav` files (also `flac`, `m4a`, `aac`, `opus`, `webm` if you allow them) from **one or more music folders**, each with or without its subfolders. Pick folders in Settings → Library with a built-in folder browser; folders can be anywhere on the server, not only under the web root
 - [x] **Cast** to Google Cast / Nest speakers from the playbar (playbar controls, queue and auto-next keep working on the speaker); AirPlay in Safari
 - [x] **Cover art** from each song's embedded ID3v2 picture: a thumbnail per row, a larger cover in the playbar, and artwork in the OS media overlay and on Cast speakers (a neutral placeholder when a song has none; see below)
 - [x] **Click to select, double-click to play**: a single click selects a song, a double-click (or Enter, or the play button on its cover) plays it
@@ -245,7 +245,8 @@ between **All songs**, **Favorites** and your playlists.
 - PHP extensions: `mbstring` (required), `curl` (lyrics), `gd` (optional: resizes cover art; without it covers are sent at full size)
 - [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`, `james-heinrich/getid3`)
 - Write access for the web server user to:
-  - the music folder (uploads) and the app folder, where deleted songs are moved to `deleted/`
+  - the first music folder (uploads), any folder you delete songs from, and the app folder, where deleted songs are moved to `deleted/`
+- Read access for the web server user to every music folder
   - the active config file (settings dialog)
   - `session/` and `playlists/`
   - `cache/` (optional: covers, tags and lyrics are cached there)
@@ -301,7 +302,7 @@ services:
 3. Make sure a `.env` file exists in the project root (copy `.env.example`; see [Environment](#environment-env)).
 4. Optional: create `config.local.php` for your settings, so the tracked `config.php` stays unchanged
    (see [Settings](#settings)).
-5. Put some music in the `music` folder (or whichever folder `audio_path` points to).
+5. Put some music in the `music` folder, or add your own folders in Settings → Library.
 6. Open the page in a browser and start listening.
 
 For a quick local try without a web server, PHP's built-in server works:
@@ -326,8 +327,11 @@ Where settings live:
   ```php
   <?php
   $config = [
-      "audio_path"   => ["value" => "/srv/music"],
-      "player_theme" => ["value" => "auto"],
+      "music_folders" => ["value" => [
+          ["path" => "/srv/music", "recursive" => true],
+          ["path" => "music",      "recursive" => false],
+      ]],
+      "player_theme"  => ["value" => "auto"],
   ];
   ```
 - The settings dialog writes to that active file, so it must be writable by the web server.
@@ -339,8 +343,8 @@ Where settings live:
 | `no_song_text` | `No song selected` | Player text when nothing is selected |
 | `env` | `dev` | `dev`, `prod` or `demo`. `demo` makes `api.php` reject every request (listing, downloads, uploads, deletes, settings, playlists, sessions, lyrics) and hides file and playlist actions in the UI |
 | **Library** | | |
-| `audio_path` | `music` | Folder containing the audio files |
-| `allowed_types` | `mp3, ogg, wav` | Extensions that are listed and accepted for upload |
+| `music_folders` | `music`, with subfolders | Folders with audio files, each with its own *include subfolders* switch. Relative paths are relative to the app folder. Uploads go to the first folder. A song is identified by its path inside its folder (`Artist/Album/song.mp3`; songs at the top keep their plain file name), and when two folders hold the same path the first folder wins. Older configs with a single `audio_path` are read as one folder with subfolders |
+| `allowed_types` | `mp3, ogg, wav` | Extensions that are listed and accepted for upload. Only audio types are kept: `mp3 ogg oga wav flac m4a aac opus webm` |
 | `include_file_extension` | `true` | Show file extensions in song names |
 | `default_sort` / `default_sort_order` | `none` / `asc` | Initial sort of the song list (name, duration, size, date added) |
 | `default_table_cols` | `name, duration, queue` | Columns shown in the song table |
@@ -418,7 +422,9 @@ VERSION  = "vX.Y.Z"
 | `config.default.php` | Definition and default of every setting |
 | `config.php` | Tracked settings file, used when there is no `config.local.php` |
 | `functions.php` | Helpers: config read/write, listing, upload, delete, durations and ID3 tags, `apiResponse()` |
-| `cover.php` | Cover art endpoint (`?file=<name>&size=sm\|lg`), cached in `cache/covers/` |
+| `library.php` | The music library: scans the music folders, maps song keys to files (`musicLibrary()`, `songPath()`) |
+| `stream.php` | Streams a song (`?file=<song key>`) with `Range` support, so folders outside the web root play, seek and cast |
+| `cover.php` | Cover art endpoint (`?file=<song key>&size=sm\|lg`), cached in `cache/covers/` |
 | `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
 | `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
 | `lyrics.php` | Lyrics lookup on LRCLIB (ID3 tags / file name matching) with a disk cache |
@@ -441,7 +447,7 @@ VERSION  = "vX.Y.Z"
 | `assets/branding/` | Logo, banner, favicons and placeholder cover. `python3 build.py assets/branding` regenerates the SVGs (needs `fontTools` and the Lato font); render PNGs with `rsvg-convert` |
 | `assets/icons/` | Lucide icon sprite and `table.css`. `python3 assets/icons/build.py` rebuilds them from `lucide-static` (downloads from jsDelivr) |
 | `assets/screenshots/` | README screenshots |
-| `music/` | Default audio folder (ships with a few sample tracks) |
+| `music/` | Default music folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
 | `playlists/` | Playlist JSON files (created at runtime, git-ignored) |
 | `metadata/` | Edited song info and covers (created at runtime, git-ignored) |
@@ -464,11 +470,12 @@ PHP session cookie. When the `env` setting is `demo`, every action returns an er
 
 | Action | Method | Parameters | Description |
 | --- | --- | --- | --- |
-| `ls` | GET | | List songs in the audio folder |
-| `dl` | GET | `file` | Calls `download()`, which is commented out in `functions.php`, so this action currently fails. The UI downloads songs by opening the file URL directly |
-| `rm` | POST | `file` | Move a song to `deleted/` |
-| *(upload)* | POST | `files[]`, no `action` | A multipart request with files and no `action` uploads them to the audio folder. Extensions must be in `allowed_types`; characters other than `A-Z a-z 0-9 . _ -` in the file name become `_` |
+| `ls` | GET | | List songs in every music folder |
+| `dl` | GET | `file` | Calls `download()`, which is commented out in `functions.php`, so this action currently fails. The UI downloads songs by opening their `stream.php` URL |
+| `rm` | POST | `file` (song key) | Move a song to `deleted/` |
+| *(upload)* | POST | `files[]`, no `action` | A multipart request with files and no `action` uploads them to the first music folder. Extensions must be in `allowed_types`; characters other than `A-Z a-z 0-9 . _ -` in the file name become `_` |
 | `getconfig` | GET | optional `key` | All settings, or one setting's value in `data.value` |
+| `browseDirs` | GET | optional `path` | Subfolders (names only) of a folder on the server, for the music folder browser. Starts at the app folder |
 | `setconfig` | POST | `config[key]`, `config[value]` | Update one setting in the active config file |
 | `createSession` | POST | `name`, `public`, `allow_all` | Create a listening session and join it as host |
 | `joinSession` / `leaveSession` | POST | `sessionCode` (join) | Join or leave a listening session |
@@ -491,9 +498,12 @@ PHP session cookie. When the `env` setting is `demo`, every action returns an er
 | `importPlaylist` | POST | `playlist` (file, max 1 MB) | Create a playlist from an `.m3u` / `.m3u8` upload |
 | `lyrics` | GET | `song` | `found`, `synced` (`[[seconds, line], …]`), `plain`, `instrumental`, `match` |
 
-Cover art is served by `cover.php?file=<song file name>&size=sm|lg[&v=<mtime>]` (96 px / 512 px), not by `api.php`.
+Songs are referred to by their song key (path inside their music folder) everywhere: `file`, `song` and `songs[]`.
+Cover art is served by `cover.php?file=<song key>&size=sm|lg[&v=<mtime>]` (96 px / 512 px), and audio by
+`stream.php?file=<song key>`, not by `api.php`. `stream.php` and `cover.php` keep working in `demo` mode.
 
-> **Note:** there is no authentication. Anyone who can reach the page can upload, delete and change settings,
+> **Note:** there is no authentication. Anyone who can reach the page can upload, delete, change settings and
+> browse the server's folder names (music folder picker),
 > so don't expose it to the internet without putting it behind auth (reverse proxy, VPN, etc.), or set `env` to `demo`.
 
 ## Troubleshooting

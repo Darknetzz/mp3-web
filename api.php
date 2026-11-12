@@ -5,10 +5,6 @@ require_once('_includes.php');
 # You want to return something else? You're in the wrong place.
 header('Content-Type: application/json');
 
-if (empty(getConfig("audio_path"))) {
-    apiResponse("error", "The audio path is not set.");
-}
-
 /**
  * Require a valid CSRF token for state-changing POST requests.
  */
@@ -197,12 +193,39 @@ do {
         importPlaylist($_FILES['playlist'] ?? []);
     }
 
+    /* ──────────────────────── Folder picker (settings) ─────────────────── */
+    // Sub-folders of a folder on the server (names only, no files), for
+    // choosing music folders. Starts at the app folder.
+    if ($action === 'browseDirs') {
+        $raw  = trim((string) ($_GET['path'] ?? ''));
+        $real = musicFolderReal($raw === '' ? '.' : $raw);
+        if ($real === null) {
+            apiResponse("error", "That folder does not exist.");
+        }
+        $dirs = [];
+        foreach (@scandir($real) ?: [] as $name) {
+            if ($name === '' || $name[0] === '.' || !is_dir($real . DIRECTORY_SEPARATOR . $name)) continue;
+            $dirs[] = $name;
+        }
+        natcasesort($dirs);
+        // Inside the app folder, show it relative to the app ("music_local")
+        $app   = realpath(__DIR__);
+        $shown = $real === $app ? '' : (str_starts_with($real, $app . DIRECTORY_SEPARATOR) ? substr($real, strlen($app) + 1) : $real);
+        $parent = dirname($real);
+        apiResponse("success", "ok", [
+            "path"     => $shown,
+            "absolute" => $real,
+            "parent"   => $parent === $real ? null : $parent,
+            "readable" => is_readable($real),
+            "dirs"     => array_values($dirs),
+        ]);
+    }
+
     /* ─────────────────────────────── Song info ──────────────────────────── */
     if ($action === 'songInfo') {
-        $file = basename(str_replace('\\', '/', (string) ($_GET['file'] ?? '')));
-        $path = getConfig("audio_path") . '/' . $file;
-        if ($file === '' || $file === '.' || $file === '..' || !is_file($path)
-            || !in_array(pathinfo($file, PATHINFO_EXTENSION), (array) getConfig('allowed_types'), true)) {
+        $file = (string) ($_GET['file'] ?? '');
+        $path = songPath($file);
+        if ($path === null) {
             apiResponse("error", "Song not found.");
         }
         $details = getSongDetails($path);

@@ -37,6 +37,8 @@ ICONS = [
     "external-link", "disc-3", "globe", "save", "triangle-alert",
     # playlist customization
     "pin", "pin-off", "image-off",
+    # music folders (settings)
+    "folder", "folder-plus", "corner-left-up",
 ]
 
 # bootstrap-table option name -> Lucide icon (see the icons config in index.php)

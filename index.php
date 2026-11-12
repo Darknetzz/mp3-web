@@ -62,14 +62,7 @@ foreach (array_keys(getConfig('player_buttons', 'options')) as $btn) {
 <?php
 
 
-if (!is_dir(AUDIO_PATH)) {
-  mkdir(AUDIO_PATH);
-}
-
-$musicFiles = [];
-if (is_dir(AUDIO_PATH)) {
-  $musicFiles = array_diff(scandir(AUDIO_PATH), array('..', '.'));
-}
+$musicFiles = musicLibrary(); // song key => absolute path, from every music folder
 
 $columns = [
   "id" => [
@@ -103,6 +96,14 @@ $columns = [
     "name"     => "Filename",
     "sortable" => true,
     "field"    => "filename",
+    "visible"  => false,
+    "align"    => null,
+  ],
+  "folder" => [
+    "card"     => false,
+    "name"     => "Folder",
+    "sortable" => true,
+    "field"    => "folder",
     "visible"  => false,
     "align"    => null,
   ],
@@ -407,7 +408,7 @@ if (in_array($sortColumn, ['name', 'duration', 'size', 'date'], true)) {
 
 if (empty($musicFiles)) {
     echo '<p>No music files found.</p>';
-    echo '<p>Upload some music files to the <code>'.getConfig("audio_path").'/</code> directory.</p>';
+    echo '<p>Add a music folder in Settings → Library, or upload some music files.</p>';
 }
 if (!$navSidebar) {
   echo '<div id="playlistBar" class="playlistBar" aria-label="Playlists"></div>';
@@ -464,12 +465,9 @@ echo '
   <tbody id="playlistBody">
   ';
 $i = 1;
-foreach ($musicFiles as $file) {
+foreach ($musicFiles as $file => $filePath) {
     $urlFilename = urlencode($file);
-    $filePath    = getConfig("audio_path") . "/" . $file;
-    if (!in_array(pathinfo($filePath, PATHINFO_EXTENSION), getConfig('allowed_types'))) {
-      continue;
-    }
+    $folder      = dirname($file) === '.' ? '' : dirname($file);
 
     if (!getConfig("include_file_extension")) {
       $audioName = pathinfo($file, PATHINFO_FILENAME);
@@ -482,7 +480,7 @@ foreach ($musicFiles as $file) {
     $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.songCoverVersion($filePath);
     # TODO: Fix `data-value` attribute
     echo '
-    <tr class="songrow hover-pointer" data-filename="'.$audioName.'">
+    <tr class="songrow hover-pointer" data-filename="'.htmlspecialchars($audioName, ENT_QUOTES, 'UTF-8').'">
       <td class="text-muted">
         '.($i).'
       </td>
@@ -493,6 +491,7 @@ foreach ($musicFiles as $file) {
       <td>
         '.$urlFilename.'
       </td>
+      <td>'.htmlspecialchars($folder).'</td>
       <td>'.htmlspecialchars($meta['title']).'</td>
       <td>'.htmlspecialchars($meta['artist']).'</td>
       <td>'.htmlspecialchars($meta['album']).'</td>

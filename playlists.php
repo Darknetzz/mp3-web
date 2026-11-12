@@ -44,22 +44,6 @@ function playlistEnsureDir(): void {
     }
 }
 
-/** File names in the music folder with an allowed extension, keyed by name. */
-function playlistLibrary(): array {
-    static $library = null;
-    if ($library !== null) return $library;
-    $library = [];
-    $path    = getConfig("audio_path");
-    $allowed = (array) getConfig("allowed_types");
-    if (!is_dir($path)) return $library;
-    foreach (scandir($path) as $file) {
-        if ($file === '.' || $file === '..' || !is_file($path . '/' . $file)) continue;
-        if (!in_array(pathinfo($file, PATHINFO_EXTENSION), $allowed, true)) continue;
-        $library[$file] = true;
-    }
-    return $library;
-}
-
 function playlistCleanName($name): string {
     $name = trim(preg_replace('/\s+/u', ' ', (string) $name));
     return mb_substr($name, 0, PLAYLIST_NAME_MAX);
@@ -117,7 +101,15 @@ function playlistUpdateLayout(callable $fn): array {
     return $layout;
 }
 
-/** Normalise a list of song names (basename, de-duplicated). */
+/** Song key as stored: "/" separators, no leading slash, no "." / ".." parts. */
+function playlistCleanKey(string $song): string {
+    $parts = array_filter(explode('/', str_replace('\\', '/', $song)), function ($part) {
+        return $part !== '' && $part !== '.' && $part !== '..';
+    });
+    return implode('/', $parts);
+}
+
+/** Normalise a list of song keys (de-duplicated). */
 function playlistCleanSongs($songs): array {
     if (is_string($songs)) {
         $decoded = json_decode($songs, true);
@@ -126,8 +118,8 @@ function playlistCleanSongs($songs): array {
     $clean = [];
     foreach ((array) $songs as $song) {
         if (!is_string($song)) continue;
-        $song = basename(str_replace('\\', '/', $song));
-        if ($song === '' || $song === '.' || $song === '..') continue;
+        $song = playlistCleanKey($song);
+        if ($song === '') continue;
         if (!in_array($song, $clean, true)) $clean[] = $song;
         if (count($clean) >= PLAYLIST_SONGS_MAX) break;
     }
@@ -136,7 +128,7 @@ function playlistCleanSongs($songs): array {
 
 /** Summary sent to the browser. */
 function playlistView(array $p): array {
-    $library = playlistLibrary();
+    $library = musicLibrary();
     $missing = array_values(array_filter($p['songs'], function ($s) use ($library) { return !isset($library[$s]); }));
     return [
         "id"      => $p['id'],
@@ -470,7 +462,7 @@ function setPlaylistPinned($id, $pinned): void {
 function addToPlaylist($id, $songs): void {
     $id    = playlistRequireId($id);
     $songs = playlistCleanSongs($songs);
-    $library = playlistLibrary();
+    $library = musicLibrary();
     $songs = array_values(array_filter($songs, function ($s) use ($library) { return isset($library[$s]); }));
     if (!$songs) {
         apiResponse("error", "Those songs aren't in the library.");
@@ -535,7 +527,7 @@ function reorderPlaylist($id, $songs, $ifVersion): void {
 
 function toggleFavorite($song): void {
     $song = playlistCleanSongs([$song])[0] ?? '';
-    if ($song === '' || !isset(playlistLibrary()[$song])) {
+    if ($song === '' || !isset(musicLibrary()[$song])) {
         apiResponse("error", "That song isn't in the library.");
     }
     $favorite = false;
@@ -566,15 +558,14 @@ function exportPlaylist($id): void {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host   = preg_replace('/[^a-z0-9.\-:\[\]]/i', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
     $base   = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
-    $audio  = trim((string) getConfig("audio_path"), '/');
-    $library = playlistLibrary();
+    $library = musicLibrary();
 
     $lines = ["#EXTM3U", "#PLAYLIST:" . $p['name']];
     foreach ($p['songs'] as $song) {
         if (!isset($library[$song])) continue;
-        [$m, $s] = array_map('intval', explode(':', getDuration($audio . '/' . $song)) + [0, 0]);
+        [$m, $s] = array_map('intval', explode(':', getDuration($library[$song])) + [0, 0]);
         $lines[] = "#EXTINF:" . ($m * 60 + $s) . "," . pathinfo($song, PATHINFO_FILENAME);
-        $lines[] = "$scheme://$host$base/" . implode('/', array_map('rawurlencode', explode('/', $audio))) . "/" . rawurlencode($song);
+        $lines[] = "$scheme://$host$base/" . songUrl($song);
     }
 
     $filename = preg_replace('/[^\w\- ]+/u', '', $p['name']) ?: 'playlist';
@@ -604,10 +595,13 @@ function importPlaylist(array $file): void {
         $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
     }
 
-    // Library lookup by lower-case name for case-insensitive matching
+    // Library lookup by lower-case key, and by file name alone (first one wins),
+    // for case-insensitive matching
     $byLower = [];
-    foreach (array_keys(playlistLibrary()) as $song) {
+    $byName  = [];
+    foreach (array_keys(musicLibrary()) as $song) {
         $byLower[mb_strtolower($song)] = $song;
+        $byName[mb_strtolower(basename($song))] ??= $song;
     }
 
     $name = '';
@@ -621,9 +615,20 @@ function importPlaylist(array $file): void {
             continue;
         }
         if ($line[0] === '#') continue;
-        $entry = rawurldecode(str_replace('\\', '/', parse_url($line, PHP_URL_PATH) ?? $line));
+        // Our own exports link to stream.php?file=<key>
+        parse_str((string) parse_url($line, PHP_URL_QUERY), $query);
+        $entry = isset($query['file']) && is_string($query['file'])
+            ? $query['file']
+            : rawurldecode(str_replace('\\', '/', parse_url($line, PHP_URL_PATH) ?? $line));
+        $entry = mb_strtolower(playlistCleanKey($entry));
         $base  = basename($entry);
-        $song  = $byLower[mb_strtolower($base)] ?? null;
+        // The longest tail of the path that is a song key, then the file name
+        $song  = null;
+        $parts = explode('/', $entry);
+        for ($i = 0; $i < count($parts) && $song === null; $i++) {
+            $song = $byLower[implode('/', array_slice($parts, $i))] ?? null;
+        }
+        $song ??= $byName[$base] ?? null;
         if ($song !== null) {
             if (!in_array($song, $matched, true)) $matched[] = $song;
         } else {
