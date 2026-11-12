@@ -175,7 +175,7 @@ do {
     }
     if ($action === 'createPlaylist') {
         require_csrf_token();
-        createPlaylist($_POST['name'] ?? '', $_POST['songs'] ?? []);
+        createPlaylist($_POST['name'] ?? '', $_POST['songs'] ?? [], $_POST['description'] ?? '');
     }
     if ($action === 'renamePlaylist') {
         require_csrf_token();
