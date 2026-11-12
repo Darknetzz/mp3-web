@@ -413,8 +413,9 @@ function setPlaylistSharing($id, $shared, $collab): void {
     apiResponse("success", $msg, playlistView($p));
 }
 
-function createPlaylist($name, $songs = []): void {
+function createPlaylist($name, $songs = [], $description = ''): void {
     $name = playlistCleanName($name);
+    $description = playlistCleanDescription($description);
     if ($name === '') {
         apiResponse("error", "Give the playlist a name.");
     }
@@ -423,8 +424,10 @@ function createPlaylist($name, $songs = []): void {
         $id = bin2hex(random_bytes(4));
     } while (file_exists(playlistPath($id)));
     $songs = playlistCleanSongs($songs);
-    $p = playlistWithLock($id, function () use ($id, $name, $songs) {
-        return playlistNew($id, $name, $songs);
+    $p = playlistWithLock($id, function () use ($id, $name, $songs, $description) {
+        $p = playlistNew($id, $name, $songs);
+        if ($description !== '') $p['description'] = $description;
+        return $p;
     }, true);
     apiResponse("success", "Created <code>" . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "</code>.", playlistView($p));
 }

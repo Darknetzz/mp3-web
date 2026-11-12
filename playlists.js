@@ -372,8 +372,8 @@ function moreFormatter(value, row) {
     reorder(id, songs);
   }
 
-  function createPlaylist(name, songs) {
-    return request("POST", "createPlaylist", { name: name, songs: songs || [] }).then(function (res) {
+  function createPlaylist(name, songs, description) {
+    return request("POST", "createPlaylist", { name: name, songs: songs || [], description: description || "" }).then(function (res) {
       if (res.status !== "success") return failed(res);
       showToast(res.response, "success");
       cache[res.data.id] = res.data;
@@ -679,9 +679,7 @@ function moreFormatter(value, row) {
     });
     if (items.length) items.push("-");
     items.push({ label: "New playlist…", icon: "plus", run: function () {
-      askName("New playlist", "", "Create", function (name) {
-        createPlaylist(name, songs).then(function (p) { if (p) renderBar(); });
-      });
+      newPlaylist(songs);
     } });
     return items;
   }
@@ -928,12 +926,57 @@ function moreFormatter(value, row) {
     dialog.find("[data-image=remove]").on("click", function () { removeImage(id); });
   }
 
+  // "New playlist" with the same fields as Edit details. The image is held
+  // locally (previewed from the file) and uploaded once the playlist exists.
+  function newPlaylist(songs, onCreated) {
+    var pending = null, previewURL = null;
+    var blank = coverHtml({ id: "", songs: songs || [] });
+    function setPreview(file) {
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      pending = file;
+      previewURL = file ? URL.createObjectURL(file) : null;
+      dialog.find(".plEditPreview").html((file ? '<img src="' + esc(previewURL) + '" alt="">' : blank) +
+        '<span class="plCoverEdit">' + lucideIcon('image') + '</span>');
+      dialog.find("[data-image=remove]").toggle(!!file);
+    }
+    openDialog(
+      '<h3 id="plDialogTitle">New playlist</h3>' +
+      '<div class="plEdit">' +
+        '<div class="plEditImage">' +
+          '<button type="button" class="plEditPreview plCover" data-image="choose" title="Choose image" aria-label="Choose image"></button>' +
+          '<button type="button" class="btn btn-link btn-sm p-0" data-image="remove" style="display:none">Remove image</button>' +
+        '</div>' +
+        '<div class="plEditFields">' +
+          '<label class="form-label small mb-1" for="plEditName">Name</label>' +
+          '<input type="text" id="plEditName" class="form-control mb-2" maxlength="60" placeholder="Playlist name">' +
+          '<label class="form-label small mb-1" for="plEditDesc">Description</label>' +
+          '<textarea id="plEditDesc" class="form-control" rows="4" maxlength="300" placeholder="Add an optional description"></textarea>' +
+        '</div>' +
+      '</div>' +
+      '<div class="plDialogButtons"><button type="button" class="btn btn-outline-secondary btn-pill" data-dismiss>Cancel</button>' +
+      '<button type="submit" class="btn btn-success btn-pill">Create</button></div>',
+      function (name, form) {
+        var file = pending;
+        createPlaylist(name, songs, form.find("textarea").val()).then(function (p) {
+          if (!p) return;
+          if (file) uploadImage(p.id, file);
+          else renderBar();
+          if (onCreated) onCreated(p);
+        });
+      }
+    );
+    dialog.addClass("plDialogWide");
+    setPreview(null);
+    var picker = $('<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>').appendTo(dialog.find(".plDialog"));
+    picker.on("change", function () { if (this.files && this.files[0]) setPreview(this.files[0]); });
+    dialog.find("[data-image=choose]").on("click", function () { picker.val("").trigger("click"); });
+    dialog.find("[data-image=remove]").on("click", function () { setPreview(null); });
+  }
+
   function addMenu(anchor) {
     openMenu(anchor, [
       { label: "New playlist…", icon: "plus", run: function () {
-        askName("New playlist", "", "Create", function (name) {
-          createPlaylist(name).then(function (p) { if (p) showPlaylist(p.id); });
-        });
+        newPlaylist([], function (p) { showPlaylist(p.id); });
       } },
       { label: "Import .m3u…", icon: "upload", run: function () { fileInput.val("").trigger("click"); } },
     ]);
@@ -981,15 +1024,6 @@ function moreFormatter(value, row) {
   dialog.on("click", "[data-dismiss]", closeDialog);
   dialog.on("mousedown", function (e) { if (e.target === this) closeDialog(); });
 
-  function askName(title, value, confirmLabel, onSubmit) {
-    openDialog(
-      '<h3 id="plDialogTitle">' + esc(title) + '</h3>' +
-      '<input type="text" class="form-control" maxlength="60" placeholder="Playlist name" value="' + esc(value) + '" aria-label="Playlist name">' +
-      '<div class="plDialogButtons"><button type="button" class="btn btn-outline-secondary btn-pill" data-dismiss>Cancel</button>' +
-      '<button type="submit" class="btn btn-success btn-pill">' + esc(confirmLabel) + '</button></div>',
-      onSubmit
-    );
-  }
   function confirmDialog(title, text, confirmLabel, onConfirm) {
     openDialog(
       '<h3 id="plDialogTitle">' + esc(title) + '</h3><p class="text-secondary">' + esc(text) + '</p>' +
@@ -1044,9 +1078,7 @@ function moreFormatter(value, row) {
     var song = songOf(id);
     if (!song) return;
     if ($(el).hasClass("plAdd")) {
-      askName("New playlist", "", "Create", function (name) {
-        createPlaylist(name, [song]).then(function (p) { if (p) renderBar(); });
-      });
+      newPlaylist([song]);
     } else {
       addSongs(String($(el).data("view")), [song]);
     }
