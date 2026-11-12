@@ -802,8 +802,10 @@ function moreFormatter(value, row) {
     );
   }
 
-  /* ───────────────────────────── Drag to reorder ─────────────────────────── */
-  function dragEnabled() {
+  /* ──────────────────── Drag to reorder / onto a playlist ─────────────────── */
+  // Every song row can be dragged onto a playlist in #playlistBar. Dropping
+  // between rows reorders, but only in an unsorted, unfiltered playlist view.
+  function reorderEnabled() {
     if (view.type !== "playlist" || !cache[view.id]) return false;
     var opts = playlistTable.bootstrapTable("getOptions");
     return !opts.sortName && !opts.searchText;
@@ -811,24 +813,32 @@ function moreFormatter(value, row) {
 
   function setupRows() {
     var rows = $("#playlistTable > tbody > tr[data-uniqueid]");
-    var enabled = dragEnabled();
-    rows.attr("draggable", enabled ? "true" : null).toggleClass("plDraggable", enabled);
+    rows.attr("draggable", "true").toggleClass("plDraggable", reorderEnabled());
     // keep the playing row highlighted after re-renders
     if (window.currentIndex !== undefined) {
       rows.filter("[data-uniqueid='" + window.currentIndex + "']").addClass(activeClass).children().addClass(activeClass);
     }
   }
 
+  function endDrag() {
+    dragId = null;
+    $("body").removeClass("plDraggingSong");
+    $("#playlistTable tbody tr").removeClass("plDropBefore plDropAfter plDragging");
+    $("#playlistBar .plDropTarget").removeClass("plDropTarget");
+  }
+
   $("#playlistTable")
     .on("dragstart", "tbody > tr[draggable=true]", function (e) {
       dragId = $(this).attr("data-uniqueid");
-      e.originalEvent.dataTransfer.effectAllowed = "move";
+      e.originalEvent.dataTransfer.effectAllowed = "copyMove";
       e.originalEvent.dataTransfer.setData("text/plain", dragId);
       $(this).addClass("plDragging");
+      $("body").addClass("plDraggingSong");
     })
     .on("dragover", "tbody > tr[draggable=true]", function (e) {
-      if (!dragId) return;
+      if (!dragId || !reorderEnabled()) return;
       e.preventDefault();
+      e.originalEvent.dataTransfer.dropEffect = "move";
       var rect = this.getBoundingClientRect();
       var after = e.originalEvent.clientY > rect.top + rect.height / 2;
       $("#playlistTable tbody tr").removeClass("plDropBefore plDropAfter");
@@ -838,22 +848,47 @@ function moreFormatter(value, row) {
       e.preventDefault();
       var targetId = $(this).attr("data-uniqueid");
       var after = $(this).hasClass("plDropAfter");
-      $("#playlistTable tbody tr").removeClass("plDropBefore plDropAfter plDragging");
-      if (!dragId || dragId === targetId || !cache[view.id]) return;
+      var movingId = dragId;
+      endDrag();
+      if (!movingId || movingId === targetId || !reorderEnabled()) return;
       var p = cache[view.id];
-      var moving = songOf(dragId), target = songOf(targetId);
+      var moving = songOf(movingId), target = songOf(targetId);
       var songs = p.songs.filter(function (s) { return s !== moving; });
       var at = songs.indexOf(target);
       if (at === -1 || !moving) return;
       songs.splice(after ? at + 1 : at, 0, moving);
-      dragId = null;
       reorder(p.id, songs);
     })
-    .on("dragend", "tbody > tr", function () {
-      dragId = null;
-      $("#playlistTable tbody tr").removeClass("plDropBefore plDropAfter plDragging");
-    })
+    .on("dragend", "tbody > tr", endDrag)
     .on("post-body.bs.table", setupRows);
+
+  // Playlist pills (and "New playlist") accept dropped songs.
+  var dropPills = '.plPill[data-view]:not([data-view="library"]), .plPill.plAdd';
+  $("#playlistBar")
+    .on("dragover", dropPills, function (e) {
+      if (!dragId) return;
+      e.preventDefault();
+      e.originalEvent.dataTransfer.dropEffect = "copy";
+      $("#playlistBar .plDropTarget").not(this).removeClass("plDropTarget");
+      $(this).addClass("plDropTarget");
+    })
+    .on("dragleave", dropPills, function (e) {
+      if (!this.contains(e.originalEvent.relatedTarget)) $(this).removeClass("plDropTarget");
+    })
+    .on("drop", dropPills, function (e) {
+      e.preventDefault();
+      var song = dragId ? songOf(dragId) : null;
+      var pill = $(this);
+      endDrag();
+      if (!song) return;
+      if (pill.hasClass("plAdd")) {
+        askName("New playlist", "", "Create", function (name) {
+          createPlaylist(name, [song]).then(function (p) { if (p) renderBar(); });
+        });
+      } else {
+        addSongs(String(pill.data("view")), [song]);
+      }
+    });
 
   /* ───────────────────────────── Event wiring ────────────────────────────── */
   $("#playlistBar").on("click", ".plPill", function () {

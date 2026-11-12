@@ -1264,6 +1264,23 @@ body.player-top .toast-container {
   box-shadow: inset 0 -2px 0 var(--tblr-success);
 }
 
+/* Drag a song onto a playlist pill */
+body.plDraggingSong #playlistBar .plPill[data-view]:not([data-view="library"]),
+body.plDraggingSong #playlistBar .plPill.plAdd {
+  outline: 1px dashed color-mix(in oklab, var(--tblr-success) 60%, transparent);
+  outline-offset: -1px;
+}
+#playlistBar .plPill.plDropTarget,
+body.nav-sidebar .sideNav .plPill.plDropTarget {
+  background: color-mix(in oklab, var(--tblr-success) 22%, transparent);
+  color: var(--tblr-body-color);
+  outline: 2px solid var(--tblr-success);
+  outline-offset: -2px;
+}
+#playlistBar .plPill.plDropTarget > * {
+  pointer-events: none; /* keep dragleave from firing over the pill's children */
+}
+
 /* Popup menu */
 .popMenu {
   position: fixed; /* viewport coordinates; the menu closes on scroll */
