@@ -1049,34 +1049,27 @@
       // default params() function, so a plain object is silently never sent.
       params: function () { return { csrf_token: csrfToken }; },
       disablePreviews: true,
+      dictInvalidFileType: "Only MP3 files can be uploaded.",
+      dictFileTooBig: "File is too big ({{filesize}} MB). Max size: {{maxFilesize}} MB.",
       init: function() {
-        var res = {};
-        this.on("complete", function(response) {
-          console.log("Response: ", response);
-          
-          if (typeof response.xhr.responseText === 'string') {
-            res = JSON.parse(response.xhr.responseText);
-          } else {
-            res = response.xhr.responseText;
+        // Server answered: the API replies with a JSON {status, statuscode, response}.
+        this.on("successmultiple", function(files, res) {
+          if (typeof res === 'string') {
+            try { res = JSON.parse(res); } catch (e) {}
           }
-
           if (typeof res !== 'object' || res === null) {
-            showToast("Response is not an object: "+res, "danger");
+            showToast("Unexpected upload response: " + res, "danger");
             return;
           }
-
-          var statusText      = res.status;
-          var statusCode      = res.statuscode;
-          var responseMessage = res.response;
-          console.log("Response: ", responseMessage);
-          console.log("Status: ", statusText);
-          console.log("Code: ", statusCode);
-          if (statusCode !== 0) {
-            var type = "danger";
-          } else {
-            var type = "success";
-          }
-          showToast(responseMessage, type);
+          showToast(res.response, res.statuscode !== 0 ? "danger" : "success");
+        });
+        // Rejected in the browser (wrong type, too big) or the request failed.
+        // A browser-side rejection has no xhr; the message is a plain string.
+        this.on("errormultiple", function(files, message, xhr) {
+          if (message && typeof message === 'object') message = message.response || JSON.stringify(message);
+          if (!message) message = xhr ? ("Upload failed (HTTP " + xhr.status + ").") : "Upload failed.";
+          var names = files.map(function(f) { return f.name; }).join(", ");
+          showToast($("<div>").text(names).html() + ": " + message, "danger");
         });
       }
     });
