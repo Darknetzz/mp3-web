@@ -61,7 +61,8 @@ function moreFormatter(value, row) {
   var cache     = {};          // id -> full playlist (songs, version, missing)
   var favorites = new Set();   // song file names
   var view      = { type: "library", id: null };
-  var dragId    = null;
+  var dragId    = null;        // song row being dragged
+  var pillDragId = null;       // playlist pill being dragged (sidebar reorder)
 
   function esc(str) {
     return $("<div>").text(str == null ? "" : String(str)).html();
@@ -89,6 +90,15 @@ function moreFormatter(value, row) {
       if (id !== null) ids.push(id);
     });
     return ids;
+  }
+
+  // URL of a playlist's own image; p.image is its cache-busting token (or null).
+  function imageURL(p) {
+    return apiURL + "?action=playlistImage&id=" + encodeURIComponent(p.id) + "&v=" + encodeURIComponent(p.image);
+  }
+
+  function coverURL(song) {
+    return "cover.php?file=" + encodeURIComponent(song) + "&size=sm";
   }
 
   function listById(id) {
@@ -127,6 +137,8 @@ function moreFormatter(value, row) {
       summary.count   = p.count;
       summary.missing = p.missing.length;
       summary.version = p.version;
+      summary.description = p.description || "";
+      summary.image   = p.image || null;
     }
     if (p.id === FAVORITES) {
       favorites = new Set(p.songs);
@@ -194,11 +206,23 @@ function moreFormatter(value, row) {
   function renderBar() {
     var html = '<button type="button" class="plPill' + (view.type === "library" ? " active" : "") + '" data-view="library">' +
                lucideIcon('list-music') + '<span>All songs</span><span class="plCount">' + (library ? library.length : "") + '</span></button>';
+    var hasPinned = lists.some(function (p) { return p.pinned; });
+    var divided = false;
     lists.forEach(function (p) {
+      var isFav = p.id === FAVORITES;
+      if (hasPinned && !isFav && !p.pinned && !divided) {
+        html += '<span class="plDivider" role="separator"></span>';
+        divided = true;
+      }
       var active = view.type === "playlist" && view.id === p.id;
-      var icon = p.id === FAVORITES ? lucideIcon("heart", "filled") : lucideIcon("list-video");
-      html += '<button type="button" class="plPill' + (active ? " active" : "") + (p.id === FAVORITES ? " plFav" : "") + '" data-view="' + esc(p.id) + '">' +
-              icon + '<span>' + esc(p.name) + '</span><span class="plCount">' + p.count + '</span></button>';
+      var icon = p.image ? '<img class="plThumb" src="' + esc(imageURL(p)) + '" alt="" loading="lazy">'
+               : isFav ? lucideIcon("heart", "filled") : lucideIcon("list-video");
+      var tip = p.name + (p.description ? "\n" + p.description : "");
+      html += '<button type="button" class="plPill' + (active ? " active" : "") + (isFav ? " plFav" : "") + (p.pinned ? " plPinned" : "") + '"' +
+              ' data-view="' + esc(p.id) + '"' + (isFav ? "" : ' draggable="true"') + ' title="' + esc(tip) + '">' +
+              icon + '<span>' + esc(p.name) + '</span>' +
+              (p.pinned ? lucideIcon("pin", "plPinIcon") : "") +
+              '<span class="plCount">' + p.count + '</span></button>';
     });
     html += '<button type="button" class="plPill plAdd" data-action="add-menu" aria-haspopup="menu" title="New or import playlist">' +
             lucideIcon('plus') + '<span>New playlist</span></button>';
@@ -217,9 +241,14 @@ function moreFormatter(value, row) {
     var count = p.count + " song" + (p.count === 1 ? "" : "s");
     var missing = p.missing.length ? ' · <span class="text-warning">' + p.missing.length + ' not in library</span>' : "";
     var canDrag = p.count > 1;
+    var pinned = !!(listById(p.id) || {}).pinned;
     header.html(
+      '<button type="button" class="plCover" data-action="edit" title="Edit details" aria-label="Edit playlist details">' + coverHtml(p) +
+        '<span class="plCoverEdit">' + lucideIcon('pencil') + '</span></button>' +
       '<div class="plHeaderText">' +
-        '<h3 class="plTitle">' + (isFav ? lucideIcon('heart', 'filled text-danger me-2') : "") + esc(p.name) + '</h3>' +
+        '<h3 class="plTitle">' + (isFav ? lucideIcon('heart', 'filled text-danger me-2') : "") + esc(p.name) +
+          (pinned ? lucideIcon('pin', 'plPinIcon ms-2') : "") + '</h3>' +
+        (p.description ? '<p class="plDesc">' + esc(p.description) + '</p>' : "") +
         '<div class="text-secondary small">' + count + missing + (canDrag ? ' · drag songs to reorder' : '') + '</div>' +
       '</div>' +
       '<div class="plHeaderActions">' +
@@ -230,6 +259,22 @@ function moreFormatter(value, row) {
       '</div>'
     ).show();
   }
+
+  // The playlist's image, else a 2×2 mosaic of its first song covers, else an icon.
+  function coverHtml(p) {
+    if (p.image) return '<img src="' + esc(imageURL(p)) + '" alt="">';
+    var ids = idsFor(p.songs).slice(0, 4);
+    var icon = '<span class="plCoverIcon">' + lucideIcon(p.id === FAVORITES ? 'heart' : 'list-music', p.id === FAVORITES ? 'filled' : '') + '</span>';
+    if (!ids.length) return icon;
+    var names = ids.map(function (sid) { return songOf(sid); }).filter(Boolean);
+    if (names.length < 4) return icon + '<img src="' + esc(coverURL(names[0])) + '" alt="">';
+    return icon + '<span class="plMosaic">' + names.map(function (n) { return '<img src="' + esc(coverURL(n)) + '" alt="">'; }).join("") + '</span>';
+  }
+  // Song covers that don't exist answer 204: hide them so the icon behind shows.
+  function hideBrokenCover(e) {
+    if (e.target.tagName === "IMG") e.target.style.visibility = "hidden";
+  }
+  document.getElementById("playlistHeader").addEventListener("error", hideBrokenCover, true);
 
   /* ─────────────────────────────── Hearts ────────────────────────────────── */
   function refreshHearts() {
@@ -327,14 +372,6 @@ function moreFormatter(value, row) {
     });
   }
 
-  function renamePlaylist(id, name) {
-    return request("POST", "renamePlaylist", { id: id, name: name }).then(function (res) {
-      if (res.status !== "success") return failed(res);
-      storePlaylist(res.data);
-      rerenderView();
-    });
-  }
-
   function deletePlaylist(id) {
     return request("POST", "deletePlaylist", { id: id }).then(function (res) {
       if (res.status !== "success") return failed(res);
@@ -342,6 +379,75 @@ function moreFormatter(value, row) {
       delete cache[id];
       lists = lists.filter(function (p) { return p.id !== id; });
       if (view.type === "playlist" && view.id === id) showLibrary(); else renderBar();
+    });
+  }
+
+  // Name + description from the Edit details dialog.
+  function saveDetails(id, name, description) {
+    return request("POST", "updatePlaylistDetails", { id: id, name: name, description: description }).then(function (res) {
+      if (res.status !== "success") return failed(res);
+      storePlaylist(res.data);
+      renderBar();
+      renderHeader();
+    });
+  }
+
+  // Image changes apply right away (not on Save), so the dialog preview follows them.
+  function afterImageChange(res) {
+    if (res.status !== "success") return failed(res);
+    storePlaylist(res.data);
+    renderBar();
+    renderHeader();
+    dialog.find(".plEditPreview").html(coverHtml(res.data));
+    dialog.find("[data-image=remove]").toggle(!!res.data.image);
+  }
+
+  function uploadImage(id, file) {
+    var form = new FormData();
+    form.append("action", "setPlaylistImage");
+    form.append("csrf_token", csrfToken);
+    form.append("id", id);
+    form.append("image", file);
+    dialog.find(".plEditPreview").addClass("plBusy");
+    $.ajax({ url: apiURL, type: "POST", data: form, processData: false, contentType: false, dataType: "json" })
+      .then(afterImageChange, function () { showToast("Could not upload the image.", "danger"); })
+      .always(function () { dialog.find(".plEditPreview").removeClass("plBusy"); });
+  }
+
+  function removeImage(id) {
+    request("POST", "removePlaylistImage", { id: id }).then(afterImageChange, failed);
+  }
+
+  function setPinned(id, pinned) {
+    var p = listById(id);
+    if (p) p.pinned = pinned;
+    request("POST", "setPlaylistPinned", { id: id, pinned: pinned ? 1 : 0 }).then(function (res) {
+      if (res.status !== "success") failed(res);
+      loadLists().then(renderHeader); // the server sorts pinned ones first
+    });
+  }
+
+  // Move playlist `moving` before/after `target` in the bar. Dropping into the
+  // other group (pinned / not pinned) pins or unpins it.
+  function movePlaylist(moving, target, after) {
+    var m = listById(moving), t = listById(target);
+    if (!m || !t || moving === target) return;
+    var pinChange = !!m.pinned !== !!t.pinned;
+    m.pinned = !!t.pinned;
+    var rest = lists.filter(function (p) { return p.id !== moving; });
+    rest.splice(rest.indexOf(t) + (after ? 1 : 0), 0, m);
+    lists = rest;
+    renderBar();
+    var ids = lists.filter(function (p) { return p.id !== FAVORITES; }).map(function (p) { return p.id; });
+    var calls = [request("POST", "setPlaylistOrder", { ids: JSON.stringify(ids) })];
+    if (pinChange) calls.push(request("POST", "setPlaylistPinned", { id: moving, pinned: m.pinned ? 1 : 0 }));
+    Promise.all(calls).then(function (results) {
+      var bad = results.filter(function (res) { return !res || res.status !== "success"; })[0];
+      if (bad) { failed(bad); return loadLists(); }
+      if (pinChange) renderHeader();
+    }, function () {
+      showToast("Could not save the playlist order.", "danger");
+      loadLists();
     });
   }
 
@@ -714,25 +820,79 @@ function moreFormatter(value, row) {
       cancelPress();
     });
 
-  function playlistMenu(anchor) {
-    var p = cache[view.id];
+  // Actions for one playlist: from the header's ⋯ (the open one) or a right-click on its pill.
+  function playlistMenu(anchor, id, at) {
+    id = id || view.id;
+    var p = listById(id) || cache[id];
     if (!p) return;
-    var items = [
-      { label: "Export .m3u", icon: "download", disabled: !p.count, run: function () {
-        window.location.href = apiURL + "?action=exportPlaylist&id=" + encodeURIComponent(p.id);
-      } },
-    ];
-    if (p.id !== FAVORITES) {
-      items.unshift({ label: "Rename", icon: "pencil", run: function () {
-        askName("Rename playlist", p.name, "Rename", function (name) { renamePlaylist(p.id, name); });
-      } });
+    var isFav = id === FAVORITES;
+    var items = [];
+    if (view.type !== "playlist" || view.id !== id) {
+      items.push({ label: "Open", icon: "list-video", run: function () { showPlaylist(id); } });
+      items.push({ label: "Play", icon: "play", disabled: !p.count, run: function () { playPlaylist(id, false); } });
+      items.push("-");
+    }
+    items.push({ label: "Edit details…", icon: "pencil", run: function () { editDetails(id); } });
+    items.push({ label: p.image ? "Change image…" : "Add image…", icon: "image", run: function () { chooseImage(id); } });
+    if (p.image) items.push({ label: "Remove image", icon: "image-off", run: function () { removeImage(id); } });
+    if (!isFav) {
+      items.push(p.pinned
+        ? { label: "Unpin", icon: "pin-off", run: function () { setPinned(id, false); } }
+        : { label: "Pin to top", icon: "pin", run: function () { setPinned(id, true); } });
+    }
+    items.push({ label: "Export .m3u", icon: "download", disabled: !p.count, run: function () {
+      window.location.href = apiURL + "?action=exportPlaylist&id=" + encodeURIComponent(id);
+    } });
+    if (!isFav) {
       items.push("-", { label: "Delete playlist", icon: "trash-2", danger: true, run: function () {
         confirmDialog("Delete “" + p.name + "”?", "The songs stay in your library. This can't be undone.", "Delete", function () {
-          deletePlaylist(p.id);
+          deletePlaylist(id);
         });
       } });
     }
-    openMenu(anchor, items);
+    openMenu(anchor, items, { at: at || null, label: "Actions for " + p.name });
+  }
+
+  var imageInput = $('<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>').appendTo(document.body);
+  var imageFor = null;
+  function chooseImage(id) {
+    imageFor = id;
+    imageInput.val("").trigger("click");
+  }
+  imageInput.on("change", function () {
+    if (this.files && this.files[0] && imageFor) uploadImage(imageFor, this.files[0]);
+  });
+
+  function editDetails(id) {
+    var p = listById(id) || cache[id];
+    if (!p) return;
+    var isFav = id === FAVORITES;
+    openDialog(
+      '<h3 id="plDialogTitle">Edit details</h3>' +
+      '<div class="plEdit">' +
+        '<div class="plEditImage">' +
+          '<button type="button" class="plEditPreview plCover" data-image="choose" title="Choose image" aria-label="Choose image">' + coverHtml(p) +
+            '<span class="plCoverEdit">' + lucideIcon('image') + '</span></button>' +
+          '<button type="button" class="btn btn-link btn-sm p-0" data-image="remove"' + (p.image ? "" : ' style="display:none"') + '>Remove image</button>' +
+        '</div>' +
+        '<div class="plEditFields">' +
+          (isFav ? '' : '<label class="form-label small mb-1" for="plEditName">Name</label>' +
+            '<input type="text" id="plEditName" class="form-control mb-2" maxlength="60" placeholder="Playlist name" value="' + esc(p.name) + '">') +
+          '<label class="form-label small mb-1" for="plEditDesc">Description</label>' +
+          '<textarea id="plEditDesc" class="form-control" rows="4" maxlength="300" placeholder="Add an optional description">' + esc(p.description || "") + '</textarea>' +
+        '</div>' +
+      '</div>' +
+      '<div class="plDialogButtons"><button type="button" class="btn btn-outline-secondary btn-pill" data-dismiss>Cancel</button>' +
+      '<button type="submit" class="btn btn-success btn-pill">Save</button></div>',
+      function (name, form) {
+        var desc = form.find("textarea").val();
+        if ((isFav || name === p.name) && desc === (p.description || "")) return;
+        saveDetails(id, isFav ? "" : name, desc);
+      }
+    );
+    dialog.addClass("plDialogWide");
+    dialog.find("[data-image=choose]").on("click", function () { chooseImage(id); });
+    dialog.find("[data-image=remove]").on("click", function () { removeImage(id); });
   }
 
   function addMenu(anchor) {
@@ -753,15 +913,17 @@ function moreFormatter(value, row) {
 
   /* ──────────────────────────────── Dialogs ──────────────────────────────── */
   var dialog = $('<div class="plDialogBackdrop" style="display:none;"><form class="plDialog" role="dialog" aria-modal="true" aria-labelledby="plDialogTitle"></form></div>').appendTo(document.body);
+  dialog[0].addEventListener("error", hideBrokenCover, true);
   var dialogSubmit = null;
   var dialogReturnFocus = null;
 
   function openDialog(html, onSubmit) {
     dialogReturnFocus = document.activeElement;
     dialogSubmit = onSubmit;
+    dialog.removeClass("plDialogWide");
     dialog.find(".plDialog").html(html);
     dialog.show();
-    var input = dialog.find("input").first();
+    var input = dialog.find("input[type=text], textarea").first();
     (input.length ? input : dialog.find("button[type=submit]")).trigger("focus").trigger("select");
   }
   function closeDialog() {
@@ -772,14 +934,16 @@ function moreFormatter(value, row) {
   }
   dialog.on("submit", ".plDialog", function (e) {
     e.preventDefault();
-    var value = dialog.find("input").val();
+    var form = $(this);
+    var text = dialog.find("input[type=text]");
+    var value = text.val();
     var submit = dialogSubmit;
-    if (dialog.find("input").length && !String(value).trim()) {
-      dialog.find("input").trigger("focus");
+    if (text.length && !String(value).trim()) {
+      text.trigger("focus");
       return;
     }
     closeDialog();
-    if (submit) submit(String(value || "").trim());
+    if (submit) submit(String(value || "").trim(), form);
   });
   dialog.on("click", "[data-dismiss]", closeDialog);
   dialog.on("mousedown", function (e) { if (e.target === this) closeDialog(); });
@@ -876,8 +1040,9 @@ function moreFormatter(value, row) {
       if (!this.contains(e.originalEvent.relatedTarget)) $(this).removeClass("plDropTarget");
     })
     .on("drop", dropPills, function (e) {
+      if (!dragId) return;
       e.preventDefault();
-      var song = dragId ? songOf(dragId) : null;
+      var song = songOf(dragId);
       var pill = $(this);
       endDrag();
       if (!song) return;
@@ -888,6 +1053,46 @@ function moreFormatter(value, row) {
       } else {
         addSongs(String(pill.data("view")), [song]);
       }
+    });
+
+  // Drag playlist pills to reorder them (Favorites stays first).
+  var reorderPills = '.plPill[draggable=true]';
+  function endPillDrag() {
+    pillDragId = null;
+    $("#playlistBar .plPill").removeClass("plDragging plDropBefore plDropAfter");
+  }
+  $("#playlistBar")
+    .on("dragstart", reorderPills, function (e) {
+      if (dragId) return;
+      pillDragId = String($(this).data("view"));
+      e.originalEvent.dataTransfer.effectAllowed = "move";
+      e.originalEvent.dataTransfer.setData("text/plain", $(this).text());
+      $(this).addClass("plDragging");
+    })
+    .on("dragover", reorderPills, function (e) {
+      if (!pillDragId) return;
+      e.preventDefault();
+      e.originalEvent.dataTransfer.dropEffect = "move";
+      var rect = this.getBoundingClientRect(), ev = e.originalEvent;
+      var vertical = $("#playlistBar").css("flex-direction") === "column";
+      var after = vertical ? ev.clientY > rect.top + rect.height / 2 : ev.clientX > rect.left + rect.width / 2;
+      $("#playlistBar .plPill").not(this).removeClass("plDropBefore plDropAfter");
+      $(this).toggleClass("plDropAfter", after).toggleClass("plDropBefore", !after);
+    })
+    .on("dragleave", reorderPills, function (e) {
+      if (!this.contains(e.originalEvent.relatedTarget)) $(this).removeClass("plDropBefore plDropAfter");
+    })
+    .on("drop", reorderPills, function (e) {
+      if (!pillDragId) return;
+      e.preventDefault();
+      var moving = pillDragId, target = String($(this).data("view")), after = $(this).hasClass("plDropAfter");
+      endPillDrag();
+      movePlaylist(moving, target, after);
+    })
+    .on("dragend", ".plPill", endPillDrag)
+    .on("contextmenu", '.plPill[data-view]:not([data-view="library"])', function (e) {
+      e.preventDefault();
+      playlistMenu(this, String($(this).data("view")), { x: e.clientX, y: e.clientY });
     });
 
   /* ───────────────────────────── Event wiring ────────────────────────────── */
@@ -904,6 +1109,7 @@ function moreFormatter(value, row) {
     if (action === "shuffle") playPlaylist(view.id, true);
     if (action === "queue-all") queueSong(idsFor(cache[view.id].songs));
     if (action === "playlist-menu") playlistMenu(this);
+    if (action === "edit") editDetails(view.id);
   });
 
   $(".playerFavBtn").on("click", function () {
@@ -929,6 +1135,11 @@ function moreFormatter(value, row) {
     },
     showPlaylist: function (id) {
       if (id === FAVORITES || listById(id)) showPlaylist(id);
+    },
+    // Show the whole library filtered by a search (the song info card's similar artists).
+    searchLibrary: function (q) {
+      if (view.type !== "library") showLibrary();
+      playlistTable.bootstrapTable("resetSearch", q);
     },
     songOf: songOf,
     songChanged: updatePlayerHeart,

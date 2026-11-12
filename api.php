@@ -169,6 +169,29 @@ do {
         require_csrf_token();
         toggleFavorite($_POST['song'] ?? '');
     }
+    if ($action === 'playlistImage') {
+        playlistImage($_GET['id'] ?? '');
+    }
+    if ($action === 'updatePlaylistDetails') {
+        require_csrf_token();
+        updatePlaylistDetails($_POST['id'] ?? '', $_POST['name'] ?? '', $_POST['description'] ?? '');
+    }
+    if ($action === 'setPlaylistImage') {
+        require_csrf_token();
+        setPlaylistImage($_POST['id'] ?? '', $_FILES['image'] ?? []);
+    }
+    if ($action === 'removePlaylistImage') {
+        require_csrf_token();
+        removePlaylistImage($_POST['id'] ?? '');
+    }
+    if ($action === 'setPlaylistOrder') {
+        require_csrf_token();
+        setPlaylistOrder($_POST['ids'] ?? []);
+    }
+    if ($action === 'setPlaylistPinned') {
+        require_csrf_token();
+        setPlaylistPinned($_POST['id'] ?? '', $_POST['pinned'] ?? '');
+    }
     if ($action === 'importPlaylist') {
         require_csrf_token();
         importPlaylist($_FILES['playlist'] ?? []);
