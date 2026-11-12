@@ -61,8 +61,6 @@ function moreFormatter(value, row) {
   var cache     = {};          // id -> full playlist (songs, version, missing)
   var favorites = new Set();   // song file names
   var view      = { type: "library", id: null };
-  var dragId    = null;        // song row being dragged
-  var pillDragId = null;       // playlist pill being dragged (sidebar reorder)
 
   function esc(str) {
     return $("<div>").text(str == null ? "" : String(str)).html();
@@ -985,112 +983,46 @@ function moreFormatter(value, row) {
     }
   }
 
-  function endDrag() {
-    dragId = null;
-    $("body").removeClass("plDraggingSong");
-    $("#playlistTable tbody tr").removeClass("plDropBefore plDropAfter plDragging");
-    $("#playlistBar .plDropTarget").removeClass("plDropTarget");
-  }
-
-  $("#playlistTable")
-    .on("dragstart", "tbody > tr[draggable=true]", function (e) {
-      dragId = $(this).attr("data-uniqueid");
-      e.originalEvent.dataTransfer.effectAllowed = "copyMove";
-      e.originalEvent.dataTransfer.setData("text/plain", dragId);
-      $(this).addClass("plDragging");
-      $("body").addClass("plDraggingSong");
-    })
-    .on("dragover", "tbody > tr[draggable=true]", function (e) {
-      if (!dragId || !reorderEnabled()) return;
-      e.preventDefault();
-      e.originalEvent.dataTransfer.dropEffect = "move";
-      var rect = this.getBoundingClientRect();
-      var after = e.originalEvent.clientY > rect.top + rect.height / 2;
-      $("#playlistTable tbody tr").removeClass("plDropBefore plDropAfter");
-      $(this).addClass(after ? "plDropAfter" : "plDropBefore");
-    })
-    .on("drop", "tbody > tr[draggable=true]", function (e) {
-      e.preventDefault();
-      var targetId = $(this).attr("data-uniqueid");
-      var after = $(this).hasClass("plDropAfter");
-      var movingId = dragId;
-      endDrag();
-      if (!movingId || movingId === targetId || !reorderEnabled()) return;
+  // Rows: drag onto a playlist pill (any view) or between rows (reorder).
+  dnd.sortable("#playlistTable", "tbody > tr[draggable=true]", {
+    song: function (tr) { return $(tr).attr("data-uniqueid"); },
+    canDrop: reorderEnabled,
+    onDrop: function (from, to, after) {
+      if (!reorderEnabled()) return;
       var p = cache[view.id];
-      var moving = songOf(movingId), target = songOf(targetId);
+      var moving = songOf($(from).attr("data-uniqueid")), target = songOf($(to).attr("data-uniqueid"));
       var songs = p.songs.filter(function (s) { return s !== moving; });
       var at = songs.indexOf(target);
       if (at === -1 || !moving) return;
       songs.splice(after ? at + 1 : at, 0, moving);
       reorder(p.id, songs);
-    })
-    .on("dragend", "tbody > tr", endDrag)
-    .on("post-body.bs.table", setupRows);
+    }
+  });
+  $("#playlistTable").on("post-body.bs.table", setupRows);
 
-  // Playlist pills (and "New playlist") accept dropped songs.
-  var dropPills = '.plPill[data-view]:not([data-view="library"]), .plPill.plAdd';
-  $("#playlistBar")
-    .on("dragover", dropPills, function (e) {
-      if (!dragId) return;
-      e.preventDefault();
-      e.originalEvent.dataTransfer.dropEffect = "copy";
-      $("#playlistBar .plDropTarget").not(this).removeClass("plDropTarget");
-      $(this).addClass("plDropTarget");
-    })
-    .on("dragleave", dropPills, function (e) {
-      if (!this.contains(e.originalEvent.relatedTarget)) $(this).removeClass("plDropTarget");
-    })
-    .on("drop", dropPills, function (e) {
-      if (!dragId) return;
-      e.preventDefault();
-      var song = songOf(dragId);
-      var pill = $(this);
-      endDrag();
-      if (!song) return;
-      if (pill.hasClass("plAdd")) {
-        askName("New playlist", "", "Create", function (name) {
-          createPlaylist(name, [song]).then(function (p) { if (p) renderBar(); });
-        });
-      } else {
-        addSongs(String(pill.data("view")), [song]);
-      }
-    });
+  // Playlist pills (and "New playlist") accept songs dragged from the table
+  // or the queue panel.
+  dnd.songDropTarget("#playlistBar", '.plPill[data-view]:not([data-view="library"]), .plPill.plAdd', function (id, el) {
+    var song = songOf(id);
+    if (!song) return;
+    if ($(el).hasClass("plAdd")) {
+      askName("New playlist", "", "Create", function (name) {
+        createPlaylist(name, [song]).then(function (p) { if (p) renderBar(); });
+      });
+    } else {
+      addSongs(String($(el).data("view")), [song]);
+    }
+  });
 
   // Drag playlist pills to reorder them (Favorites stays first).
-  var reorderPills = '.plPill[draggable=true]';
-  function endPillDrag() {
-    pillDragId = null;
-    $("#playlistBar .plPill").removeClass("plDragging plDropBefore plDropAfter");
-  }
+  dnd.sortable("#playlistBar", ".plPill[draggable=true]", {
+    text: function (el) { return $(el).text(); },
+    horizontal: function () { return $("#playlistBar").css("flex-direction") !== "column"; },
+    onDrop: function (from, to, after) {
+      movePlaylist(String($(from).data("view")), String($(to).data("view")), after);
+    }
+  });
   $("#playlistBar")
-    .on("dragstart", reorderPills, function (e) {
-      if (dragId) return;
-      pillDragId = String($(this).data("view"));
-      e.originalEvent.dataTransfer.effectAllowed = "move";
-      e.originalEvent.dataTransfer.setData("text/plain", $(this).text());
-      $(this).addClass("plDragging");
-    })
-    .on("dragover", reorderPills, function (e) {
-      if (!pillDragId) return;
-      e.preventDefault();
-      e.originalEvent.dataTransfer.dropEffect = "move";
-      var rect = this.getBoundingClientRect(), ev = e.originalEvent;
-      var vertical = $("#playlistBar").css("flex-direction") === "column";
-      var after = vertical ? ev.clientY > rect.top + rect.height / 2 : ev.clientX > rect.left + rect.width / 2;
-      $("#playlistBar .plPill").not(this).removeClass("plDropBefore plDropAfter");
-      $(this).toggleClass("plDropAfter", after).toggleClass("plDropBefore", !after);
-    })
-    .on("dragleave", reorderPills, function (e) {
-      if (!this.contains(e.originalEvent.relatedTarget)) $(this).removeClass("plDropBefore plDropAfter");
-    })
-    .on("drop", reorderPills, function (e) {
-      if (!pillDragId) return;
-      e.preventDefault();
-      var moving = pillDragId, target = String($(this).data("view")), after = $(this).hasClass("plDropAfter");
-      endPillDrag();
-      movePlaylist(moving, target, after);
-    })
-    .on("dragend", ".plPill", endPillDrag)
     .on("contextmenu", '.plPill[data-view]:not([data-view="library"])', function (e) {
       e.preventDefault();
       playlistMenu(this, String($(this).data("view")), { x: e.clientX, y: e.clientY });

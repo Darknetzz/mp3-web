@@ -93,7 +93,7 @@ stays open or closed across reloads. It has three sections:
 
 In the panel:
 
-- Drag a queued song by its grip to reorder it, or focus it and press <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd>.
+- Drag a queued song (anywhere on its row) to reorder it, or focus it and press <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd>. Any song in the queue panel can also be dragged onto a playlist in the sidebar.
   Dragging works with a mouse and on touch screens.
 - × (or <kbd>Delete</kbd>) removes a song from the queue; *Clear* empties it.
 - Click a song (or press <kbd>Enter</kbd>) to play it now. A queued song leaves the queue when played.
