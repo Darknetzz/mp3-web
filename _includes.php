@@ -67,4 +67,5 @@
     include_once('sessions.php');
     include_once('playlists.php');
     include_once('lyrics.php');
+    include_once('metadata.php');
 ?>

@@ -211,6 +211,10 @@ do {
         apiResponse("success", "ok", $details);
     }
 
+    if ($action === 'songOnline') {
+        getSongOnline($_GET['file'] ?? '');
+    }
+
     /* ──────────────────────────────── Lyrics ─────────────────────────────── */
     if ($action === 'lyrics') {
         getLyrics($_GET['song'] ?? '');

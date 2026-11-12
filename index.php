@@ -479,7 +479,8 @@ foreach ($musicFiles as $file) {
     # Cover thumbnails are fetched lazily from cover.php; nothing is extracted here.
     $mtime    = filemtime($filePath);
     $meta     = getSongMeta($filePath);  # ID3 tags + duration, cached in cache/meta/
-    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.$mtime;
+    $onlineCover = metaCoverFile($filePath);
+    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.($onlineCover ? max($mtime, (int) filemtime($onlineCover)) : $mtime);
     # TODO: Fix `data-value` attribute
     echo '
     <tr class="songrow hover-pointer" data-filename="'.$audioName.'">

@@ -6,8 +6,10 @@
  * "Song info" in a row's menu (shows that song until closed). Shares the
  * queue/lyrics panels' spot: opening one closes the others.
  * Uses globals from js.php: songName, playing, toggleSong, findIndexByFilename,
- * getSongByIndex, songInfo, coverUrl, selectSong, playSelected, downloadSong,
+ * getSongByIndex, songInfo, coverUrl, coverChanged, selectSong, playSelected, downloadSong,
  * lucideIcon.
+ * Online details (release, artist bio, similar artists, a missing cover) come
+ * from api.php?action=songOnline (metadata.php) and load after the local ones.
  * ────────────────────────────────────────────────────────────────────────── */
 (function () {
   "use strict";
@@ -20,7 +22,9 @@
   var pinned = null;   // song file shown when opened from a row menu; null = follow the playbar
   var shown = null;    // song file currently rendered
   var cache = {};      // song → API data, for this page load
+  var online = {};     // song → online metadata (MusicBrainz & co.), for this page load
   var request = null;
+  var onlineRequest = null;
 
   function esc(str) {
     return $("<div>").text(str == null ? "" : String(str)).html();
@@ -73,10 +77,12 @@
         '<div class="siAlbum text-secondary small" hidden></div>' +
         '<div class="siActions"></div>' +
       '</div>' +
-      '<div class="siDetails"><div class="siLoading text-secondary small">Loading details…</div></div>'
+      '<div class="siDetails"><div class="siLoading text-secondary small">Loading details…</div></div>' +
+      '<div class="siOnline"></div>'
     );
     renderActions();
     load(song);
+    loadOnline(song);
   }
 
   function renderActions() {
@@ -99,8 +105,43 @@
     body.find(".siActions").html(html);
   }
 
-  function renderDetails(song, d) {
+  // Tags missing from the file, filled in from MusicBrainz (display only).
+  var FILLABLE = ["album", "year", "genre", "track"];
+  function withOnline(song, d) {
+    var o = online[song];
+    var filled = {};
+    if (!o || !o.found) return { d: d, filled: filled };
+    var out = $.extend({}, d);
+    var from = {
+      album: o.albumOfficial ? o.album : "",   // not a compilation or bootleg
+      track: o.albumOfficial ? o.track : "",
+      year:  o.year,
+      genre: (o.genres || []).slice(0, 3).join(", "),
+    };
+    FILLABLE.forEach(function (k) {
+      if (!out[k] && from[k]) {
+        out[k] = from[k];
+        filled[k] = true;
+      }
+    });
+    return { d: out, filled: filled };
+  }
+  var MB_HINT = ' <span class="siFrom" title="Not in the file’s tags: from MusicBrainz">MusicBrainz</span>';
+
+  // Untagged file: name the song and artist in the hero as MusicBrainz knows them.
+  function fillHero(song, local) {
+    var o = online[song];
+    if (!o || !o.found) return;
+    var artistEl = body.find(".siArtist");
+    if (artistEl.prop("hidden") && o.artist.name) artistEl.text(o.artist.name).prop("hidden", false);
+    if (!local.title && o.recording.title) body.find(".siTitle").text(o.recording.title);
+  }
+
+  function renderDetails(song, local) {
     if (song !== shown) return;
+    fillHero(song, local);
+    var m = withOnline(song, local);
+    var d = m.d;
     var album = [d.album, d.year].filter(Boolean).join(" · ");
     body.find(".siAlbum").text(album).prop("hidden", !album);
 
@@ -108,8 +149,8 @@
     if (d.bitrate) audio.push(d.bitrate + " kbps" + (d.vbr ? " VBR" : ""));
     if (d.sampleRate) audio.push(fmtRate(d.sampleRate));
     var rows = [
-      ["Genre", d.genre],
-      ["Track", d.track],
+      ["Genre", d.genre, m.filled.genre],
+      ["Track", d.track, m.filled.track],
       ["Duration", d.duration && d.duration !== "0:00" ? d.duration : ""],
       ["Audio", audio.join(" · ")],
       ["Channels", d.channels],
@@ -121,7 +162,7 @@
     var html = '<dl class="siList">';
     rows.forEach(function (r) {
       if (!r[1]) return;
-      html += '<dt>' + esc(r[0]) + '</dt><dd' + (r[0] === "File" ? ' class="siFile"' : "") + '>' + esc(r[1]) + '</dd>';
+      html += '<dt>' + esc(r[0]) + '</dt><dd' + (r[0] === "File" ? ' class="siFile"' : "") + '>' + esc(r[1]) + (r[2] ? MB_HINT : "") + '</dd>';
     });
     html += '</dl>';
     if (d.comment) html += '<p class="siComment text-secondary small">' + esc(d.comment) + '</p>';
@@ -163,6 +204,107 @@
     });
   }
 
+  /* ───────────────────────────── Online metadata ─────────────────────────── */
+  function onlineBox(html) {
+    body.find(".siOnline").html(html);
+  }
+  function fmtReleaseDate(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return date || "";
+    var t = new Date(date + "T12:00:00");
+    return isNaN(t) ? date : t.toLocaleDateString(undefined, { dateStyle: "long" });
+  }
+  function link(url, text) {
+    return '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(text) +
+      lucideIcon("external-link", "siExt") + '</a>';
+  }
+
+  function renderOnline(song, o) {
+    if (song !== shown) return;
+    if (cache[song]) renderDetails(song, cache[song]);   // fill in missing tags
+    if (!o.found) {
+      onlineBox('<div class="siOnlineNote text-secondary small">' + lucideIcon("globe") + 'Not found on MusicBrainz.</div>');
+      return;
+    }
+    var html = "";
+
+    // Release
+    var rows = [
+      ["Appears on", o.album ? link(o.albumUrl, o.album) + (o.albumType ? ' <span class="text-secondary">· ' + esc(o.albumType) + '</span>' : "") : ""],
+      ["Released", esc(fmtReleaseDate(o.date))],
+      ["Label", esc(o.label)],
+      ["ISRC", esc(o.isrc)],
+    ];
+    var list = "";
+    rows.forEach(function (r) { if (r[1]) list += '<dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd>'; });
+    if (list || (o.genres && o.genres.length)) {
+      html += '<section class="siSection"><h4 class="qpTitle">' + lucideIcon("disc-3") + 'Release</h4>';
+      if (list) html += '<dl class="siList">' + list + '</dl>';
+      if (o.genres && o.genres.length) {
+        html += '<div class="siTags">' + o.genres.map(function (g) { return '<span class="siTag">' + esc(g) + '</span>'; }).join("") + '</div>';
+      }
+      html += '</section>';
+    }
+
+    // Artist
+    if (o.bio) {
+      html += '<section class="siSection siBio"><h4 class="qpTitle">' + lucideIcon("user") + 'About ' + esc(o.bio.title || o.artist.name) + '</h4>' +
+        (o.bio.thumb ? '<img class="siBioImg" alt="" loading="lazy" referrerpolicy="no-referrer" src="' + esc(o.bio.thumb) + '" onerror="this.remove()">' : "") +
+        '<p class="small">' + esc(o.bio.extract) + '</p>' +
+        '<div class="small">' + link(o.bio.url, "Read more on Wikipedia") + '</div>' +
+      '</section>';
+    }
+
+    // Similar artists
+    if (o.similar && o.similar.length) {
+      html += '<section class="siSection"><h4 class="qpTitle">' + lucideIcon("users") + 'Similar artists</h4><div class="siChips">';
+      o.similar.forEach(function (a) {
+        html += a.inLibrary
+          ? '<button type="button" class="siChip siChipLib" data-artist="' + esc(a.name) + '" title="In your library: show their songs">' + lucideIcon("music") + '<span>' + esc(a.name) + '</span></button>'
+          : '<a class="siChip" href="https://musicbrainz.org/artist/' + esc(a.mbid) + '" target="_blank" rel="noopener noreferrer"><span>' + esc(a.name) + '</span></a>';
+      });
+      html += '</div></section>';
+    }
+
+    html += '<p class="siCredits text-secondary">' + lucideIcon("globe") + 'From ' +
+      link(o.recording.url, "MusicBrainz") +
+      (o.bio ? ', Wikipedia' : "") + (o.similar && o.similar.length ? ', ListenBrainz' : "") +
+      (o.source === "acoustid" ? ' · matched by AcoustID' : "") + '</p>';
+    onlineBox(html);
+
+    // A cover was found online for a song without one: show it.
+    if (o.onlineCover && !o.coverShown) {
+      o.coverShown = true;
+      var img = body.find(".siCover .coverImg");
+      if (img.prop("hidden") || !img[0].naturalWidth) {
+        coverChanged(song);
+        img.prop("hidden", false).attr("src", coverUrl(song, "lg"));
+      }
+    }
+  }
+
+  function loadOnline(song) {
+    if (online[song]) {
+      renderOnline(song, online[song]);
+      return;
+    }
+    if (onlineRequest) onlineRequest.abort();
+    onlineBox('<div class="siOnlineNote text-secondary small">' + lucideIcon("globe") + 'Looking up online…</div>');
+    onlineRequest = $.ajax({ url: "api.php", data: { action: "songOnline", file: song }, dataType: "json", timeout: 90000 });
+    onlineRequest.done(function (res) {
+      if (res && res.status === "success") {
+        online[song] = res.data;
+        renderOnline(song, res.data);
+      } else if (song === shown) {
+        if (res && res.data && res.data.disabled) onlineBox("");
+        else onlineBox('<div class="siOnlineNote text-secondary small">' + lucideIcon("globe") + esc((res && res.response) || "Couldn’t look the song up online.") + '</div>');
+      }
+    }).fail(function (xhr, status) {
+      if (status !== "abort" && song === shown) {
+        onlineBox('<div class="siOnlineNote text-secondary small">' + lucideIcon("globe") + 'Couldn’t look the song up online.</div>');
+      }
+    });
+  }
+
   /* ──────────────────────────────── Actions ──────────────────────────────── */
   body.on("click", "[data-act]", function () {
     var song = shown;
@@ -187,8 +329,11 @@
         break;
     }
   });
-  body.on("click", ".siChip", function () {
+  body.on("click", ".siChip[data-playlist]", function () {
     if (window.playlistsUI) playlistsUI.showPlaylist(String($(this).data("playlist")));
+  });
+  body.on("click", ".siChipLib", function () {
+    if (window.playlistsUI) playlistsUI.searchLibrary(String($(this).data("artist")));
   });
 
   /* ──────────────────────────────── Open/close ────────────────────────────── */

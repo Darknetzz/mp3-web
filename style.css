@@ -1977,3 +1977,109 @@ body.player-top .queuePanel {
 .siChip .icon-heart {
   color: var(--tblr-danger, #d63939);
 }
+a.siChip {
+  text-decoration: none;
+}
+.siChipLib {
+  border-color: rgba(var(--tblr-success-rgb, 47, 179, 68), .5);
+}
+.siChipLib .lucide {
+  color: var(--tblr-success, #2fb344);
+}
+
+/* Online metadata (metadata.php): release, artist bio, similar artists */
+.siOnline:empty {
+  display: none;
+}
+.siSection {
+  margin-top: 1.25rem;
+}
+.siSection .qpTitle {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-left: 0;
+}
+.siSection .qpTitle .lucide,
+.siOnlineNote .lucide,
+.siCredits .lucide {
+  font-size: 1em;
+  opacity: .7;
+}
+.siOnlineNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: 1.25rem;
+}
+.siCredits .lucide {
+  margin-right: .3rem;
+  vertical-align: -.1em;
+}
+.siCredits {
+  margin: 1.5rem 0 0;
+  font-size: .75rem;
+}
+.siSection a,
+.siCredits a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--tblr-border-color);
+  text-underline-offset: 2px;
+}
+.siSection a:hover,
+.siCredits a:hover {
+  text-decoration-color: currentColor;
+}
+.siSection a.siChip {
+  text-decoration: none;
+}
+.siExt {
+  font-size: .8em;
+  margin-left: .2rem;
+  vertical-align: -.05em;
+  opacity: .6;
+}
+.siFrom {
+  display: inline-block;
+  margin-left: .35rem;
+  padding: 0 .4rem;
+  border-radius: 999px;
+  background: var(--tblr-bg-surface-secondary, rgba(128, 128, 128, .12));
+  color: var(--tblr-secondary);
+  font-size: .7rem;
+  line-height: 1.5;
+  vertical-align: .1em;
+}
+.siTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.siTag {
+  padding: .1rem .55rem;
+  border-radius: 999px;
+  background: var(--tblr-bg-surface-secondary, rgba(128, 128, 128, .12));
+  font-size: .78rem;
+  text-transform: capitalize;
+}
+.siBio::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+.siBioImg {
+  float: right;
+  width: 84px;
+  height: 84px;
+  margin: 0 0 .5rem .75rem;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--tblr-bg-surface-secondary, rgba(128, 128, 128, .12));
+}
+.siBio p {
+  margin-bottom: .5rem;
+  line-height: 1.5;
+}

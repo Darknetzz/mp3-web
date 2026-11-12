@@ -40,7 +40,7 @@ Taken with a generated demo library.
 - [x] Queue ("Add to queue" and "Play next"), shuffle and loop
 - [x] **Previous** works like other players: after 3 seconds it restarts the song; otherwise it goes back to the song actually played before (a play history, also with shuffle on), and Next then retraces the songs you stepped back from
 - [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
-- [x] **Song info card**: click the song in the playbar (or pick *Song info* in a song's menu) to slide in a card with its cover, tags, audio details (bitrate, sample rate, channels), file size, date added and the playlists it is in
+- [x] **Song info card**: click the song in the playbar (or pick *Song info* in a song's menu) to slide in a card with its cover, tags, audio details (bitrate, sample rate, channels), file size, date added and the playlists it is in, plus release details, an artist bio and similar artists looked up online (see [Online song info](#online-song-info))
 - [x] **Lyrics** for the current song from [LRCLIB](https://lrclib.net), synced line by line when available (see below)
 - [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
@@ -120,6 +120,31 @@ name or tags. Every answer, including "not found", is cached in `cache/lyrics/`.
 30 days. Network errors and rate limiting are not cached.
 
 Song titles are sent to lrclib.net when lyrics are looked up.
+
+### Online song info
+
+When you open the song info card, the server (`metadata.php`) looks the song up in open databases. None of them needs an API key:
+
+| Source | What it adds |
+| --- | --- |
+| [MusicBrainz](https://musicbrainz.org) | Release (album, EP or single), release date, label, track number, ISRC, genres |
+| [Cover Art Archive](https://coverartarchive.org) | A cover for songs that have none embedded. It also shows in the playbar and the song list |
+| [Wikidata](https://www.wikidata.org) / [Wikipedia](https://www.wikipedia.org) | A short artist bio and picture (English Wikipedia first, then Norwegian, Swedish, Danish, German, then any language) |
+| [ListenBrainz](https://listenbrainz.org) | Similar artists. Artists already in your library come first; click one to search your library for them |
+
+Tags missing from the file (album, year, genre, track) are filled in on the card and marked *MusicBrainz*. The file
+itself is never changed. The song is identified the same way as for lyrics (ID3 tags, then the file name), and a
+MusicBrainz recording is used only if its title and artist match and its length is within 5 seconds of the song's.
+Among that recording's releases, an official album or single is preferred over compilations, and the earliest one wins.
+
+The first lookup of a song takes a few seconds, because MusicBrainz allows one request per second. Every answer,
+including "not found", is cached in `cache/online/`. A "not found" is looked up again after 30 days. Network errors and
+rate limiting are not cached. Turn it off with *Online song info* in Settings → Library. When it is on, artist and
+title names are sent to these services.
+
+**AcoustID (optional):** to identify badly tagged songs by their sound, install `fpcalc` (Chromaprint;
+`apt install libchromaprint-tools`, already in the Docker image) and paste a free [AcoustID](https://acoustid.org/new-application)
+API key into *AcoustID API key* in Settings → Library.
 
 ### Cover art
 
@@ -369,6 +394,7 @@ VERSION  = "vX.Y.Z"
 | `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
 | `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
 | `lyrics.php` | Lyrics lookup on LRCLIB (ID3 tags / file name matching) with a disk cache |
+| `metadata.php` | Online song info for the song info card (MusicBrainz, Cover Art Archive, Wikipedia, ListenBrainz, optional AcoustID), cached in `cache/online/` |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |

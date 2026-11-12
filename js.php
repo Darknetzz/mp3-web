@@ -322,7 +322,16 @@
     var m   = row && /src="([^"]+)"/.exec(row.cover || "");
     var url = m ? m[1].replace(/&amp;/g, "&") : "cover.php?file=" + encodeURIComponent(name) + "&size=sm";
     url = url.replace(/([?&])size=sm\b/, "$1size=" + (size || "sm"));
+    if (coverBust[name]) url += "&o=" + coverBust[name];
     return new URL(url, window.location.href).href;
+  }
+  // The song info card found a cover online for a song without one (metadata.php):
+  // load it fresh, past the browser's cached "no cover".
+  var coverBust = {};
+  function coverChanged(name) {
+    coverBust[name] = Date.now();
+    delete coverCache[name];
+    if (name === songName) updateCoverArt(name);
   }
   // Calls cb(url) with the large cover URL, or cb(null) when the song has none.
   function resolveCover(name, cb) {

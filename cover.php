@@ -50,8 +50,10 @@ if (!in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $allowed, true)) 
 }
 
 /* ─────────────────────────────── Conditional ────────────────────────────── */
-$mtime = filemtime($path);
-$etag  = '"' . sha1($path . '|' . $mtime . '|' . filesize($path) . '|' . $size) . '"';
+// A cover found online (metadata.php) counts as a change to the song.
+$online = metaCoverFile($path);
+$mtime  = max(filemtime($path), $online ? (int) filemtime($online) : 0);
+$etag   = '"' . sha1($path . '|' . $mtime . '|' . filesize($path) . '|' . $size . '|' . ($online ? 'o' : '')) . '"';
 // The page adds &v=<mtime> to the URL, so a versioned URL can be cached for good.
 $maxAge = isset($_GET['v']) ? 31536000 : 86400;
 header('Cache-Control: public, max-age=' . $maxAge);
@@ -98,6 +100,11 @@ try {
 }
 
 $mime = $data ? coverMime($data) : null;
+if ($mime === null && $online) {
+    // No cover in the file: use the one the song info card found online.
+    $data = (string) @file_get_contents($online);
+    $mime = $data !== '' ? coverMime($data) : null;
+}
 if ($mime === null) {
     if ($canCache) {
         @touch($cacheBase . '.none');

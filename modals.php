@@ -151,7 +151,7 @@ echo '
 # Settings are grouped by key; anything not listed here ends up under "Other".
 $settingsCategories = [
   "general"    => ["name" => "General",    "icon" => "sliders-horizontal", "keys" => ["site_title", "no_song_text", "env"]],
-  "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
+  "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols", "online_metadata", "acoustid_key"]],
   "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "loudness_equalization", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "auto_scroll_on_end", "cast_end_action"]],
   "appearance" => ["name" => "Appearance", "icon" => "palette",         "keys" => ["player_theme", "custom_base", "custom_background", "custom_surface", "custom_text", "accent_color", "custom_accent"]],
   "player"     => ["name" => "Player bar", "icon" => "music",           "keys" => ["player_position", "player_size", "player_buttons", "player_show_cover", "player_progress", "player_time_format", "show_waveform", "waveform_placement", "waveform_style", "waveform_bars", "waveform_color", "waveform_custom_color", "waveform_opacity", "waveform_sensitivity", "use_legacy_player"]],
