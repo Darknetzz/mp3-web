@@ -14,16 +14,20 @@
     /* ─────────────────────────── FUNCTION: themeSetup ───────────────────────── */
     // Works out the <html> attributes, inline CSS and auto-theme script for the
     // configured theme, accent and background. All values are validated here.
-    function themeSetup(): array {
+    // $values (key => value) overrides the loaded config, e.g. right after a save.
+    function themeSetup(?array $values = null): array {
+        $getConfig = function (string $key) use ($values) {
+            return ($values !== null && array_key_exists($key, $values)) ? $values[$key] : getConfig($key);
+        };
         $lightThemes = ["light", "arctic"];
-        $theme  = (string) getConfig("player_theme");
-        $accent = (string) getConfig("accent_color");
+        $theme  = (string) $getConfig("player_theme");
+        $accent = (string) $getConfig("accent_color");
         $isHex  = function ($v) { return is_string($v) && preg_match('/^#[0-9a-f]{6}$/i', $v); };
 
         if ($theme === "auto") {
             $base = "dark"; // corrected before first paint by the inline script
         } elseif ($theme === "custom") {
-            $base = getConfig("custom_base") === "light" ? "light" : "dark";
+            $base = $getConfig("custom_base") === "light" ? "light" : "dark";
         } else {
             $base = in_array($theme, $lightThemes, true) ? "light" : "dark";
         }
@@ -36,9 +40,9 @@
         $css = "";
 
         if ($theme === "custom") {
-            $bg      = getConfig("custom_background");
-            $surface = getConfig("custom_surface");
-            $text    = getConfig("custom_text");
+            $bg      = $getConfig("custom_background");
+            $surface = $getConfig("custom_surface");
+            $text    = $getConfig("custom_text");
             if ($isHex($bg) && $isHex($surface) && $isHex($text)) {
                 $css .= "html[data-app-theme=\"custom\"]{"
                       . "--tblr-body-bg:$bg;--tblr-bg-surface-secondary:$bg;"
@@ -51,7 +55,7 @@
         }
 
         if ($accent === "custom") {
-            $hex = getConfig("custom_accent");
+            $hex = $getConfig("custom_accent");
             if ($isHex($hex)) {
                 $rgb  = implode(",", array_map('hexdec', str_split(substr($hex, 1), 2)));
                 $css .= "html[data-accent=\"custom\"]{--tblr-success:$hex;--tblr-success-rgb:$rgb;}";
@@ -59,12 +63,12 @@
         }
 
         // Background image: http(s) URL or a relative path without anything that could break out of url("…").
-        $image = trim((string) getConfig("background_image"));
+        $image = trim((string) $getConfig("background_image"));
         if ($image !== "" && !preg_match('/["\'()\\\\<>\s;]/', $image)
             && (preg_match('#^https?://#i', $image) || !preg_match('#^[a-z][a-z0-9+.-]*:#i', $image))) {
             $attrs["data-has-bg"] = "1";
-            $dim  = max(0, min(1, (float) getConfig("background_dim")));
-            $blur = max(0, min(20, (float) getConfig("background_blur")));
+            $dim  = max(0, min(1, (float) $getConfig("background_dim")));
+            $blur = max(0, min(20, (float) $getConfig("background_blur")));
             $css .= "html[data-has-bg]{--app-bg-image:url(\"$image\");--app-bg-dim:$dim;--app-bg-blur:{$blur}px;}";
         }
 
@@ -80,7 +84,7 @@
                     . "a();if(m.addEventListener)m.addEventListener('change',a);})();</script>";
         }
 
-        return ["attributes" => $html, "css" => $css, "script" => $script];
+        return ["attributes" => $html, "attrs" => $attrs, "css" => $css, "script" => $script];
     }
 
     /* ───────────────────────────── FUNCTION: alert ──────────────────────────── */
@@ -136,10 +140,23 @@
         }
     }
 
+    /* ────────────────────────── FUNCTION: songTagText ──────────────────────── */
+    // An ID3 tag value as clean UTF-8 text ('' for anything that isn't text).
+    function songTagText($v): string {
+        if (!is_string($v) && !is_numeric($v)) return '';
+        $v = (string) $v;
+        if (!mb_check_encoding($v, 'UTF-8')) {
+            $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
+        }
+        // Strip NULs/control chars left over from fixed-width id3v1 fields
+        return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $v) ?? '');
+    }
+
     /* ────────────────────────── FUNCTION: getSongMeta ───────────────────────── */
     // ID3 title/artist/album/year plus duration, read in one pass. Results are
     // cached in cache/meta/ (git-ignored) until the file changes. Missing tags are ''.
-    function getSongMeta(string $file): array {
+    // Edits made in the app (songedit.php) are applied on top unless $raw.
+    function getSongMeta(string $file, bool $raw = false): array {
         $meta = ['title' => '', 'artist' => '', 'album' => '', 'year' => '', 'duration' => '0:00'];
         if (!is_file($file)) {
             return $meta;
@@ -150,19 +167,12 @@
         if (is_file($cached) && filemtime($cached) >= $mtime) {
             $data = json_decode((string) @file_get_contents($cached), true);
             if (is_array($data)) {
-                return array_merge($meta, array_intersect_key($data, $meta));
+                $meta = array_merge($meta, array_intersect_key($data, $meta));
+                return $raw ? $meta : songApplyOverride($file, $meta);
             }
         }
 
-        $clean = function ($v): string {
-            if (!is_string($v) && !is_numeric($v)) return '';
-            $v = (string) $v;
-            if (!mb_check_encoding($v, 'UTF-8')) {
-                $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
-            }
-            // Strip NULs/control chars left over from fixed-width id3v1 fields
-            return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $v) ?? '');
-        };
+        $clean = 'songTagText';
         if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'mp3') {
             try {
                 $info = new wapmorgan\Mp3Info\Mp3Info($file, true);
@@ -183,7 +193,86 @@
         if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
             @file_put_contents($cached, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
-        return $meta;
+        return $raw ? $meta : songApplyOverride($file, $meta);
+    }
+
+    /* ───────────────────────── FUNCTION: getSongDetails ─────────────────────── */
+    // Everything the song info card shows: getSongMeta() plus genre, track,
+    // comment and the audio stream (bitrate, sample rate, channels). Cached in
+    // cache/meta/ under its own key, so the song table's lighter read stays cheap.
+    function getSongDetails(string $file, bool $raw = false): array {
+        $details = getSongMeta($file, true) + [
+            'genre' => '', 'track' => '', 'comment' => '', 'seconds' => 0,
+            'bitrate' => 0, 'sampleRate' => 0, 'channels' => '', 'vbr' => false,
+            'format' => strtoupper(pathinfo($file, PATHINFO_EXTENSION)),
+            'size' => 0, 'modified' => 0,
+        ];
+        if (!is_file($file)) {
+            return $details;
+        }
+        $details['size']     = filesize($file);
+        $details['modified'] = filemtime($file);
+        $cacheDir = __DIR__ . '/cache/meta';
+        $cached   = $cacheDir . '/' . sha1('details:' . (realpath($file) ?: $file)) . '.json';
+        if (is_file($cached) && filemtime($cached) >= $details['modified']) {
+            $data = json_decode((string) @file_get_contents($cached), true);
+            if (is_array($data)) {
+                $details = array_merge($details, array_intersect_key($data, $details));
+                return $raw ? $details : songApplyOverride($file, $details + ['edited' => []]);
+            }
+        }
+
+        if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'mp3') {
+            try {
+                $info = new wapmorgan\Mp3Info\Mp3Info($file, true);
+                $tags = (array) $info->tags;
+                $details['genre']   = songGenreName(songTagText($tags['genre'] ?? ''));
+                $details['track']   = songTagText($tags['track'] ?? '');
+                $details['comment'] = songTagText($tags['comment'] ?? '');
+                $details['seconds'] = (int) round((float) $info->duration);
+                $details['bitrate'] = (int) round((int) $info->bitRate / 1000);
+                $details['sampleRate'] = (int) $info->sampleRate;
+                $details['vbr']     = (bool) $info->isVbr;
+                $channels = [
+                    wapmorgan\Mp3Info\Mp3Info::STEREO       => 'Stereo',
+                    wapmorgan\Mp3Info\Mp3Info::JOINT_STEREO => 'Joint stereo',
+                    wapmorgan\Mp3Info\Mp3Info::DUAL_MONO    => 'Dual mono',
+                    wapmorgan\Mp3Info\Mp3Info::MONO         => 'Mono',
+                ];
+                $details['channels'] = $channels[$info->channel] ?? '';
+            } catch (Throwable $e) {
+                // Keep what getSongMeta() found
+            }
+        }
+
+        if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+            @file_put_contents($cached, json_encode($details, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+        return $raw ? $details : songApplyOverride($file, $details + ['edited' => []]);
+    }
+
+    /* ───────────────────────── FUNCTION: songGenreName ─────────────────────── */
+    // ID3 genres are often stored as a number ("17", "(17)" or "(17)Rock").
+    // Turn the common ID3v1 numbers into names; leave anything else as written.
+    function songGenreName(string $genre): string {
+        static $names = ['Blues', 'Classic Rock', 'Country', 'Dance', 'Disco', 'Funk', 'Grunge', 'Hip-Hop',
+            'Jazz', 'Metal', 'New Age', 'Oldies', 'Other', 'Pop', 'R&B', 'Rap', 'Reggae', 'Rock', 'Techno',
+            'Industrial', 'Alternative', 'Ska', 'Death Metal', 'Pranks', 'Soundtrack', 'Euro-Techno', 'Ambient',
+            'Trip-Hop', 'Vocal', 'Jazz+Funk', 'Fusion', 'Trance', 'Classical', 'Instrumental', 'Acid', 'House',
+            'Game', 'Sound Clip', 'Gospel', 'Noise', 'Alternative Rock', 'Bass', 'Soul', 'Punk', 'Space',
+            'Meditative', 'Instrumental Pop', 'Instrumental Rock', 'Ethnic', 'Gothic', 'Darkwave',
+            'Techno-Industrial', 'Electronic', 'Pop-Folk', 'Eurodance', 'Dream', 'Southern Rock', 'Comedy',
+            'Cult', 'Gangsta', 'Top 40', 'Christian Rap', 'Pop/Funk', 'Jungle', 'Native American', 'Cabaret',
+            'New Wave', 'Psychedelic', 'Rave', 'Showtunes', 'Trailer', 'Lo-Fi', 'Tribal', 'Acid Punk',
+            'Acid Jazz', 'Polka', 'Retro', 'Musical', 'Rock & Roll', 'Hard Rock'];
+        if (preg_match('/^\(?(\d{1,3})\)?(.*)$/', $genre, $m)) {
+            $rest = trim($m[2]);
+            if ($rest !== '') return $rest;
+            return $names[(int) $m[1]] ?? $genre;
+        }
+        if ($genre === 'RX') return 'Remix';
+        if ($genre === 'CR') return 'Cover';
+        return $genre;
     }
 
     /* ────────────────────────── FUNCTION: apiResponse ───────────────────────── */
@@ -226,7 +315,7 @@
 
     /* ─────────────────────────── FUNCTION: saveConfig ───────────────────────── */
     // Writes the full (merged) configuration to the active config file.
-    function saveConfig(array $config): void {
+    function saveConfig(array $config, array $data = []): void {
         $content  = "<?php\n\n";
         $content .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
         $content .= "/*                                 Configuration                              */\n";
@@ -241,7 +330,7 @@
         if (function_exists('opcache_invalidate')) {
             @opcache_invalidate(CONFIG_FILE, true);
         }
-        apiResponse("success", "The configuration has been saved.");
+        apiResponse("success", "The configuration has been saved.", $data);
     }
 
     /* ────────────────────────── FUNCTION: cleanConfigValue ──────────────────── */
@@ -316,7 +405,9 @@
         }
 
         $config[$key]['value'] = $newValue;
-        saveConfig($config);
+        // The page applies theme changes live from this, without a reload.
+        $theme = themeSetup(array_map(function ($s) { return is_array($s) ? ($s['value'] ?? null) : null; }, $config));
+        saveConfig($config, ["value" => $newValue, "theme" => ["attrs" => $theme["attrs"], "css" => $theme["css"]]]);
     }
 
 

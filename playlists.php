@@ -13,6 +13,13 @@ const PLAYLIST_FAVORITES = 'favorites';
 const PLAYLIST_NAME_MAX  = 60;
 const PLAYLIST_SONGS_MAX = 5000;
 const PLAYLIST_IMPORT_MAX_BYTES = 1048576;
+const PLAYLIST_DESC_MAX  = 300;
+const PLAYLIST_IMAGE_MAX_BYTES = 8388608;
+const PLAYLIST_IMAGE_SIZE = 512;
+const PLAYLIST_IMAGE_TYPES = ['jpg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
+// Sidebar order and pins, shared like the playlists. Not a playlist: its name
+// isn't a valid playlist id, so listPlaylists() skips it.
+const PLAYLIST_LAYOUT    = PLAYLIST_DIR . '/_layout.json';
 
 /* ─────────────────────────────── Helpers ────────────────────────────────── */
 function playlistValidId($id): bool {
@@ -58,6 +65,58 @@ function playlistCleanName($name): string {
     return mb_substr($name, 0, PLAYLIST_NAME_MAX);
 }
 
+/** Description: plain text, line breaks kept (at most one blank line in a row). */
+function playlistCleanDescription($text): string {
+    $text = str_replace(["\r\n", "\r"], "\n", (string) $text);
+    $text = preg_replace('/[^\S\n]+/u', ' ', $text);
+    $text = preg_replace('/ *\n */u', "\n", $text);
+    $text = preg_replace('/\n{3,}/', "\n\n", trim($text));
+    return mb_substr($text, 0, PLAYLIST_DESC_MAX);
+}
+
+function playlistImagePath(string $id, string $ext): string {
+    return PLAYLIST_DIR . '/' . $id . '.' . $ext;
+}
+
+function playlistRemoveImageFiles(string $id): void {
+    foreach (array_keys(PLAYLIST_IMAGE_TYPES) as $ext) {
+        $path = playlistImagePath($id, $ext);
+        if (is_file($path)) @unlink($path);
+    }
+}
+
+/* ─────────────────────────────── Layout ─────────────────────────────────── */
+/** ["order" => [ids], "pinned" => [ids]] */
+function playlistLayout(): array {
+    $raw  = is_file(PLAYLIST_LAYOUT) ? json_decode((string) @file_get_contents(PLAYLIST_LAYOUT), true) : null;
+    $data = ["order" => [], "pinned" => []];
+    foreach (["order", "pinned"] as $key) {
+        foreach ((array) ($raw[$key] ?? []) as $id) {
+            if (playlistValidId($id) && $id !== PLAYLIST_FAVORITES && !in_array($id, $data[$key], true)) $data[$key][] = $id;
+        }
+    }
+    return $data;
+}
+
+/** Read-modify-write the layout under a lock; $fn gets and returns the layout. */
+function playlistUpdateLayout(callable $fn): array {
+    playlistEnsureDir();
+    $fh = @fopen(PLAYLIST_LAYOUT, 'c+');
+    if (!$fh) {
+        apiResponse("error", "Could not save the playlist order.");
+    }
+    flock($fh, LOCK_EX);
+    $layout = $fn(playlistLayout());
+    $layout = ["order" => array_values($layout['order']), "pinned" => array_values($layout['pinned'])];
+    ftruncate($fh, 0);
+    rewind($fh);
+    fwrite($fh, json_encode($layout, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    fflush($fh);
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    return $layout;
+}
+
 /** Normalise a list of song names (basename, de-duplicated). */
 function playlistCleanSongs($songs): array {
     if (is_string($songs)) {
@@ -87,6 +146,9 @@ function playlistView(array $p): array {
         "count"   => count($p['songs']) - count($missing),
         "missing" => $missing,
         "updated" => $p['updated'] ?? null,
+        "description" => (string) ($p['description'] ?? ''),
+        // Cache-busting token for the image URL, or null without an image
+        "image"   => !empty($p['image']) ? (string) ($p['imageVersion'] ?? '1') : null,
     ];
 }
 
@@ -170,14 +232,44 @@ function listPlaylists(): void {
         $lists[] = $view;
     }
     if (!$hasFavorites) {
-        $lists[] = ["id" => PLAYLIST_FAVORITES, "name" => "Favorites", "version" => 0, "count" => 0, "missing" => 0, "updated" => null];
+        $lists[] = ["id" => PLAYLIST_FAVORITES, "name" => "Favorites", "version" => 0, "count" => 0, "missing" => 0, "updated" => null, "description" => "", "image" => null];
     }
-    usort($lists, function ($a, $b) {
+    // Favorites first, then pinned playlists, then the rest; each group in the
+    // saved order, with playlists that aren't in it yet (new ones) last by name.
+    $layout = playlistLayout();
+    $rank   = array_flip($layout['order']);
+    foreach ($lists as &$view) {
+        $view['pinned'] = in_array($view['id'], $layout['pinned'], true);
+    }
+    unset($view);
+    usort($lists, function ($a, $b) use ($rank) {
+        if ($a['id'] === PLAYLIST_FAVORITES) return -1;
+        if ($b['id'] === PLAYLIST_FAVORITES) return 1;
+        if ($a['pinned'] !== $b['pinned']) return $a['pinned'] ? -1 : 1;
+        $ra = $rank[$a['id']] ?? PHP_INT_MAX;
+        $rb = $rank[$b['id']] ?? PHP_INT_MAX;
+        if ($ra !== $rb) return $ra <=> $rb;
+        return strcasecmp($a['name'], $b['name']);
+    });
+    apiResponse("success", count($lists) . " playlist(s).", ["playlists" => $lists]);
+}
+
+/** Playlists (id + name) that contain $song, Favorites first. */
+function playlistsContaining(string $song): array {
+    $found = [];
+    foreach (glob(PLAYLIST_DIR . '/*.json') ?: [] as $file) {
+        $p = json_decode((string) @file_get_contents($file), true);
+        if (!is_array($p) || !isset($p['id'], $p['songs']) || !playlistValidId($p['id'])) continue;
+        if (in_array($song, (array) $p['songs'], true)) {
+            $found[] = ["id" => $p['id'], "name" => (string) ($p['name'] ?? '')];
+        }
+    }
+    usort($found, function ($a, $b) {
         if ($a['id'] === PLAYLIST_FAVORITES) return -1;
         if ($b['id'] === PLAYLIST_FAVORITES) return 1;
         return strcasecmp($a['name'], $b['name']);
     });
-    apiResponse("success", count($lists) . " playlist(s).", ["playlists" => $lists]);
+    return $found;
 }
 
 function getPlaylist($id): void {
@@ -232,7 +324,147 @@ function deletePlaylist($id): void {
     }
     if (!is_file(playlistPath($id))) playlistNotFound();
     playlistWithLock($id, function () { return false; });
+    playlistRemoveImageFiles($id);
+    playlistUpdateLayout(function ($l) use ($id) {
+        $l['order']  = array_diff($l['order'], [$id]);
+        $l['pinned'] = array_diff($l['pinned'], [$id]);
+        return $l;
+    });
     apiResponse("success", "Playlist deleted.", ["id" => $id]);
+}
+
+/** Name and description in one go (the Edit details dialog). Favorites keeps its name. */
+function updatePlaylistDetails($id, $name, $description): void {
+    $id = playlistRequireId($id);
+    $name = playlistCleanName($name);
+    if ($id !== PLAYLIST_FAVORITES && $name === '') {
+        apiResponse("error", "Give the playlist a name.");
+    }
+    $description = playlistCleanDescription($description);
+    $p = playlistWithLock($id, function ($p) use ($id, $name, $description) {
+        if ($p === null) return null;
+        if ($id !== PLAYLIST_FAVORITES) $p['name'] = $name;
+        $p['description'] = $description;
+        $p['version']++;
+        return $p;
+    });
+    if ($p === null) playlistNotFound();
+    apiResponse("success", "Saved.", playlistView($p));
+}
+
+/** Set a playlist's image from an upload: cropped to a square JPEG when GD is available. */
+function setPlaylistImage($id, array $file): void {
+    $id = playlistRequireId($id);
+    if ($id !== PLAYLIST_FAVORITES && !is_file(playlistPath($id))) playlistNotFound();
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+        apiResponse("error", "The image could not be uploaded.");
+    }
+    if ($file['size'] > PLAYLIST_IMAGE_MAX_BYTES) {
+        apiResponse("error", "That image is too large (max 8 MB).");
+    }
+    $data = (string) file_get_contents($file['tmp_name']);
+    $info = @getimagesizefromstring($data);
+    $ext  = $info ? array_search($info['mime'], PLAYLIST_IMAGE_TYPES, true) : false;
+    if ($ext === false || $info[0] < 1 || $info[1] < 1) {
+        apiResponse("error", "Choose a JPEG, PNG, GIF or WebP image.");
+    }
+
+    $src = function_exists('imagecreatefromstring') ? @imagecreatefromstring($data) : false;
+    if ($src !== false) {
+        // Center-crop to a square and scale down to PLAYLIST_IMAGE_SIZE.
+        [$w, $h] = [$info[0], $info[1]];
+        $side = min($w, $h);
+        $out  = min(PLAYLIST_IMAGE_SIZE, $side);
+        $dst  = imagecreatetruecolor($out, $out);
+        imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255)); // flatten transparency
+        imagecopyresampled($dst, $src, 0, 0, (int) (($w - $side) / 2), (int) (($h - $side) / 2), $out, $out, $side, $side);
+        ob_start();
+        imagejpeg($dst, null, 85);
+        $data = (string) ob_get_clean();
+        $ext  = 'jpg';
+    }
+
+    playlistEnsureDir();
+    $p = playlistWithLock($id, function ($p) use ($id, $ext, $data) {
+        if ($p === null) return null;
+        playlistRemoveImageFiles($id);
+        if (@file_put_contents(playlistImagePath($id, $ext), $data) === false) {
+            return null;
+        }
+        $p['image'] = $ext;
+        $p['imageVersion'] = substr(sha1($data), 0, 10);
+        $p['version']++;
+        return $p;
+    });
+    if ($p === null || empty($p['image']) || !is_file(playlistImagePath($id, $ext))) {
+        apiResponse("error", "The image could not be saved.");
+    }
+    apiResponse("success", "Image updated.", playlistView($p));
+}
+
+function removePlaylistImage($id): void {
+    $id = playlistRequireId($id);
+    $p = playlistWithLock($id, function ($p) use ($id) {
+        if ($p === null) return null;
+        playlistRemoveImageFiles($id);
+        unset($p['image'], $p['imageVersion']);
+        $p['version']++;
+        return $p;
+    });
+    if ($p === null) playlistNotFound();
+    apiResponse("success", "Image removed.", playlistView($p));
+}
+
+/** Send a playlist's image (not JSON). The page adds &v=<token>, so it caches for good. */
+function playlistImage($id): void {
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close(); // let images load in parallel
+    $id = (string) $id;
+    $raw = playlistValidId($id) && is_file(playlistPath($id)) ? json_decode((string) @file_get_contents(playlistPath($id)), true) : null;
+    $ext = is_array($raw) ? (string) ($raw['image'] ?? '') : '';
+    $path = isset(PLAYLIST_IMAGE_TYPES[$ext]) ? playlistImagePath($id, $ext) : '';
+    if ($path === '' || !is_file($path)) {
+        http_response_code(404);
+        header('Cache-Control: no-store');
+        exit;
+    }
+    header('Content-Type: ' . PLAYLIST_IMAGE_TYPES[$ext]);
+    header('Content-Length: ' . filesize($path));
+    header('Cache-Control: public, max-age=' . (isset($_GET['v']) ? 31536000 : 300));
+    header('X-Content-Type-Options: nosniff');
+    readfile($path);
+    exit;
+}
+
+/** Save the sidebar order (playlist ids, Favorites excluded). */
+function setPlaylistOrder($ids): void {
+    if (is_string($ids)) {
+        $decoded = json_decode($ids, true);
+        $ids = is_array($decoded) ? $decoded : [];
+    }
+    $ids = array_values(array_unique(array_filter((array) $ids, function ($id) {
+        return playlistValidId($id) && $id !== PLAYLIST_FAVORITES && is_file(playlistPath($id));
+    })));
+    playlistUpdateLayout(function ($l) use ($ids) {
+        // Keep ids this request didn't mention (another tab's new playlist) after the rest.
+        $l['order'] = array_merge($ids, array_diff($l['order'], $ids));
+        return $l;
+    });
+    apiResponse("success", "Order saved.");
+}
+
+function setPlaylistPinned($id, $pinned): void {
+    $id = playlistRequireId($id);
+    if ($id === PLAYLIST_FAVORITES) {
+        apiResponse("error", "Favorites is always at the top.");
+    }
+    if (!is_file(playlistPath($id))) playlistNotFound();
+    $pinned = filter_var($pinned, FILTER_VALIDATE_BOOLEAN);
+    playlistUpdateLayout(function ($l) use ($id, $pinned) {
+        $l['pinned'] = array_diff($l['pinned'], [$id]);
+        if ($pinned) $l['pinned'][] = $id;
+        return $l;
+    });
+    apiResponse("success", $pinned ? "Pinned." : "Unpinned.", ["id" => $id, "pinned" => $pinned]);
 }
 
 function addToPlaylist($id, $songs): void {

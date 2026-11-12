@@ -146,12 +146,116 @@ echo '
 </div>
 ';
 
+/* ─────────────────────── Song info: fetch metadata job ─────────────────── */
+# Shown in Settings → Song info under the settings rows; driven by songedit.js.
+function metaJobHtml(): string {
+  $modes = '';
+  foreach (METAJOB_MODES as $value => $label) {
+    $modes .= '<option value="'.settingsEsc($value).'">'.settingsEsc($label).'</option>';
+  }
+  return '
+            <div class="settingsCard metaJob" data-search="fetch metadata musicbrainz job library lookup songs without info edit">
+              <div class="metaJobHead">
+                <div class="settingText">
+                  <div class="settingName">Fetch metadata</div>
+                  <div class="settingDesc">Look up every song now instead of when its card is opened. Runs on the server, so you can close this page. About 5 seconds per new song.</div>
+                </div>
+                <div class="metaJobControls">
+                  <select class="form-select form-select-sm metaJobMode" aria-label="Which songs">'.$modes.'</select>
+                  <button type="button" class="btn btn-sm btn-success btn-pill metaJobStart">'.icon("play", 0.9, 0, true).' Start</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-pill metaJobStop" hidden>'.icon("square", 0.9, 0, true).' Stop</button>
+                </div>
+              </div>
+              <div class="metaJobProgress" hidden>
+                <div class="progress progress-sm"><div class="progress-bar bg-success" role="progressbar" style="width:0%"></div></div>
+                <div class="metaJobStats small text-secondary"></div>
+                <div class="metaJobCurrent small text-truncate"></div>
+              </div>
+              <div class="metaJobMessage small" hidden></div>
+              <details class="metaJobLogWrap" hidden><summary class="small text-secondary">Log</summary><pre class="metaJobLog small"></pre></details>
+              <div class="metaJobUnknown">
+                <div class="settingName mt-3">Songs without info</div>
+                <div class="settingDesc mb-2">Not found online. Add their info by hand, or paste a MusicBrainz link for the right song.</div>
+                <div class="metaJobUnknownList"></div>
+              </div>
+            </div>';
+}
+
+/* ─────────────────────────────── Song editor ──────────────────────────── */
+# Edit a song's info (songedit.js): saved as an app override, or into the file's tags.
+$editFields = [
+  ["title",  "Title",   "text",   "col-12"],
+  ["artist", "Artist",  "text",   "col-12"],
+  ["album",  "Album",   "text",   "col-12 col-sm-8"],
+  ["year",   "Year",    "text",   "col-6 col-sm-4"],
+  ["genre",  "Genre",   "text",   "col-6 col-sm-8"],
+  ["track",  "Track",   "text",   "col-6 col-sm-4"],
+];
+$editFieldsHtml = '';
+foreach ($editFields as [$key, $label, $type, $col]) {
+  $editFieldsHtml .= '
+          <div class="'.$col.'">
+            <label class="form-label small mb-1" for="songEdit-'.$key.'">'.$label.'</label>
+            <input type="'.$type.'" class="form-control songEditField" id="songEdit-'.$key.'" name="'.$key.'" maxlength="300" autocomplete="off">
+          </div>';
+}
+echo '
+<div class="modal fade" id="songEditModal" tabindex="-1" aria-labelledby="songEditModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+    <form class="modal-content songEditForm" autocomplete="off">
+      <div class="modal-header">
+        <div class="min-w-0">
+          <h1 class="modal-title" id="songEditModalLabel">Edit song info</h1>
+          <div class="songEditFile small text-secondary text-truncate"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="songEditLayout">
+          <div class="songEditCoverCol">
+            <button type="button" class="coverThumb songEditCover" data-cover="choose" title="Choose a cover image" aria-label="Choose a cover image">
+              <img class="coverImg" alt="" hidden>
+            </button>
+            <input type="file" class="songEditCoverInput" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+            <div class="songEditCoverButtons">
+              <button type="button" class="btn btn-sm btn-ghost-secondary" data-cover="choose">'.icon("upload", 0.9, 0).' Choose</button>
+              <button type="button" class="btn btn-sm btn-ghost-danger" data-cover="remove" hidden>'.icon("trash-2", 0.9, 0).' Remove</button>
+            </div>
+            <div class="songEditCoverNote small text-secondary"></div>
+          </div>
+          <div class="songEditFields row g-2">'.$editFieldsHtml.'
+            <div class="col-12">
+              <label class="form-label small mb-1" for="songEdit-comment">Comment</label>
+              <textarea class="form-control songEditField" id="songEdit-comment" name="comment" rows="2" maxlength="300"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="songEdit-mbid">MusicBrainz recording</label>
+              <input type="text" class="form-control" id="songEdit-mbid" name="mbid" autocomplete="off" placeholder="https://musicbrainz.org/recording/…">
+              <div class="form-hint small text-secondary mt-1">Optional. Paste the link of the right song on musicbrainz.org to use it for release info, cover and similar artists.</div>
+            </div>
+          </div>
+        </div>
+        <p class="songEditHint small text-secondary mt-3 mb-0">Empty fields keep the file’s own value (shown in grey). <strong>Save</strong> keeps your changes in this app only; <strong>Save to file</strong> writes them into the song’s tags, so other players see them too.</p>
+      </div>
+      <div class="modal-footer songEditFooter">
+        <button type="button" class="btn btn-ghost-secondary btn-pill songEditFill" title="Fill empty fields from MusicBrainz">'.icon("globe", 0.9, 0).' Fill from MusicBrainz</button>
+        <button type="button" class="btn btn-ghost-danger btn-pill songEditReset" title="Forget your changes in this app">Reset</button>
+        <span class="flex-grow-1"></span>
+        <button type="button" class="btn btn-outline-secondary btn-pill songEditToFile">'.icon("save", 0.9, 0).' Save to file</button>
+        <button type="submit" class="btn btn-success btn-pill songEditSave">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+';
+
 /* ────────────────────────────── Settings Modal ──────────────────────────── */
 
 # Settings are grouped by key; anything not listed here ends up under "Other".
 $settingsCategories = [
   "general"    => ["name" => "General",    "icon" => "sliders-horizontal", "keys" => ["site_title", "no_song_text", "env"]],
   "library"    => ["name" => "Library",    "icon" => "list-video", "keys" => ["audio_path", "allowed_types", "include_file_extension", "default_sort", "default_sort_order", "default_table_cols"]],
+  "songinfo"   => ["name" => "Song info",  "icon" => "disc-3",          "keys" => ["online_metadata", "acoustid_key"], "extra" => "metaJobHtml"],
   "playback"   => ["name" => "Playback",   "icon" => "circle-play", "keys" => ["autoplay_next", "default_volume", "loudness_equalization", "seek_step", "start_shuffle", "start_loop", "remember_position", "auto_scroll", "auto_scroll_on_end", "cast_end_action"]],
   "appearance" => ["name" => "Appearance", "icon" => "palette",         "keys" => ["player_theme", "custom_base", "custom_background", "custom_surface", "custom_text", "accent_color", "custom_accent"]],
   "player"     => ["name" => "Player bar", "icon" => "music",           "keys" => ["player_position", "player_size", "player_buttons", "player_show_cover", "player_progress", "player_time_format", "show_waveform", "waveform_placement", "waveform_style", "waveform_bars", "waveform_color", "waveform_custom_color", "waveform_opacity", "waveform_sensitivity", "use_legacy_player"]],
@@ -288,6 +392,9 @@ function renderSettingControl(string $key, array $setting): string {
 }
 
 # Build the rows per category
+# Settings that change server-rendered markup or the song list: they need a page reload.
+$settingsNeedReload = ["env", "audio_path", "allowed_types", "include_file_extension", "use_legacy_player", "playlist_nav", "show_upload", "default_table_cols"];
+
 $categoryOf = [];
 foreach ($settingsCategories as $catKey => $cat) {
   foreach ($cat["keys"] as $settingKey) $categoryOf[$settingKey] = $catKey;
@@ -299,11 +406,12 @@ foreach (CONFIG as $key => $setting) {
   $desc   = $setting["description"] ?? "";
   $search = strtolower($name . " " . $desc . " " . $key);
   $when   = isset($settingsShowWhen[$key]) ? ' data-show-when="'.settingsEsc($settingsShowWhen[$key]).'"' : '';
+  $reload = in_array($key, $settingsNeedReload, true);
   $categoryRows[$categoryOf[$key] ?? "other"][$key] = '
-            <div class="settingRow" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.'>
+            <div class="settingRow" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.($reload ? ' data-reload="1"' : '').'>
               <div class="settingText">
                 <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).' <span class="settingSaved">'.icon("circle-check", 0.9, 0).'</span></div>
-                <div class="settingDesc">'.settingsEsc($desc).'</div>
+                <div class="settingDesc">'.settingsEsc($desc).($reload ? ' <span class="settingReloadNote">Requires reload</span>' : '').'</div>
               </div>
               <div class="settingControl">'.renderSettingControl($key, $setting).'</div>
             </div>';
@@ -326,7 +434,7 @@ foreach ($settingsCategories as $catKey => $cat) {
           <section class="settingsSection" id="settings-'.$catKey.'">
             <h2 class="settingsSectionTitle">'.$cat["name"].'</h2>
             <div class="settingsCard">'.implode("", $ordered).implode("", $rows).'
-            </div>
+            </div>'.(isset($cat["extra"]) ? $cat["extra"]() : '').'
           </section>';
 }
 
@@ -349,15 +457,16 @@ echo '
       <div class="modal-body settingsBody">
         <div class="settingsLayout">
           <nav class="settingsNav" aria-label="Settings sections">'.$navHtml.'</nav>
-          <div class="settingsContent">'.$sectionsHtml.'
+          <div class="settingsContent">
+            <div class="alert alert-warning settingsReloadAlert d-flex align-items-center gap-2" role="status" hidden>
+              '.icon("info", 1, 0).'
+              <span class="me-auto">Some changes need a page reload to apply.</span>
+              <button type="button" class="btn btn-sm btn-warning" onclick="window.location.reload()">Reload</button>
+            </div>'.$sectionsHtml.'
             <div class="settingsEmpty text-secondary" style="display:none;">No settings match your search.</div>
             <div class="settingsFile text-secondary small">Saved to <code>'.settingsEsc(CONFIG_FILE).'</code></div>
           </div>
         </div>
-      </div>
-      <div class="modal-footer settingsFooter" style="display:none;">
-        <span class="text-secondary me-auto">'.icon("info", 1, 0).' Some changes apply after a reload.</span>
-        <button type="button" class="btn btn-success reloadCfgBtn" onclick="window.location.reload()">Reload to apply</button>
       </div>
     </div>
   </div>

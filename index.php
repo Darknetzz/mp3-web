@@ -41,7 +41,7 @@ $theme = themeSetup();
 
     <link rel="stylesheet" href="style.css?v=<?= @filemtime(__DIR__ . '/style.css') ?>">
     <link rel="stylesheet" href="themes.css">
-    <?php if ($theme["css"] !== "") { echo "<style>" . $theme["css"] . "</style>"; } ?>
+    <style id="themeVars"><?= $theme["css"] ?></style>
     <?= $theme["script"] ?>
   </head>
 <?php
@@ -238,13 +238,13 @@ echo '
 <div class="audio-player-container" role="region" aria-label="Player">
   <div class="playerBar">
     <div class="playerLeft">
-      <span class="coverThumb playerCover"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
+      <span class="coverThumb playerCover playerSongInfo" role="button" tabindex="0" aria-controls="songInfoPanel" aria-expanded="false" aria-label="Song info (I)" title="Song info (I)"><img id="playerCoverImg" class="coverImg" alt="" hidden></span>
       <div class="playerTitle">
         <div class="playerTitleRow">
-          <h3 id="songtitle" class="m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
+          <h3 id="songtitle" class="playerSongInfo m-0 text-success">'.htmlspecialchars(getConfig("no_song_text")).'</h3>
           <button type="button" class="playerFavBtn" style="display:none;" title="Add to Favorites" aria-label="Add to Favorites" aria-pressed="false">'.icon("heart", 1.2, 0).'</button>
         </div>
-        <div id="songartist" class="playerArtist text-secondary" hidden></div>
+        <div id="songartist" class="playerArtist playerSongInfo text-secondary" hidden></div>
         <small class="castStatus text-muted" style="display:none;"></small>
         <div class="sessionStatus text-muted small" style="display:none;"></div>
       </div>
@@ -341,6 +341,16 @@ echo '
 </aside>
 ';
 
+echo '
+<aside id="songInfoPanel" class="queuePanel songInfoPanel card" aria-label="Song info" hidden>
+  <div class="queuePanelHead">
+    <h3 class="m-0 songInfoHeading">Song info</h3>
+    <button type="button" class="btn btn-sm btn-pill btn-ghost-secondary songInfoClose" aria-label="Close the song info" title="Close (I)">'.icon('x', margin: 0).'</button>
+  </div>
+  <div class="queuePanelBody songInfoBody"></div>
+</aside>
+';
+
 $navSidebar = getConfig('playlist_nav') !== 'top';
 echo '<div class="appLayout">';
 if ($navSidebar) {
@@ -354,7 +364,7 @@ echo '
 <div class="card m-3 mainCard">
   <div class="card-header d-flex justify-content-between">
       <div>
-        <h2>'.getConfig("site_title").' <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
+        <h2><span class="siteTitle">'.getConfig("site_title").'</span> <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
       </div>
       <div class="d-flex align-items-center gap-2">
       <div class="btn-group quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
@@ -469,7 +479,7 @@ foreach ($musicFiles as $file) {
     # Cover thumbnails are fetched lazily from cover.php; nothing is extracted here.
     $mtime    = filemtime($filePath);
     $meta     = getSongMeta($filePath);  # ID3 tags + duration, cached in cache/meta/
-    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.$mtime;
+    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.songCoverVersion($filePath);
     # TODO: Fix `data-value` attribute
     echo '
     <tr class="songrow hover-pointer" data-filename="'.$audioName.'">
@@ -514,9 +524,12 @@ echo '</div>'; // .appLayout
 <script src="cast.js?v=<?= @filemtime(__DIR__ . '/cast.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
 <script src="session.js?v=<?= @filemtime(__DIR__ . '/session.js') ?>"></script>
+<script src="dnd.js?v=<?= @filemtime(__DIR__ . '/dnd.js') ?>"></script>
 <script src="playlists.js?v=<?= @filemtime(__DIR__ . '/playlists.js') ?>"></script>
 <script src="queue.js?v=<?= @filemtime(__DIR__ . '/queue.js') ?>"></script>
 <script src="lyrics.js?v=<?= @filemtime(__DIR__ . '/lyrics.js') ?>"></script>
+<script src="songinfo.js?v=<?= @filemtime(__DIR__ . '/songinfo.js') ?>"></script>
+<script src="songedit.js?v=<?= @filemtime(__DIR__ . '/songedit.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

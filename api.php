@@ -169,9 +169,84 @@ do {
         require_csrf_token();
         toggleFavorite($_POST['song'] ?? '');
     }
+    if ($action === 'playlistImage') {
+        playlistImage($_GET['id'] ?? '');
+    }
+    if ($action === 'updatePlaylistDetails') {
+        require_csrf_token();
+        updatePlaylistDetails($_POST['id'] ?? '', $_POST['name'] ?? '', $_POST['description'] ?? '');
+    }
+    if ($action === 'setPlaylistImage') {
+        require_csrf_token();
+        setPlaylistImage($_POST['id'] ?? '', $_FILES['image'] ?? []);
+    }
+    if ($action === 'removePlaylistImage') {
+        require_csrf_token();
+        removePlaylistImage($_POST['id'] ?? '');
+    }
+    if ($action === 'setPlaylistOrder') {
+        require_csrf_token();
+        setPlaylistOrder($_POST['ids'] ?? []);
+    }
+    if ($action === 'setPlaylistPinned') {
+        require_csrf_token();
+        setPlaylistPinned($_POST['id'] ?? '', $_POST['pinned'] ?? '');
+    }
     if ($action === 'importPlaylist') {
         require_csrf_token();
         importPlaylist($_FILES['playlist'] ?? []);
+    }
+
+    /* ─────────────────────────────── Song info ──────────────────────────── */
+    if ($action === 'songInfo') {
+        $file = basename(str_replace('\\', '/', (string) ($_GET['file'] ?? '')));
+        $path = getConfig("audio_path") . '/' . $file;
+        if ($file === '' || $file === '.' || $file === '..' || !is_file($path)
+            || !in_array(pathinfo($file, PATHINFO_EXTENSION), (array) getConfig('allowed_types'), true)) {
+            apiResponse("error", "Song not found.");
+        }
+        $details = getSongDetails($path);
+        $details['file']      = $file;
+        $details['playlists'] = playlistsContaining($file);
+        apiResponse("success", "ok", $details);
+    }
+
+    if ($action === 'songOnline') {
+        getSongOnline($_GET['file'] ?? '');
+    }
+
+    /* ─────────────────────────── Editing song info ─────────────────────── */
+    if ($action === 'songEditInfo') {
+        apiResponse("success", "ok", songEditInfo($_GET['file'] ?? ''));
+    }
+    if ($action === 'songEdit') {
+        require_csrf_token();
+        songSaveOverride($_POST['file'] ?? '', $_POST);
+    }
+    if ($action === 'songEditReset') {
+        require_csrf_token();
+        songResetOverride($_POST['file'] ?? '');
+    }
+    if ($action === 'songCover') {
+        require_csrf_token();
+        songSetCover($_POST['file'] ?? '', $_FILES, !empty($_POST['remove']));
+    }
+    if ($action === 'songWriteTags') {
+        require_csrf_token();
+        songSaveToFile($_POST['file'] ?? '', $_POST, $_FILES);
+    }
+
+    /* ──────────────────────────── Fetch metadata job ───────────────────── */
+    if ($action === 'metaJobStatus') {
+        metaJobStatus();
+    }
+    if ($action === 'metaJobStart') {
+        require_csrf_token();
+        metaJobStart($_POST['mode'] ?? 'missing');
+    }
+    if ($action === 'metaJobStop') {
+        require_csrf_token();
+        metaJobStop();
     }
 
     /* ──────────────────────────────── Lyrics ─────────────────────────────── */

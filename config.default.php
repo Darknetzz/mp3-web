@@ -85,6 +85,19 @@ $config = [
         "options"     => ["#", "filename", "size", "date", "name", "duration", "queue", "delete"],
     ],
 
+    "online_metadata" => [
+        "name"        => "Online song info",
+        "description" => "Look songs up on MusicBrainz, Wikipedia and ListenBrainz when you open the song info card: release details, artist bio, similar artists and a cover for songs without one.",
+        "value"       => true,
+        "type"        => "bool",
+    ],
+    "acoustid_key" => [
+        "name"        => "AcoustID API key",
+        "description" => "Optional. Identifies badly tagged songs by their sound. Needs fpcalc (Chromaprint) on the server; get a free key at acoustid.org.",
+        "value"       => "",
+        "type"        => "string",
+    ],
+
     /* ─────────────────────────────── Playback ─────────────────────────────── */
     "default_volume" => [
         "name"        => "Default volume",

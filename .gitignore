@@ -15,4 +15,5 @@ debug.log
 .env
 config.local.php
 playlists/*
+metadata/
 cache

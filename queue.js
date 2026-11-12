@@ -1,6 +1,6 @@
 /* ──────────────────────────────────────────────────────────────────────────
  * Queue panel: a collapsible side panel with what is playing now, the manual
- * queue (reorder by dragging the grip or with Alt+↑/↓, remove with ×) and the
+ * queue (reorder by dragging or with Alt+↑/↓, remove with ×) and the
  * rest of the play context ("Next from: …") in play order.
  *
  * Uses globals from js.php: queue, currentIndex, playContext, contextOrder,
@@ -18,7 +18,8 @@
   if (!panel.length) return;
   var listNow = $("#qpNow"), listQueue = $("#qpQueue"), listContext = $("#qpContext");
   var renderQueued = false;
-  var drag = null;
+  var drag = null;          // queue snapshot while an item is dragged
+  var dragSnapshot = null;  // ... kept for the drop, which comes after onEnd
 
   function esc(str) {
     return $("<div>").text(str == null ? "" : String(str)).html();
@@ -52,7 +53,7 @@
     if (!row) return "";
     var name = getSongNameByIndex(id);
     var editable = kind === "queue" && canEdit();
-    return '<li class="qpItem' + (kind === "now" ? " qpNowItem" : "") + '" tabindex="0" data-id="' + esc(id) + '"' +
+    return '<li class="qpItem' + (kind === "now" ? " qpNowItem" : "") + '" tabindex="0" draggable="true" data-id="' + esc(id) + '"' +
              (kind === "queue" ? ' data-pos="' + pos + '"' : "") + ' data-kind="' + kind + '">' +
            (editable ? '<span class="qpGrip" title="Drag to reorder (Alt+↑/↓)" aria-hidden="true">' + lucideIcon("grip-vertical") + '</span>' : "") +
            '<span class="coverThumb qpCover"><img class="coverImg" src="' + esc(coverUrl(name, "sm")) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true"></span>' +
@@ -113,6 +114,7 @@
   /* ──────────────────────────────── Open/close ────────────────────────────── */
   function setOpen(on, opts) {
     if (on && window.lyricsPanel) lyricsPanel.close();
+    if (on && window.songInfoPanel) songInfoPanel.close();
     panel.prop("hidden", !on);
     $("body").toggleClass("queue-open", on);
     $(".queueToggleBtn").toggleClass("active", on).attr("aria-expanded", on ? "true" : "false");
@@ -165,51 +167,31 @@
   }
 
   /* ─────────────────────────── Drag to reorder ───────────────────────────── */
-  // Pointer events on the grip, so it works the same with a mouse and on touch.
-  // Moves and the drop are tracked on the document: moving the row in the DOM
-  // can drop pointer capture.
-  function dragMove(e) {
-    if (!drag || e.pointerId !== drag.pointerId) return;
-    var y = e.clientY;
-    var over = $(document.elementFromPoint(e.clientX, y)).closest("#qpQueue > .qpItem");
-    if (over.length && over[0] !== drag.li[0]) {
-      var r = over[0].getBoundingClientRect();
-      if (y < r.top + r.height / 2) over.before(drag.li); else over.after(drag.li);
-    }
-    // Scroll the panel when dragging near its edges
-    var body = panel.find(".queuePanelBody")[0];
-    var b = body.getBoundingClientRect();
-    if (y < b.top + 32) body.scrollTop -= 8;
-    else if (y > b.bottom - 32) body.scrollTop += 8;
-    e.preventDefault();
+  // Any item can be dragged by its whole row onto a playlist in the sidebar;
+  // queued items can also be dropped between each other to reorder.
+  // The queue changed (e.g. from a listening session) since `snapshot`
+  function sameQueue(snapshot) {
+    return snapshot && snapshot.length === queue.length &&
+      snapshot.every(function (id, i) { return String(id) === String(queue[i]); });
   }
-  function dragEnd(e) {
-    if (!drag || e.pointerId !== drag.pointerId) return;
-    var d = drag;
-    drag = null;
-    document.removeEventListener("pointermove", dragMove);
-    document.removeEventListener("pointerup", dragEnd);
-    document.removeEventListener("pointercancel", dragEnd);
-    d.li.removeClass("qpDragging");
-    var to = listQueue.children(".qpItem").index(d.li);
-    var same = d.snapshot.length === queue.length && d.snapshot.every(function (id, i) { return String(id) === String(queue[i]); });
-    if (e.type === "pointerup" && same && to !== -1 && to !== d.from) {
-      moveItem(d.from, to); // re-renders
-    } else {
-      render(); // put the list back (cancelled, or the queue changed meanwhile)
+  function isQueued(li) { return $(li).data("kind") === "queue"; }
+  dnd.sortable(panel, ".qpItem[draggable=true]", {
+    song: function (li) { return String($(li).data("id")); },
+    canDrop: function (from, to) { return isQueued(from) && isQueued(to) && canEdit(); },
+    onStart: function () { drag = queue.slice(); },
+    onEnd: function () {
+      dragSnapshot = drag;
+      drag = null;
+      // Changes that came in during the drag render after the drop handler
+      if (renderQueued) setTimeout(render, 0);
+    },
+    onDrop: function (from, to, after) { // runs after onEnd
+      if (!sameQueue(dragSnapshot)) return render(); // positions are stale
+      var a = +$(from).data("pos"), t = +$(to).data("pos");
+      var at = after ? t + 1 : t;
+      if (a < at) at--; // the item leaves its old spot first
+      moveItem(a, at);
     }
-  }
-  listQueue.on("pointerdown", ".qpGrip", function (e) {
-    if (e.button !== undefined && e.button !== 0) return;
-    if (drag || !canEdit()) return;
-    var li = $(this).closest(".qpItem");
-    e.preventDefault();
-    try { this.setPointerCapture(e.pointerId); } catch (err) {}
-    drag = { li: li, from: +li.data("pos"), snapshot: queue.slice(), pointerId: e.pointerId };
-    li.addClass("qpDragging");
-    document.addEventListener("pointermove", dragMove);
-    document.addEventListener("pointerup", dragEnd);
-    document.addEventListener("pointercancel", dragEnd);
   });
 
   /* ──────────────────────────────── Events ───────────────────────────────── */

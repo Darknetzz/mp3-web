@@ -40,6 +40,8 @@ Taken with a generated demo library.
 - [x] Queue ("Add to queue" and "Play next"), shuffle and loop
 - [x] **Previous** works like other players: after 3 seconds it restarts the song; otherwise it goes back to the song actually played before (a play history, also with shuffle on), and Next then retraces the songs you stepped back from
 - [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
+- [x] **Song info card**: click the song in the playbar (or pick *Song info* in a song's menu) to slide in a card with its cover, tags, audio details (bitrate, sample rate, channels), file size, date added and the playlists it is in, plus release details, an artist bio and similar artists looked up online (see [Online song info](#online-song-info))
+- [x] **Edit song info**: fix a song's title, artist, album, year, genre, track, comment and cover, kept in the app or written into the file's tags (see [Editing song info](#editing-song-info))
 - [x] **Lyrics** for the current song from [LRCLIB](https://lrclib.net), synced line by line when available (see below)
 - [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
@@ -63,6 +65,7 @@ Taken with a generated demo library.
 | <kbd>A</kbd> | Toggle autoplay (play the next song when one ends) |
 | <kbd>Q</kbd> | Show / hide the queue panel |
 | <kbd>Y</kbd> | Show / hide the lyrics panel |
+| <kbd>I</kbd> | Show / hide the song info card for the current song |
 
 **In the song list.** Clicking a song selects it and gives the list keyboard focus. While the list has focus:
 
@@ -90,7 +93,7 @@ stays open or closed across reloads. It has three sections:
 
 In the panel:
 
-- Drag a queued song by its grip to reorder it, or focus it and press <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd>.
+- Drag a queued song (anywhere on its row) to reorder it, or focus it and press <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd>. Any song in the queue panel can also be dragged onto a playlist in the sidebar.
   Dragging works with a mouse and on touch screens.
 - × (or <kbd>Delete</kbd>) removes a song from the queue; *Clear* empties it.
 - Click a song (or press <kbd>Enter</kbd>) to play it now. A queued song leaves the queue when played.
@@ -119,6 +122,57 @@ name or tags. Every answer, including "not found", is cached in `cache/lyrics/`.
 
 Song titles are sent to lrclib.net when lyrics are looked up.
 
+### Online song info
+
+When you open the song info card, the server (`metadata.php`) looks the song up in open databases. None of them needs an API key:
+
+| Source | What it adds |
+| --- | --- |
+| [MusicBrainz](https://musicbrainz.org) | Release (album, EP or single), release date, label, track number, ISRC, genres |
+| [Cover Art Archive](https://coverartarchive.org) | A cover for songs that have none embedded. It also shows in the playbar and the song list |
+| [Wikidata](https://www.wikidata.org) / [Wikipedia](https://www.wikipedia.org) | A short artist bio and picture (English Wikipedia first, then Norwegian, Swedish, Danish, German, then any language) |
+| [ListenBrainz](https://listenbrainz.org) | Similar artists. Artists already in your library come first; click one to search your library for them |
+
+Tags missing from the file (album, year, genre, track) are filled in on the card and marked *MusicBrainz*. The file
+itself is never changed. The song is identified the same way as for lyrics (ID3 tags, then the file name), and a
+MusicBrainz recording is used only if its title and artist match and its length is within 5 seconds of the song's.
+Among that recording's releases, an official album or single is preferred over compilations, and the earliest one wins.
+
+The first lookup of a song takes a few seconds, because MusicBrainz allows one request per second. Every answer,
+including "not found", is cached in `cache/online/`. A "not found" is looked up again after 30 days. Network errors and
+rate limiting are not cached. Turn it off with *Online song info* in Settings → Song info. When it is on, artist and
+title names are sent to these services.
+
+**AcoustID (optional):** to identify badly tagged songs by their sound, install `fpcalc` (Chromaprint;
+`apt install libchromaprint-tools`, already in the Docker image) and paste a free [AcoustID](https://acoustid.org/new-application)
+API key into *AcoustID API key* in Settings → Song info.
+
+**Fetch metadata:** Settings → Song info → *Fetch metadata* looks up the whole library at once, instead of one song
+whenever its card is opened. It runs on the server (`tools/fetch-metadata.php`, started in the background), so you can
+close the page; the dialog shows its progress, a log and a Stop button whenever you come back. *Songs not looked up yet*
+skips songs that are already cached; *Every song* looks them all up again. New songs take about 5 seconds each. Below
+it, *Songs without info* lists the songs that weren't found, each with an Edit button. The job can also run from a
+terminal or cron, as the web server's user:
+
+```bash
+sudo -u www-data php tools/fetch-metadata.php --mode=missing
+```
+
+### Editing song info
+
+*Edit info* (the pencil in the song info card, or in a song's ⋯ menu) opens an editor for the title, artist, album,
+year, genre, track, comment and cover. Empty fields keep the file's own value, which is shown in grey.
+
+- **Save** keeps the changes in the app only, in `metadata/overrides.json` (with covers in `metadata/covers/`). The
+  music file isn't touched, so this works on read-only folders, and *Reset* undoes it. Edited values show everywhere
+  (song list, playbar, media controls, lyrics lookup) and are marked *edited* in the song info card.
+- **Save to file** writes the fields (and the cover) into the MP3's ID3v2.3 tags with
+  [getID3](https://github.com/JamesHeinrich/getID3), keeping its other tags, so every player sees them. Only for MP3
+  files the web server can write to.
+- **Fill from MusicBrainz** copies what MusicBrainz knows into the fields the song is missing.
+- **MusicBrainz recording**: for a song that isn't found or matched wrongly, paste the right song's link from
+  musicbrainz.org. Its release info, cover and similar artists are then used for the card.
+
 ### Cover art
 
 - Covers are read from the ID3v2 `APIC` frame of each file by `cover.php?file=<name>&size=sm|lg`
@@ -127,6 +181,7 @@ Song titles are sent to lrclib.net when lyrics are looked up.
 - Extracted covers are cached in `cache/covers/` (git-ignored; created automatically if the web server can write to
   the app folder). Responses carry `ETag`/`Last-Modified` headers and are versioned by the file's modification time,
   so a retagged file shows its new cover.
+- A cover set in the song editor wins over the file's own, which wins over one found online (Cover Art Archive).
 - Songs without a cover show a music-note placeholder in the current accent colour. The OS media
   overlay and Cast speakers show `assets/branding/logo.png` instead.
 
@@ -188,7 +243,7 @@ between **All songs**, **Favorites** and your playlists.
 
 - PHP 8.x with a web server (Apache, nginx + PHP-FPM, etc.)
 - PHP extensions: `mbstring` (required), `curl` (lyrics), `gd` (optional: resizes cover art; without it covers are sent at full size)
-- [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`)
+- [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`, `james-heinrich/getid3`)
 - Write access for the web server user to:
   - the music folder (uploads) and the app folder, where deleted songs are moved to `deleted/`
   - the active config file (settings dialog)
@@ -367,6 +422,11 @@ VERSION  = "vX.Y.Z"
 | `sessions.php` | Listening sessions: storage (locked JSON files), membership, host handover, sync API |
 | `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
 | `lyrics.php` | Lyrics lookup on LRCLIB (ID3 tags / file name matching) with a disk cache |
+| `metadata.php` | Online song info for the song info card (MusicBrainz, Cover Art Archive, Wikipedia, ListenBrainz, optional AcoustID), cached in `cache/online/` |
+| `metajob.php` | The *Fetch metadata* background job: state, start/stop, songs without info |
+| `tools/fetch-metadata.php` | Command-line runner for the *Fetch metadata* job (also usable from cron) |
+| `songedit.php` | Edited song info: app overrides (`metadata/`) and writing ID3 tags with getID3 |
+| `songedit.js` | Song editor dialog and the *Fetch metadata* panel in Settings |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |
@@ -384,6 +444,7 @@ VERSION  = "vX.Y.Z"
 | `music/` | Default audio folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
 | `playlists/` | Playlist JSON files (created at runtime, git-ignored) |
+| `metadata/` | Edited song info and covers (created at runtime, git-ignored) |
 | `cache/` | `covers/`, `meta/` (ID3 tags and durations) and `lyrics/` caches (created at runtime, git-ignored) |
 | `deleted/` | Songs deleted from the UI are moved here, not erased (created at runtime, git-ignored) |
 | `Dockerfile` | Container image definition |
