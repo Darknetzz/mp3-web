@@ -137,6 +137,9 @@ function moreFormatter(value, row) {
       summary.version = p.version;
       summary.description = p.description || "";
       summary.image   = p.image || null;
+      summary.shared  = p.shared;
+      summary.collab  = p.collab;
+      summary.can_edit = p.can_edit;
     }
     if (p.id === FAVORITES) {
       favorites = new Set(p.songs);
@@ -215,11 +218,13 @@ function moreFormatter(value, row) {
       var active = view.type === "playlist" && view.id === p.id;
       var icon = p.image ? '<img class="plThumb" src="' + esc(imageURL(p)) + '" alt="" loading="lazy">'
                : isFav ? lucideIcon("heart", "filled") : lucideIcon("list-video");
-      var tip = p.name + (p.description ? "\n" + p.description : "");
+      var tip = p.name + (p.mine === false ? "\nBy " + (p.owner_name || "someone else") + (p.can_edit ? " · you can edit" : "") : p.shared ? "\nShared with everyone" : "") +
+                (p.description ? "\n" + p.description : "");
       html += '<button type="button" class="plPill' + (active ? " active" : "") + (isFav ? " plFav" : "") + (p.pinned ? " plPinned" : "") + '"' +
               ' data-view="' + esc(p.id) + '"' + (isFav ? "" : ' draggable="true"') + ' title="' + esc(tip) + '">' +
               icon + '<span>' + esc(p.name) + '</span>' +
               (p.pinned ? lucideIcon("pin", "plPinIcon") : "") +
+              (p.shared || p.mine === false ? lucideIcon("share-2", "plShareIcon") : "") +
               '<span class="plCount">' + p.count + '</span></button>';
     });
     html += '<button type="button" class="plPill plAdd" data-action="add-menu" aria-haspopup="menu" title="New or import playlist">' +
@@ -238,16 +243,22 @@ function moreFormatter(value, row) {
     var isFav = p.id === FAVORITES;
     var count = p.count + " song" + (p.count === 1 ? "" : "s");
     var missing = p.missing.length ? ' · <span class="text-warning">' + p.missing.length + ' not in library</span>' : "";
-    var canDrag = p.count > 1;
+    var editable = canEditList(p);
+    var canDrag = p.count > 1 && editable;
     var pinned = !!(listById(p.id) || {}).pinned;
+    var sharing = p.mine === false
+      ? ' · ' + lucideIcon('share-2', 'me-1') + 'By ' + esc(p.owner_name || "someone else") + (editable ? ' · you can edit' : ' · read-only')
+      : p.shared ? ' · ' + lucideIcon('share-2', 'me-1') + (p.collab ? 'Shared, everyone can edit' : 'Shared with everyone') : '';
     header.html(
-      '<button type="button" class="plCover" data-action="edit" title="Edit details" aria-label="Edit playlist details">' + coverHtml(p) +
-        '<span class="plCoverEdit">' + lucideIcon('pencil') + '</span></button>' +
+      (editable
+        ? '<button type="button" class="plCover" data-action="edit" title="Edit details" aria-label="Edit playlist details">' + coverHtml(p) +
+          '<span class="plCoverEdit">' + lucideIcon('pencil') + '</span></button>'
+        : '<span class="plCover">' + coverHtml(p) + '</span>') +
       '<div class="plHeaderText">' +
         '<h3 class="plTitle">' + (isFav ? lucideIcon('heart', 'filled text-danger me-2') : "") + esc(p.name) +
           (pinned ? lucideIcon('pin', 'plPinIcon ms-2') : "") + '</h3>' +
         (p.description ? '<p class="plDesc">' + esc(p.description) + '</p>' : "") +
-        '<div class="text-secondary small">' + count + missing + (canDrag ? ' · drag songs to reorder' : '') + '</div>' +
+        '<div class="text-secondary small">' + count + missing + sharing + (canDrag ? ' · drag songs to reorder' : '') + '</div>' +
       '</div>' +
       '<div class="plHeaderActions">' +
         '<button type="button" class="btn btn-success btn-pill" data-action="play"' + (p.count ? "" : " disabled") + '>' + lucideIcon('play', 'filled me-1') + 'Play</button>' +
@@ -422,6 +433,15 @@ function moreFormatter(value, row) {
     request("POST", "setPlaylistPinned", { id: id, pinned: pinned ? 1 : 0 }).then(function (res) {
       if (res.status !== "success") failed(res);
       loadLists().then(renderHeader); // the server sorts pinned ones first
+    });
+  }
+
+  function setSharing(id, shared, collab) {
+    request("POST", "setPlaylistSharing", { id: id, shared: shared ? 1 : 0, collab: collab ? 1 : 0 }).then(function (res) {
+      if (res.status !== "success") return failed(res);
+      showToast(res.response, "success");
+      storePlaylist(res.data);
+      loadLists().then(renderHeader);
     });
   }
 
@@ -654,7 +674,7 @@ function moreFormatter(value, row) {
   function addToPlaylistItems(songs) {
     var items = [];
     lists.forEach(function (p) {
-      if (p.id === FAVORITES) return;
+      if (p.id === FAVORITES || !canEditList(p)) return;
       items.push({ label: p.name, icon: "list-video", run: function () { addSongs(p.id, songs); } });
     });
     if (items.length) items.push("-");
@@ -707,12 +727,14 @@ function moreFormatter(value, row) {
     }
     items.push(
       { label: "Song info", icon: "info", run: function () { if (window.songInfoPanel) songInfoPanel.openFor(song); } },
-      { label: "Edit info", icon: "pencil", run: function () { if (window.songEditor) songEditor.open(song); } },
+    );
+    if (window.songEditor) items.push({ label: "Edit info", icon: "pencil", run: function () { songEditor.open(song); } });
+    items.push(
       { label: "Download", icon: "download", run: function () { downloadSong(id); } },
       { label: "Copy song name", icon: "copy", run: function () { copyText(songTitle(id)); } }
     );
 
-    if (canEdit && view.type === "playlist" && cache[view.id]) {
+    if (canEdit && view.type === "playlist" && cache[view.id] && canEditList(cache[view.id])) {
       var p = cache[view.id];
       var pos = p.songs.indexOf(song);
       var sorted = !!playlistTable.bootstrapTable("getOptions").sortName;
@@ -723,7 +745,7 @@ function moreFormatter(value, row) {
         items.push({ label: "Remove from this playlist", icon: "circle-minus", run: function () { removeSong(p.id, song); } });
       }
     }
-    if (canEdit) {
+    if (canEdit && window.isAdminUser) {
       items.push("-", { label: "Delete…", icon: "trash-2", danger: true, run: function () {
         confirmDialog("Delete “" + songTitle(id) + "”?", "The file is removed from the music folder for everyone.", "Delete", function () {
           deleteSong(id);
@@ -831,9 +853,21 @@ function moreFormatter(value, row) {
       items.push({ label: "Play", icon: "play", disabled: !p.count, run: function () { playPlaylist(id, false); } });
       items.push("-");
     }
-    items.push({ label: "Edit details…", icon: "pencil", run: function () { editDetails(id); } });
-    items.push({ label: p.image ? "Change image…" : "Add image…", icon: "image", run: function () { chooseImage(id); } });
-    if (p.image) items.push({ label: "Remove image", icon: "image-off", run: function () { removeImage(id); } });
+    if (canEditList(p)) {
+      items.push({ label: "Edit details…", icon: "pencil", run: function () { editDetails(id); } });
+      items.push({ label: p.image ? "Change image…" : "Add image…", icon: "image", run: function () { chooseImage(id); } });
+      if (p.image) items.push({ label: "Remove image", icon: "image-off", run: function () { removeImage(id); } });
+    }
+    // Sharing: only the owner, only with accounts
+    if (!isFav && p.mine !== false && window.currentUser && currentUser.id > 0) {
+      items.push({ label: "Sharing", icon: "share-2", submenu: function () {
+        return [
+          { label: "Only me", icon: !p.shared ? "circle-check" : "lock", run: function () { setSharing(id, false, false); } },
+          { label: "Everyone can listen", icon: p.shared && !p.collab ? "circle-check" : "share-2", run: function () { setSharing(id, true, false); } },
+          { label: "Everyone can edit", icon: p.shared && p.collab ? "circle-check" : "users", run: function () { setSharing(id, true, true); } }
+        ];
+      } });
+    }
     if (!isFav) {
       items.push(p.pinned
         ? { label: "Unpin", icon: "pin-off", run: function () { setPinned(id, false); } }
@@ -842,7 +876,7 @@ function moreFormatter(value, row) {
     items.push({ label: "Export .m3u", icon: "download", disabled: !p.count, run: function () {
       window.location.href = apiURL + "?action=exportPlaylist&id=" + encodeURIComponent(id);
     } });
-    if (!isFav) {
+    if (!isFav && p.mine !== false) {
       items.push("-", { label: "Delete playlist", icon: "trash-2", danger: true, run: function () {
         confirmDialog("Delete “" + p.name + "”?", "The songs stay in your library. This can't be undone.", "Delete", function () {
           deletePlaylist(id);
@@ -968,8 +1002,12 @@ function moreFormatter(value, row) {
   /* ──────────────────── Drag to reorder / onto a playlist ─────────────────── */
   // Every song row can be dragged onto a playlist in #playlistBar. Dropping
   // between rows reorders, but only in an unsorted, unfiltered playlist view.
+  // Others' playlists are read-only unless shared with "others can edit".
+  function canEditList(p) {
+    return !!p && p.can_edit !== false;
+  }
   function reorderEnabled() {
-    if (view.type !== "playlist" || !cache[view.id]) return false;
+    if (view.type !== "playlist" || !cache[view.id] || !canEditList(cache[view.id])) return false;
     var opts = playlistTable.bootstrapTable("getOptions");
     return !opts.sortName && !opts.searchText;
   }
@@ -1042,7 +1080,7 @@ function moreFormatter(value, row) {
     if (action === "shuffle") playPlaylist(view.id, true);
     if (action === "queue-all") queueSong(idsFor(cache[view.id].songs));
     if (action === "playlist-menu") playlistMenu(this);
-    if (action === "edit") editDetails(view.id);
+    if (action === "edit" && canEditList(cache[view.id])) editDetails(view.id);
   });
 
   $(".playerFavBtn").on("click", function () {

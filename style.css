@@ -949,7 +949,8 @@ body.player-top .toast-container {
   font-weight: 600;
   font-size: 0.85rem;
 }
-.chipRemove {
+.chipRemove,
+.folderRemove {
   border: 0;
   background: transparent;
   color: inherit;
@@ -959,7 +960,9 @@ body.player-top .toast-container {
   padding: 0 0.3rem;
   border-radius: 999px;
 }
-.chipRemove:hover {
+.chipRemove:hover,
+.folderRemove:hover,
+.folderRemove:focus-visible {
   opacity: 1;
   background: rgba(127, 127, 127, 0.2);
 }
@@ -1061,6 +1064,156 @@ body.player-top .toast-container {
     flex-wrap: wrap;
     justify-content: flex-start;
     max-width: none;
+  }
+}
+
+/* Music folders: the control sits under the text, full width */
+.settingRow.settingRowWide {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.settingRowWide .settingControl {
+  max-width: none;
+  justify-content: stretch;
+}
+.settingFolders {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.folderList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 10px;
+}
+.folderItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.6rem 0.5rem 0.85rem;
+}
+.folderItem + .folderItem {
+  border-top: 1px solid var(--tblr-border-color);
+}
+.folderItem > .lucide {
+  flex-shrink: 0;
+  color: var(--tblr-secondary);
+}
+.folderInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.folderName {
+  font-weight: 600;
+  font-family: var(--tblr-font-monospace, monospace);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.folderStatus {
+  font-size: 0.8rem;
+  color: var(--tblr-secondary-color, var(--tblr-muted));
+}
+.folderStatus:empty {
+  display: none;
+}
+.folderSub {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.folderSub .form-check-input {
+  float: none;
+  margin: 0;
+  cursor: pointer;
+}
+.folderAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.folderBrowser {
+  width: 100%;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 10px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.folderBrowser[hidden] {
+  display: none;
+}
+.folderBrowserBar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.folderBrowserBar .folderPathInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--tblr-font-monospace, monospace);
+}
+.folderDirs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.folderDirs[aria-busy="true"] {
+  opacity: 0.5;
+}
+.folderDir {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tblr-body-color);
+  text-align: left;
+  font-size: 0.875rem;
+}
+.folderDir:hover,
+.folderDir:focus-visible {
+  background: var(--tblr-secondary-bg, rgba(127, 127, 127, 0.15));
+  outline: none;
+}
+.folderDir .lucide {
+  flex-shrink: 0;
+  color: var(--tblr-secondary);
+}
+.folderDir span {
+  overflow-wrap: anywhere;
+}
+.folderDirsEmpty {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+}
+.folderBrowserButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+@media (max-width: 575.98px) {
+  .folderItem {
+    flex-wrap: wrap;
+  }
+  .folderSub {
+    margin-left: 1.85rem !important;
   }
 }
 
@@ -2216,3 +2369,121 @@ a.siChip {
 .metaJobSongs .lucide {
   margin-right: .2rem;
 }
+
+/* ───────────────────────── Sign-in and setup pages ───────────────────────── */
+.authPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.authCard {
+  width: 100%;
+  max-width: 400px;
+}
+.setupCard { max-width: 620px; }
+.authBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+.authBrand h1 { margin: 0; font-size: 1.4rem; }
+.setupSteps {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+  counter-reset: setup;
+}
+.setupSteps li {
+  flex: 1;
+  font-size: .8rem;
+  color: var(--tblr-secondary, #6c757d);
+  padding-top: 8px;
+  border-top: 3px solid var(--tblr-border-color, rgba(128,128,128,.3));
+  counter-increment: setup;
+}
+.setupSteps li::before { content: counter(setup) ". "; }
+.setupSteps li.active { color: var(--tblr-body-color); font-weight: 600; border-color: var(--tblr-success, #2fb344); }
+.setupSteps li.done { border-color: color-mix(in srgb, var(--tblr-success, #2fb344) 50%, transparent); }
+.setupStep h2 { font-size: 1.15rem; }
+.setupNav { display: flex; gap: 8px; margin-top: 1.25rem; }
+.setupFolders .folderList { margin-bottom: .75rem; }
+
+/* ─────────────────────────── Header: user menu ────────────────────────────── */
+.userMenuBtn { gap: 6px; }
+.userAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--tblr-success-fg, #fff);
+  background: var(--tblr-success, #2fb344);
+}
+.userMenuName { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ────────────────────────────── Activity panel ───────────────────────────── */
+.activityPanel {
+  width: min(360px, calc(100vw - 32px));
+  padding: 0;
+}
+.activityHead {
+  padding: 10px 14px 6px;
+  font-weight: 600;
+}
+.activityList { max-height: 60vh; overflow-y: auto; }
+.activityEmpty { padding: 8px 14px 12px; font-size: .875rem; }
+.activityItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+}
+.activityItem + .activityItem { border-top: 1px solid var(--tblr-border-color-translucent, rgba(128,128,128,.15)); }
+.activityText { flex: 1; min-width: 0; }
+.activityUser { font-weight: 600; font-size: .875rem; }
+.activityLive { color: var(--tblr-success, #2fb344); }
+.activitySong { font-size: .875rem; }
+.activityActions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.activityFoot {
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--tblr-border-color-translucent, rgba(128,128,128,.15));
+}
+
+/* ───────────────────────── Settings: account and users ───────────────────── */
+.settingScope { font-weight: 500; vertical-align: middle; }
+.accountDisplayName { min-width: 200px; }
+.accountPasswordFields,
+.usersAddFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.accountPasswordFields .form-control { flex: 1 1 160px; }
+.usersAddFields .form-control { flex: 1 1 140px; }
+.usersAddFields .form-select { flex: 0 0 auto; width: auto; }
+.usersList { margin-bottom: 1rem; }
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+}
+.userRow + .userRow { border-top: 1px solid var(--tblr-border-color-translucent, rgba(128,128,128,.15)); }
+.userInfo { flex: 1; min-width: 0; }
+.userActions { display: flex; align-items: center; gap: 4px; }
+.userActions .form-select { width: auto; }
+.usersAdd { padding-top: .75rem; border-top: 1px solid var(--tblr-border-color-translucent, rgba(128,128,128,.15)); }
+
+/* ───────────────────────────── Shared playlists ──────────────────────────── */
+.plShareIcon { opacity: .6; font-size: .85em; }

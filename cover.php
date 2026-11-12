@@ -10,6 +10,7 @@
  * Extracted/resized covers are cached in cache/covers/ (git-ignored).
  */
 require_once('_includes.php');
+requireMediaAccess(); // a session, or a signed token (?t=) for Cast devices
 // Covers don't need the session; release its lock so thumbnails load in parallel.
 session_write_close();
 
@@ -33,19 +34,13 @@ function coverNone(): void {
 }
 
 /* ───────────────────────────── Validate input ───────────────────────────── */
-$file = basename((string) ($_GET['file'] ?? ''));
+$file = (string) ($_GET['file'] ?? '');
 $size = array_key_exists($_GET['size'] ?? '', COVER_SIZES) ? $_GET['size'] : 'sm';
-if ($file === '' || $file === '.' || $file === '..') {
+if ($file === '') {
     coverFail(400, 'No file given.');
 }
-
-$audioDir = realpath((string) getConfig('audio_path'));
-$path     = $audioDir === false ? false : realpath($audioDir . DIRECTORY_SEPARATOR . $file);
-if ($audioDir === false || $path === false || strpos($path, $audioDir . DIRECTORY_SEPARATOR) !== 0 || !is_file($path)) {
-    coverFail(404, 'Not found.');
-}
-$allowed = array_map('strtolower', (array) getConfig('allowed_types'));
-if (!in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $allowed, true)) {
+$path = songPath($file);
+if ($path === null) {
     coverFail(404, 'Not found.');
 }
 

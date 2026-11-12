@@ -26,6 +26,8 @@ function sessionMemberId(): string {
 
 /** This browser's display name in sessions (defaults to "Guest XXXX"). */
 function sessionDisplayName(): string {
+    $u = currentUser();
+    if ($u && (int) $u['id'] > 0) return userDisplayName($u);
     $name = $_SESSION['display_name'] ?? '';
     if (!is_string($name) || $name === '') {
         $name = "Guest " . strtoupper(substr(sessionMemberId(), 0, 4));
@@ -216,13 +218,13 @@ function sessionCleanState($state, array $previous): array {
     }
     $song = $state['song'] ?? null;
     if ($song !== null && $song !== '') {
-        $song = basename((string) $song);
+        $song = songPath($song) !== null ? (string) $song : null;
     } else {
         $song = null;
     }
     $queue = [];
     foreach (array_slice((array) ($state['queue'] ?? []), 0, SESSION_QUEUE_MAX) as $q) {
-        if (is_string($q) && $q !== '') $queue[] = basename($q);
+        if (is_string($q) && songPath($q) !== null) $queue[] = $q;
     }
     $toBool = function ($v) {
         return $v === true || $v === 'true' || $v === '1' || $v === 1;
@@ -270,11 +272,18 @@ function userPrefsClean($prefs): array {
 }
 
 function userPrefs(): array {
-    return array_merge(userPrefsDefaults(), userPrefsClean($_SESSION['user_prefs'] ?? []));
+    $u = currentUser();
+    $stored = ($u && (int) $u['id'] > 0) ? userJson($u, 'prefs') : ($_SESSION['user_prefs'] ?? []);
+    return array_merge(userPrefsDefaults(), userPrefsClean($stored));
 }
 
 function userPrefsSave(array $prefs): array {
-    $_SESSION['user_prefs'] = array_merge(userPrefs(), userPrefsClean($prefs));
+    $merged = array_merge(userPrefs(), userPrefsClean($prefs));
+    if (currentUserId() > 0) {
+        userUpdate(currentUserId(), ['prefs' => json_encode($merged)]);
+    } else {
+        $_SESSION['user_prefs'] = $merged;
+    }
     return userPrefs();
 }
 
@@ -482,7 +491,11 @@ function setDisplayName($name): void {
     if ($name === '') {
         apiResponse("error", "Your name can't be empty.");
     }
-    $_SESSION['display_name'] = $name;
+    if (currentUserId() > 0) {
+        userUpdate(currentUserId(), ['display_name' => $name]);
+    } else {
+        $_SESSION['display_name'] = $name;
+    }
     $member = sessionMemberId();
     $code   = $_SESSION['session_code'] ?? null;
     $view   = null;

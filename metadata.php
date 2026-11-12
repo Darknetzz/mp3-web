@@ -221,10 +221,8 @@ function metaArtistBio(string $wikidataUrl): ?array {
 
 /** Every artist credited in the library, normalized → as written. */
 function metaLibraryArtists(): array {
-    $dir = realpath((string) getConfig('audio_path'));
-    if ($dir === false) return [];
     $artists = [];
-    foreach (glob($dir . '/*') ?: [] as $file) {
+    foreach (musicLibrary() as $file) {
         $meta = getSongMeta($file);
         $names = preg_split('/\s*(?:,|&|\bx\b|\band\b|\bog\b|\bft\.?|\bfeat\.?|\bfeaturing\b|\bvs\.?)\s*/iu', (string) $meta['artist']);
         foreach ($names as $n) {

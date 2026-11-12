@@ -56,15 +56,9 @@ function metaJobLog(array &$job, string $line): void {
     $job['log'] = array_slice($job['log'], -METAJOB_LOG_LINES);
 }
 
-/** Every song in the library: file name => absolute path. */
+/** Every song in the library: song key => absolute path. */
 function metaJobLibrary(): array {
-    $dir = realpath((string) getConfig('audio_path'));
-    if ($dir === false) return [];
-    $out = [];
-    foreach (array_keys(playlistLibrary()) as $file) {
-        $out[$file] = $dir . DIRECTORY_SEPARATOR . $file;
-    }
-    return $out;
+    return musicLibrary();
 }
 
 /** The command that runs the job, for the background start and for people to run by hand. */

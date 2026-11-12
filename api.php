@@ -5,10 +5,6 @@ require_once('_includes.php');
 # You want to return something else? You're in the wrong place.
 header('Content-Type: application/json');
 
-if (empty(getConfig("audio_path"))) {
-    apiResponse("error", "The audio path is not set.");
-}
-
 /**
  * Require a valid CSRF token for state-changing POST requests.
  */
@@ -25,6 +21,35 @@ function require_csrf_token(): void
     ) {
         apiResponse("error", "Invalid CSRF token.");
     }
+}
+
+$action = (string) ($_POST['action'] ?? $_GET['action'] ?? '');
+
+/* ───────────────────────── Before sign-in: login and setup ─────────────────── */
+if ($action === 'login') {
+    require_csrf_token();
+    authLogin($_POST['username'] ?? '', $_POST['password'] ?? '', !empty($_POST['remember']));
+}
+if ($action === 'logout') {
+    require_csrf_token();
+    authLogout();
+}
+if ($action === 'setupFinish') {
+    require_csrf_token();
+    setupFinish($_POST);
+}
+$inSetup = $action === 'browseDirs' && setupNeeded();
+if ($inSetup) {
+    setupRequireOpen(); // the wizard's folder picker
+} else {
+    requireLogin();
+}
+
+// Actions only admins may use (the rest check per item, e.g. playlists).
+const ADMIN_ACTIONS = ['rm', 'upload', 'browseDirs', 'songEdit', 'songEditReset', 'songCover', 'songWriteTags',
+                       'metaJobStart', 'metaJobStop', 'usersList', 'usersCreate', 'usersUpdate', 'usersDelete'];
+if (!$inSetup && ((!empty($_FILES) && empty($_POST['action'])) || in_array($action, ADMIN_ACTIONS, true))) {
+    requireAdmin();
 }
 
 do {
@@ -72,7 +97,14 @@ do {
             $text  = is_bool($value) ? ($value ? 'true' : 'false') : (is_scalar($value) ? (string) $value : json_encode($value));
             apiResponse("success", $text, ["value" => $value]);
         }
-        apiResponse("success", "ok", ["config" => getConfig()]);
+        $visible = getConfig();
+        if (!isAdmin()) {
+            // Global settings (keys, folders) are for admins; site title is public anyway.
+            $visible = array_filter($visible, function ($s, $k) {
+                return $k === 'site_title' || (is_array($s) && configIsUserScope($s));
+            }, ARRAY_FILTER_USE_BOTH);
+        }
+        apiResponse("success", "ok", ["config" => $visible]);
     }
 
     # REVIEW:
@@ -188,6 +220,10 @@ do {
         require_csrf_token();
         setPlaylistOrder($_POST['ids'] ?? []);
     }
+    if ($action === 'setPlaylistSharing') {
+        require_csrf_token();
+        setPlaylistSharing($_POST['id'] ?? '', $_POST['shared'] ?? '', $_POST['collab'] ?? '');
+    }
     if ($action === 'setPlaylistPinned') {
         require_csrf_token();
         setPlaylistPinned($_POST['id'] ?? '', $_POST['pinned'] ?? '');
@@ -197,12 +233,73 @@ do {
         importPlaylist($_FILES['playlist'] ?? []);
     }
 
+    /* ─────────────────────────── Account and users ─────────────────────── */
+    if ($action === 'me') {
+        $u = currentUser();
+        apiResponse("success", "ok", ["user" => $u ? userPublic($u) : null, "signed_in" => isSignedIn(), "login_required" => authRequired()]);
+    }
+    if ($action === 'accountUpdate') {
+        require_csrf_token();
+        accountUpdate($_POST);
+    }
+    if ($action === 'usersList') {
+        usersList();
+    }
+    if ($action === 'usersCreate') {
+        require_csrf_token();
+        usersCreate($_POST);
+    }
+    if ($action === 'usersUpdate') {
+        require_csrf_token();
+        usersUpdate($_POST);
+    }
+    if ($action === 'usersDelete') {
+        require_csrf_token();
+        usersDelete($_POST);
+    }
+
+    /* ──────────────────────────────── Activity ──────────────────────────── */
+    if ($action === 'nowPlaying') {
+        require_csrf_token();
+        nowPlaying($_POST['song'] ?? '', $_POST['position'] ?? 0, $_POST['playing'] ?? false);
+    }
+    if ($action === 'activity') {
+        activityList();
+    }
+
+    /* ──────────────────────── Folder picker (settings) ─────────────────── */
+    // Sub-folders of a folder on the server (names only, no files), for
+    // choosing music folders. Starts at the app folder.
+    if ($action === 'browseDirs') {
+        $raw  = trim((string) ($_GET['path'] ?? ''));
+        $real = musicFolderReal($raw === '' ? '.' : $raw);
+        if ($real === null) {
+            apiResponse("error", "That folder does not exist.");
+        }
+        $dirs = [];
+        foreach (@scandir($real) ?: [] as $name) {
+            if ($name === '' || $name[0] === '.' || !is_dir($real . DIRECTORY_SEPARATOR . $name)) continue;
+            $dirs[] = $name;
+        }
+        natcasesort($dirs);
+        // Inside the app folder, show it relative to the app ("music_local")
+        $app   = realpath(__DIR__);
+        $shown = $real === $app ? '' : (str_starts_with($real, $app . DIRECTORY_SEPARATOR) ? substr($real, strlen($app) + 1) : $real);
+        $parent = dirname($real);
+        apiResponse("success", "ok", [
+            "path"     => $shown,
+            "absolute" => $real,
+            "parent"   => $parent === $real ? null : $parent,
+            "readable" => is_readable($real),
+            "dirs"     => array_values($dirs),
+        ]);
+    }
+
     /* ─────────────────────────────── Song info ──────────────────────────── */
     if ($action === 'songInfo') {
-        $file = basename(str_replace('\\', '/', (string) ($_GET['file'] ?? '')));
-        $path = getConfig("audio_path") . '/' . $file;
-        if ($file === '' || $file === '.' || $file === '..' || !is_file($path)
-            || !in_array(pathinfo($file, PATHINFO_EXTENSION), (array) getConfig('allowed_types'), true)) {
+        $file = (string) ($_GET['file'] ?? '');
+        $path = songPath($file);
+        if ($path === null) {
             apiResponse("error", "Song not found.");
         }
         $details = getSongDetails($path);

@@ -37,6 +37,11 @@ RUN composer install -d /var/www/html --no-dev --optimize-autoloader
 # Set working directory
 WORKDIR /var/www/html
 
+# Accounts (data/) and playlists live here: mount volumes to keep them across containers.
+# Optional env: AUTH_REQUIRED, ADMIN_USERNAME, ADMIN_PASSWORD, MUSIC_FOLDERS, SITE_TITLE, SETUP_TOKEN (see README).
+RUN mkdir -p /var/www/html/data /var/www/html/playlists && chown www-data:www-data /var/www/html/data /var/www/html/playlists
+VOLUME ["/var/www/html/data", "/var/www/html/playlists"]
+
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost/ || exit 1
 

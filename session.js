@@ -438,6 +438,7 @@
     },
   };
   window.sessionSync = api;
+  api.join = function (code) { join(code); }; // the Activity panel's "Listen along"
 
   /* ───────────────────────────── Modal wiring ─────────────────────────────── */
   function loadPublicSessions() {
@@ -477,13 +478,15 @@
 
   $(function () {
     $("#displayNameInput").val(displayName);
+    // With an account, the server keeps the name and defaults: nothing to restore.
+    var hasAccount = !!(window.currentUser && currentUser.id > 0);
     // The PHP session may be newer than this browser's saved name: restore it.
     var saved = storedName();
-    if (saved && saved !== displayName) saveDisplayName(saved, true);
+    if (!hasAccount && saved && saved !== displayName) saveDisplayName(saved, true);
 
     // Restore saved defaults if the server has forgotten them (PHP session expired).
     var savedPrefs = storedPrefs();
-    if (savedPrefs && prefsDiffer(savedPrefs, userPrefs)) {
+    if (!hasAccount && savedPrefs && prefsDiffer(savedPrefs, userPrefs)) {
       saveUserPrefs(savedPrefs, true);
     } else {
       storePrefs();

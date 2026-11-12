@@ -3,10 +3,15 @@
 /* ────────────────────────────────────────────────────────────────────────── */
 /*                                  Playlists                                 */
 /* ────────────────────────────────────────────────────────────────────────── */
-// One JSON file per playlist in PLAYLIST_DIR, shared by everyone using this
-// server. Songs are stored by file name (basename) in the music folder. Songs
-// whose file is gone stay in the list (reported as missing) so they come back
-// if the file is restored.
+// One JSON file per playlist in PLAYLIST_DIR. Songs are stored by song key.
+// Songs whose file is gone stay in the list (reported as missing) so they come
+// back if the file is restored.
+//
+// Each playlist has an "owner" (user id) and is private unless "shared" (all
+// users can see and play it) and, when shared, "collab" (all users can edit).
+// Favorites are per user: the id "favorites" always means *your* Favorites,
+// stored in playlists/favorites/<user id>.json. Without accounts (user id 0)
+// everything is shared like before.
 
 const PLAYLIST_DIR       = __DIR__ . '/playlists';
 const PLAYLIST_FAVORITES = 'favorites';
@@ -17,8 +22,8 @@ const PLAYLIST_DESC_MAX  = 300;
 const PLAYLIST_IMAGE_MAX_BYTES = 8388608;
 const PLAYLIST_IMAGE_SIZE = 512;
 const PLAYLIST_IMAGE_TYPES = ['jpg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
-// Sidebar order and pins, shared like the playlists. Not a playlist: its name
-// isn't a valid playlist id, so listPlaylists() skips it.
+// Sidebar order and pins, per user (users.playlist_layout). Without accounts
+// they are kept in this file. Not a playlist: its name isn't a valid id.
 const PLAYLIST_LAYOUT    = PLAYLIST_DIR . '/_layout.json';
 
 /* ─────────────────────────────── Helpers ────────────────────────────────── */
@@ -27,7 +32,54 @@ function playlistValidId($id): bool {
 }
 
 function playlistPath(string $id): string {
+    if ($id === PLAYLIST_FAVORITES) return playlistFavoritesPath(currentUserId());
     return PLAYLIST_DIR . '/' . $id . '.json';
+}
+
+/** A user's Favorites file (the old shared file without accounts). */
+function playlistFavoritesPath(int $userId): string {
+    return $userId > 0 ? PLAYLIST_DIR . '/favorites/' . $userId . '.json' : PLAYLIST_DIR . '/' . PLAYLIST_FAVORITES . '.json';
+}
+
+/* ─────────────────────────────── Access ─────────────────────────────────── */
+/** Owner of a playlist; playlists from before accounts belong to the first admin. */
+function playlistOwner(array $p): int {
+    return isset($p['owner']) ? (int) $p['owner'] : userFirstAdminId();
+}
+
+/** Can the current user "view", "edit" or "own" (delete, share) this playlist? */
+function playlistCan(array $p, string $what): bool {
+    $uid = currentUserId();
+    if ($uid <= 0 || ($p['id'] ?? '') === PLAYLIST_FAVORITES) return true;
+    $mine = playlistOwner($p) === $uid;
+    if ($mine) return true;
+    $shared = !empty($p['shared']);
+    if ($what === 'view') return $shared;
+    if ($what === 'edit') return $shared && !empty($p['collab']);
+    return false;
+}
+
+/** Remember why playlistWithLock() gave up, for playlistNotFound(). */
+function playlistDenied(?string $what = null): ?string {
+    static $denied = null;
+    if (func_num_args() > 0) $denied = $what;
+    return $denied;
+}
+
+/** A deleted user's private playlists go; their shared ones pass to $heirId. */
+function playlistsOfDeletedUser(int $userId, int $heirId): void {
+    foreach (glob(PLAYLIST_DIR . '/*.json') ?: [] as $file) {
+        $p = json_decode((string) @file_get_contents($file), true);
+        if (!is_array($p) || !isset($p['id']) || !playlistValidId($p['id']) || playlistOwner($p) !== $userId) continue;
+        if (!empty($p['shared'])) {
+            $p['owner'] = $heirId;
+            @file_put_contents($file, json_encode($p, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        } else {
+            @unlink($file);
+            playlistRemoveImageFiles($p['id']);
+        }
+    }
+    @unlink(playlistFavoritesPath($userId));
 }
 
 function playlistEnsureDir(): void {
@@ -42,22 +94,10 @@ function playlistEnsureDir(): void {
     if (!is_writable(PLAYLIST_DIR)) {
         apiResponse("error", "The folder <code>playlists/</code> is not writable by the web server.");
     }
-}
-
-/** File names in the music folder with an allowed extension, keyed by name. */
-function playlistLibrary(): array {
-    static $library = null;
-    if ($library !== null) return $library;
-    $library = [];
-    $path    = getConfig("audio_path");
-    $allowed = (array) getConfig("allowed_types");
-    if (!is_dir($path)) return $library;
-    foreach (scandir($path) as $file) {
-        if ($file === '.' || $file === '..' || !is_file($path . '/' . $file)) continue;
-        if (!in_array(pathinfo($file, PATHINFO_EXTENSION), $allowed, true)) continue;
-        $library[$file] = true;
+    if (currentUserId() > 0 && !is_dir(PLAYLIST_DIR . '/favorites')) {
+        @mkdir(PLAYLIST_DIR . '/favorites', 0775, true);
+        @chmod(PLAYLIST_DIR . '/favorites', 0775);
     }
-    return $library;
 }
 
 function playlistCleanName($name): string {
@@ -75,6 +115,9 @@ function playlistCleanDescription($text): string {
 }
 
 function playlistImagePath(string $id, string $ext): string {
+    if ($id === PLAYLIST_FAVORITES && currentUserId() > 0) {
+        return PLAYLIST_DIR . '/favorites/' . currentUserId() . '.' . $ext;
+    }
     return PLAYLIST_DIR . '/' . $id . '.' . $ext;
 }
 
@@ -88,7 +131,11 @@ function playlistRemoveImageFiles(string $id): void {
 /* ─────────────────────────────── Layout ─────────────────────────────────── */
 /** ["order" => [ids], "pinned" => [ids]] */
 function playlistLayout(): array {
-    $raw  = is_file(PLAYLIST_LAYOUT) ? json_decode((string) @file_get_contents(PLAYLIST_LAYOUT), true) : null;
+    if (currentUserId() > 0) {
+        $raw = userJson(userRow(currentUserId()), 'playlist_layout');
+    } else {
+        $raw = is_file(PLAYLIST_LAYOUT) ? json_decode((string) @file_get_contents(PLAYLIST_LAYOUT), true) : null;
+    }
     $data = ["order" => [], "pinned" => []];
     foreach (["order", "pinned"] as $key) {
         foreach ((array) ($raw[$key] ?? []) as $id) {
@@ -100,6 +147,15 @@ function playlistLayout(): array {
 
 /** Read-modify-write the layout under a lock; $fn gets and returns the layout. */
 function playlistUpdateLayout(callable $fn): array {
+    if (currentUserId() > 0) {
+        $db = db();
+        $db->exec('BEGIN IMMEDIATE');
+        $layout = $fn(playlistLayout());
+        $layout = ["order" => array_values($layout['order']), "pinned" => array_values($layout['pinned'])];
+        userUpdate(currentUserId(), ['playlist_layout' => json_encode($layout)]);
+        $db->exec('COMMIT');
+        return $layout;
+    }
     playlistEnsureDir();
     $fh = @fopen(PLAYLIST_LAYOUT, 'c+');
     if (!$fh) {
@@ -117,7 +173,15 @@ function playlistUpdateLayout(callable $fn): array {
     return $layout;
 }
 
-/** Normalise a list of song names (basename, de-duplicated). */
+/** Song key as stored: "/" separators, no leading slash, no "." / ".." parts. */
+function playlistCleanKey(string $song): string {
+    $parts = array_filter(explode('/', str_replace('\\', '/', $song)), function ($part) {
+        return $part !== '' && $part !== '.' && $part !== '..';
+    });
+    return implode('/', $parts);
+}
+
+/** Normalise a list of song keys (de-duplicated). */
 function playlistCleanSongs($songs): array {
     if (is_string($songs)) {
         $decoded = json_decode($songs, true);
@@ -126,8 +190,8 @@ function playlistCleanSongs($songs): array {
     $clean = [];
     foreach ((array) $songs as $song) {
         if (!is_string($song)) continue;
-        $song = basename(str_replace('\\', '/', $song));
-        if ($song === '' || $song === '.' || $song === '..') continue;
+        $song = playlistCleanKey($song);
+        if ($song === '') continue;
         if (!in_array($song, $clean, true)) $clean[] = $song;
         if (count($clean) >= PLAYLIST_SONGS_MAX) break;
     }
@@ -136,7 +200,7 @@ function playlistCleanSongs($songs): array {
 
 /** Summary sent to the browser. */
 function playlistView(array $p): array {
-    $library = playlistLibrary();
+    $library = musicLibrary();
     $missing = array_values(array_filter($p['songs'], function ($s) use ($library) { return !isset($library[$s]); }));
     return [
         "id"      => $p['id'],
@@ -149,12 +213,30 @@ function playlistView(array $p): array {
         "description" => (string) ($p['description'] ?? ''),
         // Cache-busting token for the image URL, or null without an image
         "image"   => !empty($p['image']) ? (string) ($p['imageVersion'] ?? '1') : null,
+    ] + playlistAccessView($p);
+}
+
+/** Ownership and sharing, as the browser sees it. */
+function playlistAccessView(array $p): array {
+    $fav   = ($p['id'] ?? '') === PLAYLIST_FAVORITES;
+    $owner = $fav ? currentUserId() : playlistOwner($p);
+    $mine  = currentUserId() <= 0 || $owner === currentUserId();
+    return [
+        "mine"       => $mine,
+        "owner_name" => $mine ? null : (userNames()[$owner] ?? "Someone"),
+        "shared"     => !$fav && !empty($p['shared']),
+        "collab"     => !$fav && !empty($p['shared']) && !empty($p['collab']),
+        "can_edit"   => playlistCan($p, 'edit'),
     ];
 }
 
 function playlistNew(string $id, string $name, array $songs = []): array {
     $now = date('c');
-    return ["id" => $id, "name" => $name, "created" => $now, "updated" => $now, "version" => 1, "songs" => $songs];
+    $p = ["id" => $id, "name" => $name, "created" => $now, "updated" => $now, "version" => 1, "songs" => $songs];
+    if ($id !== PLAYLIST_FAVORITES && currentUserId() > 0) {
+        $p += ["owner" => currentUserId(), "shared" => false, "collab" => false];
+    }
+    return $p;
 }
 
 /**
@@ -162,8 +244,9 @@ function playlistNew(string $id, string $name, array $songs = []): array {
  * playlist (or null) and returns the new playlist array, false to delete,
  * or null to leave it unchanged. Returns the resulting playlist (or null).
  */
-function playlistWithLock(string $id, callable $fn, bool $create = false) {
+function playlistWithLock(string $id, callable $fn, bool $create = false, string $need = 'edit') {
     playlistEnsureDir();
+    playlistDenied(null);
     $path = playlistPath($id);
     if (!$create && !is_file($path) && $id !== PLAYLIST_FAVORITES) {
         return null;
@@ -177,6 +260,14 @@ function playlistWithLock(string $id, callable $fn, bool $create = false) {
     $data = $raw ? json_decode($raw, true) : null;
     if (!is_array($data) || !isset($data['songs'])) {
         $data = ($id === PLAYLIST_FAVORITES) ? playlistNew(PLAYLIST_FAVORITES, "Favorites") : null;
+    }
+
+    if ($data !== null && !$create && !playlistCan($data, $need)) {
+        // Hidden playlists look missing; visible ones say why they can't change.
+        playlistDenied(playlistCan($data, 'view') ? $need : 'view');
+        flock($fh, LOCK_UN);
+        fclose($fh);
+        return null;
     }
 
     $result = $fn($data);
@@ -215,24 +306,48 @@ function playlistRequireId($id): string {
 }
 
 function playlistNotFound(): void {
+    $denied = playlistDenied();
+    if ($denied === 'edit') {
+        apiResponse("error", "Only the owner can change this playlist.");
+    }
+    if ($denied === 'own') {
+        apiResponse("error", "Only the owner can do that.");
+    }
     apiResponse("error", "Playlist not found. It may have been deleted.");
+}
+
+/** Read a playlist the current user may see, or null. */
+function playlistRead(string $id): ?array {
+    $path = playlistPath($id);
+    $p = is_file($path) ? json_decode((string) @file_get_contents($path), true) : null;
+    if (!is_array($p) || !isset($p['songs'])) {
+        return $id === PLAYLIST_FAVORITES ? playlistNew(PLAYLIST_FAVORITES, "Favorites") : null;
+    }
+    $p['id'] = $id;
+    return playlistCan($p, 'view') ? $p : null;
+}
+
+/** Every playlist the current user may see, Favorites included. */
+function playlistsVisible(): array {
+    $lists = [];
+    foreach (glob(PLAYLIST_DIR . '/*.json') ?: [] as $file) {
+        $p = json_decode((string) @file_get_contents($file), true);
+        if (!is_array($p) || !isset($p['id'], $p['songs']) || !playlistValidId($p['id']) || $p['id'] === PLAYLIST_FAVORITES) continue;
+        if (!playlistCan($p, 'view')) continue;
+        $lists[] = $p;
+    }
+    $lists[] = playlistRead(PLAYLIST_FAVORITES);
+    return $lists;
 }
 
 /* ─────────────────────────────── Actions ────────────────────────────────── */
 function listPlaylists(): void {
     $lists = [];
-    $hasFavorites = false;
-    foreach (glob(PLAYLIST_DIR . '/*.json') ?: [] as $file) {
-        $p = json_decode((string) @file_get_contents($file), true);
-        if (!is_array($p) || !isset($p['id'], $p['songs']) || !playlistValidId($p['id'])) continue;
-        if ($p['id'] === PLAYLIST_FAVORITES) $hasFavorites = true;
+    foreach (playlistsVisible() as $p) {
         $view = playlistView($p);
         unset($view['songs']);
         $view['missing'] = count($view['missing']);
         $lists[] = $view;
-    }
-    if (!$hasFavorites) {
-        $lists[] = ["id" => PLAYLIST_FAVORITES, "name" => "Favorites", "version" => 0, "count" => 0, "missing" => 0, "updated" => null, "description" => "", "image" => null];
     }
     // Favorites first, then pinned playlists, then the rest; each group in the
     // saved order, with playlists that aren't in it yet (new ones) last by name.
@@ -257,9 +372,7 @@ function listPlaylists(): void {
 /** Playlists (id + name) that contain $song, Favorites first. */
 function playlistsContaining(string $song): array {
     $found = [];
-    foreach (glob(PLAYLIST_DIR . '/*.json') ?: [] as $file) {
-        $p = json_decode((string) @file_get_contents($file), true);
-        if (!is_array($p) || !isset($p['id'], $p['songs']) || !playlistValidId($p['id'])) continue;
+    foreach (playlistsVisible() as $p) {
         if (in_array($song, (array) $p['songs'], true)) {
             $found[] = ["id" => $p['id'], "name" => (string) ($p['name'] ?? '')];
         }
@@ -274,12 +387,30 @@ function playlistsContaining(string $song): array {
 
 function getPlaylist($id): void {
     $id = playlistRequireId($id);
-    if ($id !== PLAYLIST_FAVORITES && !is_file(playlistPath($id))) {
-        playlistNotFound();
-    }
-    $raw = $id === PLAYLIST_FAVORITES && !is_file(playlistPath($id)) ? null : json_decode((string) @file_get_contents(playlistPath($id)), true);
-    $p = is_array($raw) && isset($raw['songs']) ? $raw : playlistNew(PLAYLIST_FAVORITES, "Favorites");
+    $p = playlistRead($id);
+    if ($p === null) playlistNotFound();
     apiResponse("success", "ok", playlistView($p));
+}
+
+/** Share a playlist with everyone (read-only, or editable with $collab). Owner only. */
+function setPlaylistSharing($id, $shared, $collab): void {
+    $id = playlistRequireId($id);
+    if ($id === PLAYLIST_FAVORITES) {
+        apiResponse("error", "Favorites are your own and can't be shared.");
+    }
+    $shared = filter_var($shared, FILTER_VALIDATE_BOOLEAN);
+    $collab = $shared && filter_var($collab, FILTER_VALIDATE_BOOLEAN);
+    $p = playlistWithLock($id, function ($p) use ($shared, $collab) {
+        if ($p === null) return null;
+        $p['owner']  = playlistOwner($p);
+        $p['shared'] = $shared;
+        $p['collab'] = $collab;
+        $p['version']++;
+        return $p;
+    }, false, 'own');
+    if ($p === null) playlistNotFound();
+    $msg = !$shared ? "Only you can see this playlist now." : ($collab ? "Shared: everyone can see and edit it." : "Shared: everyone can see and play it.");
+    apiResponse("success", $msg, playlistView($p));
 }
 
 function createPlaylist($name, $songs = []): void {
@@ -323,7 +454,9 @@ function deletePlaylist($id): void {
         apiResponse("error", "Favorites can't be deleted.");
     }
     if (!is_file(playlistPath($id))) playlistNotFound();
-    playlistWithLock($id, function () { return false; });
+    $deleted = false;
+    playlistWithLock($id, function ($p) use (&$deleted) { $deleted = $p !== null; return $p === null ? null : false; }, false, 'own');
+    if (!$deleted) playlistNotFound();
     playlistRemoveImageFiles($id);
     playlistUpdateLayout(function ($l) use ($id) {
         $l['order']  = array_diff($l['order'], [$id]);
@@ -417,9 +550,9 @@ function removePlaylistImage($id): void {
 
 /** Send a playlist's image (not JSON). The page adds &v=<token>, so it caches for good. */
 function playlistImage($id): void {
-    if (session_status() === PHP_SESSION_ACTIVE) session_write_close(); // let images load in parallel
     $id = (string) $id;
-    $raw = playlistValidId($id) && is_file(playlistPath($id)) ? json_decode((string) @file_get_contents(playlistPath($id)), true) : null;
+    $raw = playlistValidId($id) ? playlistRead($id) : null;
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close(); // let images load in parallel
     $ext = is_array($raw) ? (string) ($raw['image'] ?? '') : '';
     $path = isset(PLAYLIST_IMAGE_TYPES[$ext]) ? playlistImagePath($id, $ext) : '';
     if ($path === '' || !is_file($path)) {
@@ -470,7 +603,7 @@ function setPlaylistPinned($id, $pinned): void {
 function addToPlaylist($id, $songs): void {
     $id    = playlistRequireId($id);
     $songs = playlistCleanSongs($songs);
-    $library = playlistLibrary();
+    $library = musicLibrary();
     $songs = array_values(array_filter($songs, function ($s) use ($library) { return isset($library[$s]); }));
     if (!$songs) {
         apiResponse("error", "Those songs aren't in the library.");
@@ -535,7 +668,7 @@ function reorderPlaylist($id, $songs, $ifVersion): void {
 
 function toggleFavorite($song): void {
     $song = playlistCleanSongs([$song])[0] ?? '';
-    if ($song === '' || !isset(playlistLibrary()[$song])) {
+    if ($song === '' || !isset(musicLibrary()[$song])) {
         apiResponse("error", "That song isn't in the library.");
     }
     $favorite = false;
@@ -556,25 +689,22 @@ function toggleFavorite($song): void {
 /** Send a playlist as an .m3u download (not JSON). */
 function exportPlaylist($id): void {
     $id = playlistRequireId($id);
-    $path = playlistPath($id);
-    $p = is_file($path) ? json_decode((string) file_get_contents($path), true) : null;
-    if (!is_array($p) || !isset($p['songs'])) {
-        if ($id !== PLAYLIST_FAVORITES) playlistNotFound();
-        $p = playlistNew(PLAYLIST_FAVORITES, "Favorites");
-    }
+    $p = playlistRead($id);
+    if ($p === null) playlistNotFound();
+    // Players outside the browser have no session: the links carry a media token.
+    $token = authRequired() ? '&t=' . rawurlencode(streamToken()) : '';
 
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host   = preg_replace('/[^a-z0-9.\-:\[\]]/i', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
     $base   = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
-    $audio  = trim((string) getConfig("audio_path"), '/');
-    $library = playlistLibrary();
+    $library = musicLibrary();
 
     $lines = ["#EXTM3U", "#PLAYLIST:" . $p['name']];
     foreach ($p['songs'] as $song) {
         if (!isset($library[$song])) continue;
-        [$m, $s] = array_map('intval', explode(':', getDuration($audio . '/' . $song)) + [0, 0]);
+        [$m, $s] = array_map('intval', explode(':', getDuration($library[$song])) + [0, 0]);
         $lines[] = "#EXTINF:" . ($m * 60 + $s) . "," . pathinfo($song, PATHINFO_FILENAME);
-        $lines[] = "$scheme://$host$base/" . implode('/', array_map('rawurlencode', explode('/', $audio))) . "/" . rawurlencode($song);
+        $lines[] = "$scheme://$host$base/" . songUrl($song) . $token;
     }
 
     $filename = preg_replace('/[^\w\- ]+/u', '', $p['name']) ?: 'playlist';
@@ -604,10 +734,13 @@ function importPlaylist(array $file): void {
         $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
     }
 
-    // Library lookup by lower-case name for case-insensitive matching
+    // Library lookup by lower-case key, and by file name alone (first one wins),
+    // for case-insensitive matching
     $byLower = [];
-    foreach (array_keys(playlistLibrary()) as $song) {
+    $byName  = [];
+    foreach (array_keys(musicLibrary()) as $song) {
         $byLower[mb_strtolower($song)] = $song;
+        $byName[mb_strtolower(basename($song))] ??= $song;
     }
 
     $name = '';
@@ -621,9 +754,20 @@ function importPlaylist(array $file): void {
             continue;
         }
         if ($line[0] === '#') continue;
-        $entry = rawurldecode(str_replace('\\', '/', parse_url($line, PHP_URL_PATH) ?? $line));
+        // Our own exports link to stream.php?file=<key>
+        parse_str((string) parse_url($line, PHP_URL_QUERY), $query);
+        $entry = isset($query['file']) && is_string($query['file'])
+            ? $query['file']
+            : rawurldecode(str_replace('\\', '/', parse_url($line, PHP_URL_PATH) ?? $line));
+        $entry = mb_strtolower(playlistCleanKey($entry));
         $base  = basename($entry);
-        $song  = $byLower[mb_strtolower($base)] ?? null;
+        // The longest tail of the path that is a song key, then the file name
+        $song  = null;
+        $parts = explode('/', $entry);
+        for ($i = 0; $i < count($parts) && $song === null; $i++) {
+            $song = $byLower[implode('/', array_slice($parts, $i))] ?? null;
+        }
+        $song ??= $byName[$base] ?? null;
         if ($song !== null) {
             if (!in_array($song, $matched, true)) $matched[] = $song;
         } else {

@@ -45,11 +45,11 @@ $config = [
         "value"       => ["mp3", "ogg", "wav"],
         "type"        => "array",
     ],
-    "audio_path" => [
-        "name"        => "Audio Path",
-        "description" => "Path to the directory containing audio files",
-        "value"       => "music",
-        "type"        => "string",
+    "music_folders" => [
+        "name"        => "Music folders",
+        "description" => "Folders with your audio files. Uploads go to the first one.",
+        "value"       => [["path" => "music", "recursive" => true]],
+        "type"        => "folders",
     ],
     "use_legacy_player" => [
         "name"        => "Use Legacy Player",
