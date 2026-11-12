@@ -709,6 +709,7 @@ function moreFormatter(value, row) {
     }
     items.push(
       { label: "Song info", icon: "info", run: function () { if (window.songInfoPanel) songInfoPanel.openFor(song); } },
+      { label: "Edit info", icon: "pencil", run: function () { if (window.songEditor) songEditor.open(song); } },
       { label: "Download", icon: "download", run: function () { downloadSong(id); } },
       { label: "Copy song name", icon: "copy", run: function () { copyText(songTitle(id)); } }
     );

@@ -41,6 +41,7 @@ Taken with a generated demo library.
 - [x] **Previous** works like other players: after 3 seconds it restarts the song; otherwise it goes back to the song actually played before (a play history, also with shuffle on), and Next then retraces the songs you stepped back from
 - [x] **Queue panel**: a side panel with what's playing now, your queue and what plays next (see below)
 - [x] **Song info card**: click the song in the playbar (or pick *Song info* in a song's menu) to slide in a card with its cover, tags, audio details (bitrate, sample rate, channels), file size, date added and the playlists it is in, plus release details, an artist bio and similar artists looked up online (see [Online song info](#online-song-info))
+- [x] **Edit song info**: fix a song's title, artist, album, year, genre, track, comment and cover, kept in the app or written into the file's tags (see [Editing song info](#editing-song-info))
 - [x] **Lyrics** for the current song from [LRCLIB](https://lrclib.net), synced line by line when available (see below)
 - [x] Download and delete songs
 - [x] Upload files (multiple at once) directly from the web UI
@@ -139,12 +140,38 @@ Among that recording's releases, an official album or single is preferred over c
 
 The first lookup of a song takes a few seconds, because MusicBrainz allows one request per second. Every answer,
 including "not found", is cached in `cache/online/`. A "not found" is looked up again after 30 days. Network errors and
-rate limiting are not cached. Turn it off with *Online song info* in Settings → Library. When it is on, artist and
+rate limiting are not cached. Turn it off with *Online song info* in Settings → Song info. When it is on, artist and
 title names are sent to these services.
 
 **AcoustID (optional):** to identify badly tagged songs by their sound, install `fpcalc` (Chromaprint;
 `apt install libchromaprint-tools`, already in the Docker image) and paste a free [AcoustID](https://acoustid.org/new-application)
-API key into *AcoustID API key* in Settings → Library.
+API key into *AcoustID API key* in Settings → Song info.
+
+**Fetch metadata:** Settings → Song info → *Fetch metadata* looks up the whole library at once, instead of one song
+whenever its card is opened. It runs on the server (`tools/fetch-metadata.php`, started in the background), so you can
+close the page; the dialog shows its progress, a log and a Stop button whenever you come back. *Songs not looked up yet*
+skips songs that are already cached; *Every song* looks them all up again. New songs take about 5 seconds each. Below
+it, *Songs without info* lists the songs that weren't found, each with an Edit button. The job can also run from a
+terminal or cron, as the web server's user:
+
+```bash
+sudo -u www-data php tools/fetch-metadata.php --mode=missing
+```
+
+### Editing song info
+
+*Edit info* (the pencil in the song info card, or in a song's ⋯ menu) opens an editor for the title, artist, album,
+year, genre, track, comment and cover. Empty fields keep the file's own value, which is shown in grey.
+
+- **Save** keeps the changes in the app only, in `metadata/overrides.json` (with covers in `metadata/covers/`). The
+  music file isn't touched, so this works on read-only folders, and *Reset* undoes it. Edited values show everywhere
+  (song list, playbar, media controls, lyrics lookup) and are marked *edited* in the song info card.
+- **Save to file** writes the fields (and the cover) into the MP3's ID3v2.3 tags with
+  [getID3](https://github.com/JamesHeinrich/getID3), keeping its other tags, so every player sees them. Only for MP3
+  files the web server can write to.
+- **Fill from MusicBrainz** copies what MusicBrainz knows into the fields the song is missing.
+- **MusicBrainz recording**: for a song that isn't found or matched wrongly, paste the right song's link from
+  musicbrainz.org. Its release info, cover and similar artists are then used for the card.
 
 ### Cover art
 
@@ -154,6 +181,7 @@ API key into *AcoustID API key* in Settings → Library.
 - Extracted covers are cached in `cache/covers/` (git-ignored; created automatically if the web server can write to
   the app folder). Responses carry `ETag`/`Last-Modified` headers and are versioned by the file's modification time,
   so a retagged file shows its new cover.
+- A cover set in the song editor wins over the file's own, which wins over one found online (Cover Art Archive).
 - Songs without a cover show a music-note placeholder in the current accent colour. The OS media
   overlay and Cast speakers show `assets/branding/logo.png` instead.
 
@@ -215,7 +243,7 @@ between **All songs**, **Favorites** and your playlists.
 
 - PHP 8.x with a web server (Apache, nginx + PHP-FPM, etc.)
 - PHP extensions: `mbstring` (required), `curl` (lyrics), `gd` (optional: resizes cover art; without it covers are sent at full size)
-- [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`)
+- [Composer](https://getcomposer.org/) (dependencies: `vlucas/phpdotenv`, `wapmorgan/mp3info`, `james-heinrich/getid3`)
 - Write access for the web server user to:
   - the music folder (uploads) and the app folder, where deleted songs are moved to `deleted/`
   - the active config file (settings dialog)
@@ -395,6 +423,10 @@ VERSION  = "vX.Y.Z"
 | `playlists.php` | Playlists and Favorites: storage (locked JSON files), M3U import/export |
 | `lyrics.php` | Lyrics lookup on LRCLIB (ID3 tags / file name matching) with a disk cache |
 | `metadata.php` | Online song info for the song info card (MusicBrainz, Cover Art Archive, Wikipedia, ListenBrainz, optional AcoustID), cached in `cache/online/` |
+| `metajob.php` | The *Fetch metadata* background job: state, start/stop, songs without info |
+| `tools/fetch-metadata.php` | Command-line runner for the *Fetch metadata* job (also usable from cron) |
+| `songedit.php` | Edited song info: app overrides (`metadata/`) and writing ID3 tags with getID3 |
+| `songedit.js` | Song editor dialog and the *Fetch metadata* panel in Settings |
 | `api.php` | JSON API used by the frontend |
 | `js.php` | Frontend logic (jQuery), served inline |
 | `modals.php` | Settings and session modals |
@@ -412,6 +444,7 @@ VERSION  = "vX.Y.Z"
 | `music/` | Default audio folder (ships with a few sample tracks) |
 | `session/` | Listening session JSON files (created at runtime, git-ignored) |
 | `playlists/` | Playlist JSON files (created at runtime, git-ignored) |
+| `metadata/` | Edited song info and covers (created at runtime, git-ignored) |
 | `cache/` | `covers/`, `meta/` (ID3 tags and durations) and `lyrics/` caches (created at runtime, git-ignored) |
 | `deleted/` | Songs deleted from the UI are moved here, not erased (created at runtime, git-ignored) |
 | `Dockerfile` | Container image definition |

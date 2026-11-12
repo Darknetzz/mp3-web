@@ -101,7 +101,8 @@
         lucideIcon("heart", fav ? "filled" : "") + '</button>' +
       '<button type="button" class="btn btn-icon btn-pill btn-ghost-secondary" data-act="playlist" aria-haspopup="menu" title="Add to playlist" aria-label="Add to playlist">' + lucideIcon("list-plus") + '</button>' +
       (isCurrent ? '<button type="button" class="btn btn-icon btn-pill btn-ghost-secondary" data-act="lyrics" title="Lyrics (Y)" aria-label="Lyrics">' + lucideIcon("mic-vocal") + '</button>' : "") +
-      '<button type="button" class="btn btn-icon btn-pill btn-ghost-secondary" data-act="download" title="Download" aria-label="Download">' + lucideIcon("download") + '</button>';
+      '<button type="button" class="btn btn-icon btn-pill btn-ghost-secondary" data-act="download" title="Download" aria-label="Download">' + lucideIcon("download") + '</button>' +
+      (window.songEditor ? '<button type="button" class="btn btn-icon btn-pill btn-ghost-secondary" data-act="edit" title="Edit info" aria-label="Edit info">' + lucideIcon("pencil") + '</button>' : "");
     body.find(".siActions").html(html);
   }
 
@@ -127,6 +128,7 @@
     return { d: out, filled: filled };
   }
   var MB_HINT = ' <span class="siFrom" title="Not in the file’s tags: from MusicBrainz">MusicBrainz</span>';
+  var EDIT_HINT = ' <span class="siFrom" title="Edited in this app; the file says otherwise">edited</span>';
 
   // Untagged file: name the song and artist in the hero as MusicBrainz knows them.
   function fillHero(song, local) {
@@ -148,9 +150,11 @@
     var audio = [];
     if (d.bitrate) audio.push(d.bitrate + " kbps" + (d.vbr ? " VBR" : ""));
     if (d.sampleRate) audio.push(fmtRate(d.sampleRate));
+    var edited = {};
+    (local.edited || []).forEach(function (f) { edited[f] = true; });
     var rows = [
-      ["Genre", d.genre, m.filled.genre],
-      ["Track", d.track, m.filled.track],
+      ["Genre", d.genre, m.filled.genre, edited.genre],
+      ["Track", d.track, m.filled.track, edited.track],
       ["Duration", d.duration && d.duration !== "0:00" ? d.duration : ""],
       ["Audio", audio.join(" · ")],
       ["Channels", d.channels],
@@ -162,10 +166,13 @@
     var html = '<dl class="siList">';
     rows.forEach(function (r) {
       if (!r[1]) return;
-      html += '<dt>' + esc(r[0]) + '</dt><dd' + (r[0] === "File" ? ' class="siFile"' : "") + '>' + esc(r[1]) + (r[2] ? MB_HINT : "") + '</dd>';
+      html += '<dt>' + esc(r[0]) + '</dt><dd' + (r[0] === "File" ? ' class="siFile"' : "") + '>' + esc(r[1]) + (r[2] ? MB_HINT : "") + (r[3] ? EDIT_HINT : "") + '</dd>';
     });
     html += '</dl>';
     if (d.comment) html += '<p class="siComment text-secondary small">' + esc(d.comment) + '</p>';
+    if (local.edited && local.edited.length) {
+      html += '<p class="siEdited small text-secondary">' + lucideIcon("pencil") + 'Some info here was edited in this app: ' + esc(local.edited.join(", ")) + '.</p>';
+    }
 
     html += '<section class="siPlaylists"><h4 class="qpTitle">In playlists</h4>';
     if (d.playlists && d.playlists.length) {
@@ -327,6 +334,9 @@
       case "download":
         if (id !== null) downloadSong(id);
         break;
+      case "edit":
+        if (window.songEditor) songEditor.open(song);
+        break;
     }
   });
   body.on("click", ".siChip[data-playlist]", function () {
@@ -407,6 +417,12 @@
       var song = currentSong();
       if (song !== shown) render(song);
       else renderActions();
+    },
+    // The song's info was edited (songedit.js): look everything up again.
+    songEdited: function (song) {
+      delete cache[song];
+      delete online[song];
+      if (isOpen() && shown === song) render(song);
     },
     // A playlist was edited: membership may have changed.
     playlistsChanged: function () {

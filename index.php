@@ -479,8 +479,7 @@ foreach ($musicFiles as $file) {
     # Cover thumbnails are fetched lazily from cover.php; nothing is extracted here.
     $mtime    = filemtime($filePath);
     $meta     = getSongMeta($filePath);  # ID3 tags + duration, cached in cache/meta/
-    $onlineCover = metaCoverFile($filePath);
-    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.($onlineCover ? max($mtime, (int) filemtime($onlineCover)) : $mtime);
+    $coverSrc = 'cover.php?file='.rawurlencode($file).'&amp;size=sm&amp;v='.songCoverVersion($filePath);
     # TODO: Fix `data-value` attribute
     echo '
     <tr class="songrow hover-pointer" data-filename="'.$audioName.'">
@@ -529,6 +528,7 @@ echo '</div>'; // .appLayout
 <script src="queue.js?v=<?= @filemtime(__DIR__ . '/queue.js') ?>"></script>
 <script src="lyrics.js?v=<?= @filemtime(__DIR__ . '/lyrics.js') ?>"></script>
 <script src="songinfo.js?v=<?= @filemtime(__DIR__ . '/songinfo.js') ?>"></script>
+<script src="songedit.js?v=<?= @filemtime(__DIR__ . '/songedit.js') ?>"></script>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 
 </html>

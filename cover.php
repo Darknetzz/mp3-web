@@ -50,10 +50,12 @@ if (!in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $allowed, true)) 
 }
 
 /* ─────────────────────────────── Conditional ────────────────────────────── */
-// A cover found online (metadata.php) counts as a change to the song.
+// A cover edited in the app (songedit.php) or found online (metadata.php)
+// counts as a change to the song.
+$edited = songOverrideCoverFile($path);
 $online = metaCoverFile($path);
-$mtime  = max(filemtime($path), $online ? (int) filemtime($online) : 0);
-$etag   = '"' . sha1($path . '|' . $mtime . '|' . filesize($path) . '|' . $size . '|' . ($online ? 'o' : '')) . '"';
+$mtime  = songCoverVersion($path);
+$etag   = '"' . sha1($path . '|' . $mtime . '|' . filesize($path) . '|' . $size . '|' . ($edited ? 'e' : '') . ($online ? 'o' : '')) . '"';
 // The page adds &v=<mtime> to the URL, so a versioned URL can be cached for good.
 $maxAge = isset($_GET['v']) ? 31536000 : 86400;
 header('Cache-Control: public, max-age=' . $maxAge);
@@ -89,8 +91,8 @@ if ($canCache) {
 }
 
 /* ───────────────────────────────── Extract ──────────────────────────────── */
-$data = null;
-try {
+$data = $edited ? (string) @file_get_contents($edited) : null;   // an edited cover wins
+if (!$data) try {
     $info = new wapmorgan\Mp3Info\Mp3Info($path, true);
     if ($info->hasCover) {
         $data = $info->getCover();

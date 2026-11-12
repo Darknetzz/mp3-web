@@ -215,6 +215,40 @@ do {
         getSongOnline($_GET['file'] ?? '');
     }
 
+    /* ─────────────────────────── Editing song info ─────────────────────── */
+    if ($action === 'songEditInfo') {
+        apiResponse("success", "ok", songEditInfo($_GET['file'] ?? ''));
+    }
+    if ($action === 'songEdit') {
+        require_csrf_token();
+        songSaveOverride($_POST['file'] ?? '', $_POST);
+    }
+    if ($action === 'songEditReset') {
+        require_csrf_token();
+        songResetOverride($_POST['file'] ?? '');
+    }
+    if ($action === 'songCover') {
+        require_csrf_token();
+        songSetCover($_POST['file'] ?? '', $_FILES, !empty($_POST['remove']));
+    }
+    if ($action === 'songWriteTags') {
+        require_csrf_token();
+        songSaveToFile($_POST['file'] ?? '', $_POST, $_FILES);
+    }
+
+    /* ──────────────────────────── Fetch metadata job ───────────────────── */
+    if ($action === 'metaJobStatus') {
+        metaJobStatus();
+    }
+    if ($action === 'metaJobStart') {
+        require_csrf_token();
+        metaJobStart($_POST['mode'] ?? 'missing');
+    }
+    if ($action === 'metaJobStop') {
+        require_csrf_token();
+        metaJobStop();
+    }
+
     /* ──────────────────────────────── Lyrics ─────────────────────────────── */
     if ($action === 'lyrics') {
         getLyrics($_GET['song'] ?? '');

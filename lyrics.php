@@ -72,6 +72,18 @@ function lyricsCandidates(string $path, ?float &$duration, ?string &$haystack = 
 
     $tagArtist = trim((string) ($tags['artist'] ?? ''));
     $tagTitle  = trim((string) ($tags['song'] ?? ''));
+
+    // Edited in the app (songedit.php): the best guess there is.
+    $edit = function_exists('songOverride') ? songOverride($path) : [];
+    if (($edit['title'] ?? '') !== '' || ($edit['artist'] ?? '') !== '') {
+        $editArtist = (string) ($edit['artist'] ?? $tagArtist);
+        $editTitle  = (string) ($edit['title'] ?? $tagTitle);
+        $add($editArtist, $editTitle);
+        $add($editArtist, lyricsCleanTitle($editTitle));
+        $add(lyricsFirstArtist($editArtist), lyricsCleanTitle($editTitle));
+        $tagArtist .= ' ' . $editArtist;   // for the haystack below
+        $tagTitle  .= ' ' . $editTitle;
+    }
     if ($tagTitle !== '') {
         $add($tagArtist, $tagTitle);
         $add($tagArtist, lyricsCleanTitle($tagTitle));

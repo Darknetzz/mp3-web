@@ -155,7 +155,8 @@
     /* ────────────────────────── FUNCTION: getSongMeta ───────────────────────── */
     // ID3 title/artist/album/year plus duration, read in one pass. Results are
     // cached in cache/meta/ (git-ignored) until the file changes. Missing tags are ''.
-    function getSongMeta(string $file): array {
+    // Edits made in the app (songedit.php) are applied on top unless $raw.
+    function getSongMeta(string $file, bool $raw = false): array {
         $meta = ['title' => '', 'artist' => '', 'album' => '', 'year' => '', 'duration' => '0:00'];
         if (!is_file($file)) {
             return $meta;
@@ -166,7 +167,8 @@
         if (is_file($cached) && filemtime($cached) >= $mtime) {
             $data = json_decode((string) @file_get_contents($cached), true);
             if (is_array($data)) {
-                return array_merge($meta, array_intersect_key($data, $meta));
+                $meta = array_merge($meta, array_intersect_key($data, $meta));
+                return $raw ? $meta : songApplyOverride($file, $meta);
             }
         }
 
@@ -191,15 +193,15 @@
         if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
             @file_put_contents($cached, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
-        return $meta;
+        return $raw ? $meta : songApplyOverride($file, $meta);
     }
 
     /* ───────────────────────── FUNCTION: getSongDetails ─────────────────────── */
     // Everything the song info card shows: getSongMeta() plus genre, track,
     // comment and the audio stream (bitrate, sample rate, channels). Cached in
     // cache/meta/ under its own key, so the song table's lighter read stays cheap.
-    function getSongDetails(string $file): array {
-        $details = getSongMeta($file) + [
+    function getSongDetails(string $file, bool $raw = false): array {
+        $details = getSongMeta($file, true) + [
             'genre' => '', 'track' => '', 'comment' => '', 'seconds' => 0,
             'bitrate' => 0, 'sampleRate' => 0, 'channels' => '', 'vbr' => false,
             'format' => strtoupper(pathinfo($file, PATHINFO_EXTENSION)),
@@ -215,7 +217,8 @@
         if (is_file($cached) && filemtime($cached) >= $details['modified']) {
             $data = json_decode((string) @file_get_contents($cached), true);
             if (is_array($data)) {
-                return array_merge($details, array_intersect_key($data, $details));
+                $details = array_merge($details, array_intersect_key($data, $details));
+                return $raw ? $details : songApplyOverride($file, $details + ['edited' => []]);
             }
         }
 
@@ -245,7 +248,7 @@
         if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
             @file_put_contents($cached, json_encode($details, JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
-        return $details;
+        return $raw ? $details : songApplyOverride($file, $details + ['edited' => []]);
     }
 
     /* ───────────────────────── FUNCTION: songGenreName ─────────────────────── */

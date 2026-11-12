@@ -287,6 +287,11 @@ function metaForgetCovers(string $path): void {
     foreach (glob(__DIR__ . '/cache/covers/' . sha1(realpath($path) ?: $path) . '-*') ?: [] as $f) @unlink($f);
 }
 
+/** Forget a song's cached lookup (its match changed). */
+function metaForgetLookup(string $path): void {
+    @unlink(metaCacheBase($path) . '.json');
+}
+
 /** Does the file have a cover embedded? */
 function metaHasEmbeddedCover(string $path): bool {
     try {
@@ -307,8 +312,12 @@ function metaLookup(string $path): array {
     // 1. Which recording is it?
     $recId  = null;
     $source = 'search';
-    $ids = metaAcoustId($path);
-    if ($ids) {
+    $pinned = songOverride($path)['mbid'] ?? '';
+    $ids = $pinned === '' ? metaAcoustId($path) : [];
+    if ($pinned !== '') {
+        $recId  = $pinned;     // chosen by hand in the song editor
+        $source = 'pinned';
+    } elseif ($ids) {
         $recId  = $ids[0];
         $source = 'acoustid';
     } else {
@@ -371,13 +380,13 @@ function metaLookup(string $path): array {
     $official = $rel && ($rel['status'] ?? '') === 'Official' && empty($rel['release-group']['secondary-types']);
 
     $hasCover = metaCoverFile($path) !== null;
-    if (!$official && !metaHasEmbeddedCover($path)) {
+    if ((!$official || songOverrideCoverFile($path)) && !metaHasEmbeddedCover($path)) {
         // A cover saved by an earlier lookup no longer holds up: drop it, and cover.php's copies.
         if ($hasCover) @unlink(metaCoverFile($path));
         metaForgetCovers($path);
         $hasCover = false;
     }
-    if (!$hasCover && $official && !metaHasEmbeddedCover($path)) {
+    if (!$hasCover && $official && !songOverrideCoverFile($path) && !metaHasEmbeddedCover($path)) {
         $hasCover = metaSaveCover($path, $rel['id'] ?? null, $rel['release-group']['id'] ?? null);
     }
 
@@ -417,6 +426,32 @@ function metaLookup(string $path): array {
     ];
 }
 
+/** The cached record for a song if it is still fresh, else null. */
+function metaCached(string $path): ?array {
+    $cacheFile = metaCacheBase($path) . '.json';
+    if (!is_file($cacheFile)) return null;
+    $cached = json_decode((string) @file_get_contents($cacheFile), true);
+    $fresh  = is_array($cached)
+        && ($cached['v'] ?? 0) === META_CACHE_FORMAT
+        && @filemtime($cacheFile) >= @filemtime($path)
+        && (!empty($cached['found']) || time() - (int) ($cached['checked'] ?? 0) < META_RETRY_AFTER);
+    return $fresh ? $cached : null;
+}
+
+/** The record for a song: from the cache, or looked up and cached ($force: always look up).
+ *  Throws MetaNetworkError (nothing is cached then). */
+function metaRefresh(string $path, bool $force = false): array {
+    if (!is_dir(META_CACHE_DIR) && !@mkdir(META_CACHE_DIR, 0775, true)) {
+        throw new MetaNetworkError("Can't write to cache/online/.");
+    }
+    if (!$force && ($cached = metaCached($path))) {
+        return $cached + ['cached' => true];
+    }
+    $record = metaLookup($path);
+    @file_put_contents(metaCacheBase($path) . '.json', json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    return $record + ['cached' => false];
+}
+
 /** API: online metadata for a song, from the cache or the sources above. */
 function getSongOnline($song): void {
     if (!getConfig('online_metadata')) {
@@ -426,33 +461,18 @@ function getSongOnline($song): void {
     if ($path === null) {
         apiResponse("error", "Song not found.");
     }
-    if (!is_dir(META_CACHE_DIR) && !@mkdir(META_CACHE_DIR, 0775, true)) {
-        apiResponse("error", "Can't write to cache/online/.");
-    }
-
-    $cacheFile = metaCacheBase($path) . '.json';
-    if (is_file($cacheFile)) {
-        $cached = json_decode((string) @file_get_contents($cacheFile), true);
-        $fresh  = is_array($cached)
-            && ($cached['v'] ?? 0) === META_CACHE_FORMAT
-            && @filemtime($cacheFile) >= @filemtime($path)
-            && (!empty($cached['found']) || time() - (int) ($cached['checked'] ?? 0) < META_RETRY_AFTER);
-        if ($fresh) {
-            $cached['cached'] = true;
-            apiResponse("success", "ok", $cached);
-        }
+    if ($cached = metaCached($path)) {
+        apiResponse("success", "ok", $cached + ['cached' => true]);
     }
 
     // Looking up takes a few seconds (MusicBrainz's rate limit); don't hold the session lock.
     session_write_close();
     @set_time_limit(90);
     try {
-        $record = metaLookup($path);
+        $record = metaRefresh($path);
     } catch (MetaNetworkError $e) {
         error_log('mp3-web online metadata: ' . $e->getMessage());
         apiResponse("error", "Couldn't reach MusicBrainz. Try again later.");
     }
-    @file_put_contents($cacheFile, json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
-    $record['cached'] = false;
     apiResponse("success", "ok", $record);
 }

@@ -68,4 +68,6 @@
     include_once('playlists.php');
     include_once('lyrics.php');
     include_once('metadata.php');
+    include_once('songedit.php');
+    include_once('metajob.php');
 ?>

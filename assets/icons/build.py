@@ -34,7 +34,7 @@ ICONS = [
     # lyrics panel
     "mic-vocal", "music",
     # song info card (online metadata)
-    "external-link", "disc-3", "globe",
+    "external-link", "disc-3", "globe", "save", "triangle-alert",
     # playlist customization
     "pin", "pin-off", "image-off",
 ]
