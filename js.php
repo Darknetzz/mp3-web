@@ -677,6 +677,9 @@
     var activeRow = $("tr.songrow[data-uniqueid='" + index + "']");
     window.currentIndex = index;
     activeRow.addClass(activeClass).children().addClass(activeClass);
+    // A selection on the song that was playing follows playback to the new
+    // song; a selection the user made elsewhere is left alone.
+    if (selectedId !== null && (selectedId === prevId || selectedId === index)) selectSong(index);
     scrollToActiveSong();
     if (window.playlistsUI) playlistsUI.songChanged();
     if (window.songInfoPanel) songInfoPanel.refresh();

@@ -1,13 +1,14 @@
-# Use official PHP (latest stable) with Apache (includes latest Apache 2.x)
-FROM php:8.3-apache
+# Official PHP image with Apache (pinned PHP version)
+FROM php:8.5.12-apache
 
-# Install system dependencies and common PHP extensions (adjust as needed)
+# Install system dependencies and common PHP extensions (adjust as needed).
+# OPcache is built into PHP 8.5+, so it is not installed here.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libzip-dev libicu-dev libonig-dev libpng-dev libjpeg-dev libfreetype6-dev libxml2-dev git unzip curl git \
         libchromaprint-tools \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo pdo_mysql mysqli intl zip gd opcache \
+    && docker-php-ext-install -j$(nproc) pdo pdo_mysql mysqli intl zip gd \
     && a2enmod rewrite headers expires \
     && rm -rf /var/lib/apt/lists/*
 

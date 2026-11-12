@@ -147,13 +147,16 @@ body.songIsPlaying tr.table-active .coverPlay .icon-play {
 body.songIsPlaying tr.table-active .coverPlay .icon-pause {
   display: inline-block;
 }
-tbody > tr:hover .coverPlay,
-tr.songSelected .coverPlay {
+/* Mouse: only on hover. Touch (no hover): always on the selected row. */
+tbody > tr:hover .coverPlay {
   opacity: 1;
 }
 @media (hover: none) {
   tbody > tr:hover:not(.songSelected) .coverPlay {
     opacity: 0;
+  }
+  tr.songSelected .coverPlay {
+    opacity: 1;
   }
 }
 
