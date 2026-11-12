@@ -835,7 +835,7 @@ body.player-top .toast-container {
   margin-top: 2px;
 }
 .settingSaved {
-  color: var(--tblr-success);
+  color: #2fb344;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -991,9 +991,23 @@ body.player-top .toast-container {
 .settingsFile {
   margin-top: 1.25rem;
 }
-.settingsFooter {
-  border-top: 1px solid var(--tblr-border-color);
-  background: var(--tblr-bg-surface);
+.settingsReloadAlert {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-bottom: 1rem;
+}
+.settingsReloadAlert[hidden] {
+  display: none !important;
+}
+.settingReloadNote {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--tblr-warning);
+  background: color-mix(in srgb, var(--tblr-warning) 14%, transparent);
 }
 
 /* Narrow screens: nav becomes a pill row, rows stack */

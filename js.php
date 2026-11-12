@@ -53,6 +53,9 @@
   var rememberPosition      = <?= json_encode((bool) getConfig("remember_position")) ?>;
   var castEndAction         = <?= json_encode((string) getConfig("cast_end_action")) ?>; // "continue" or "pause"
   var playerTimeFormat      = <?= json_encode((string) getConfig("player_time_format")) ?>; // "total" or "remaining"
+  var autoScroll            = <?= json_encode((bool) getConfig("auto_scroll")) ?>;
+  var autoScrollOnEnd       = <?= json_encode((bool) getConfig("auto_scroll_on_end")) ?>;
+  var noSongText            = <?= json_encode((string) getConfig("no_song_text")) ?>;
   // Read by waveform.js; the settings modal updates it live via waveform.configure()
   window.waveformConfig     = {
     enabled:     <?= json_encode((bool) getConfig("show_waveform")) ?>,
@@ -510,11 +513,8 @@
 
   /* ────────────────────── FUNCTION: scrollToActiveSong ────────────────────── */
   function scrollToActiveSong() {
-    var autoScroll = <?= json_encode(getConfig("auto_scroll")) ?>;
-    if (!autoScroll) {
-        return;
-    }
-    if (advancingOnEnd && !<?= json_encode((bool) getConfig("auto_scroll_on_end")) ?>) return;
+    if (!autoScroll) return;
+    if (advancingOnEnd && !autoScrollOnEnd) return;
     var row = $("tr.songrow[data-uniqueid='" + currentIndex + "']")[0];
     if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -1357,8 +1357,6 @@
     /*                                Settings modal                              */
     /* ────────────────────────────────────────────────────────────────────────── */
     var settingsModal = $("#configModal");
-    var previewAccents = ["green", "blue", "purple", "pink", "orange", "red", "teal", "yellow"];
-    var previewThemes  = { light: "light", arctic: "light", dark: "dark", oled: "dark", midnight: "dark", forest: "dark", sunset: "dark" };
 
     function settingValue(key) {
       var inputs = settingsModal.find(".settingInput[data-key='" + key + "']");
@@ -1377,9 +1375,69 @@
       waveform_opacity: "opacity", waveform_sensitivity: "sensitivity",
     };
 
-    function previewSetting(key, value) {
+    // Plain JS variables the player reads as it goes: key -> setter
+    var asBool = function(v) { return v === true || v === "true" || v === "1"; };
+    var liveVars = {
+      seek_step:              function(v) { seekStep = Math.max(1, parseInt(v, 10) || 1); },
+      cast_end_action:        function(v) { castEndAction = String(v); },
+      remember_position:      function(v) { rememberPosition = asBool(v); },
+      auto_scroll:            function(v) { autoScroll = asBool(v); },
+      auto_scroll_on_end:     function(v) { autoScrollOnEnd = asBool(v); },
+      // Defaults used on the next page load; nothing else to change now
+      default_volume:         function(v) { defaultVolume = parseFloat(v); },
+      start_shuffle:          function(v) { startShuffle = asBool(v); },
+      start_loop:             function(v) { startLoop = asBool(v); },
+      autoplay_next:          function() {},
+    };
+
+    // The server sends the recomputed theme (attributes + CSS) with every save.
+    var autoThemeQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    function applyAutoTheme() {
+      var root = document.documentElement;
+      if (root.getAttribute("data-app-theme") !== "auto" || !autoThemeQuery) return;
+      root.setAttribute("data-bs-theme", autoThemeQuery.matches ? "dark" : "light");
+    }
+    if (autoThemeQuery && autoThemeQuery.addEventListener) autoThemeQuery.addEventListener("change", applyAutoTheme);
+
+    function applyTheme(theme) {
+      if (!theme || !theme.attrs) return;
+      var root = document.documentElement;
+      ["data-bs-theme", "data-app-theme", "data-accent", "data-has-bg"].forEach(function(name) {
+        if (theme.attrs[name] !== undefined) root.setAttribute(name, theme.attrs[name]);
+        else root.removeAttribute(name);
+      });
+      $("#themeVars").text(theme.css || "");
+      applyAutoTheme();
+      var swatches = { green: "#2fb344", blue: "#3b82f6", purple: "#a855f7", pink: "#ec4899", orange: "#f97316", red: "#ef4444", teal: "#14b8a6", yellow: "#eab308" };
+      var accent = theme.attrs["data-accent"];
+      settingsModal.find(".accentDot").css("background", swatches[accent] || "var(--tblr-success)");
+    }
+
+    function applySetting(key, value) {
       var root = document.documentElement;
       var body = document.body;
+      if (liveVars[key]) liveVars[key](value);
+      if (key === "loudness_equalization") {
+        window.loudnessEqualization = asBool(value);
+        if (window.audioGraph && audioGraph.setLoudness) audioGraph.setLoudness(window.loudnessEqualization);
+      }
+      if (key === "site_title") {
+        siteTitle = String(value);
+        $(".siteTitle").text(siteTitle);
+        if (!songName) document.title = siteTitle;
+      }
+      if (key === "no_song_text") {
+        noSongText = String(value);
+        if (!songName) $("#songtitle").text(noSongText).attr("title", noSongText);
+      }
+      if (key === "show_quick_buttons") $(".quickButtons").toggle(asBool(value));
+      if (key === "compact_rows") playlistTable.toggleClass("table-sm", asBool(value));
+      if (key === "default_sort" || key === "default_sort_order") {
+        var sortName = settingValue("default_sort");
+        if (["name", "duration", "size", "date"].indexOf(sortName) !== -1 && playlistTable.data("bootstrap.table")) {
+          playlistTable.bootstrapTable("sortBy", { field: sortName, sortOrder: settingValue("default_sort_order") === "desc" ? "desc" : "asc" });
+        }
+      }
       if (playerClassKeys[key]) {
         var prefix = playerClassKeys[key];
         body.className = body.className.split(/\s+/).filter(function(c) { return c.indexOf(prefix) !== 0; }).join(" ");
@@ -1406,16 +1464,6 @@
         if (key === "show_waveform") v = value === true || value === "true";
         opts[waveformKeys[key]] = v;
         waveform.configure(opts);
-      }
-      if (key === "player_theme" && previewThemes[value]) {
-        root.setAttribute("data-app-theme", value);
-        root.setAttribute("data-bs-theme", previewThemes[value]);
-      }
-      if (key === "accent_color" && previewAccents.indexOf(value) !== -1) {
-        root.setAttribute("data-accent", value);
-        var dot = settingsModal.find(".accentDot");
-        var swatches = { green: "#2fb344", blue: "#3b82f6", purple: "#a855f7", pink: "#ec4899", orange: "#f97316", red: "#ef4444", teal: "#14b8a6", yellow: "#eab308" };
-        dot.css("background", swatches[value]);
       }
     }
 
@@ -1446,13 +1494,15 @@
           showToast(res.response || "Could not save the setting.", "danger");
           return;
         }
-        if (res.response === "No change.") return;
-        settingsModal.find(".settingsFooter").show();
         if (row && row.length) {
+          clearTimeout(row.data("savedTimer"));
           row.addClass("justSaved");
-          setTimeout(function() { row.removeClass("justSaved"); }, 1500);
+          row.data("savedTimer", setTimeout(function() { row.removeClass("justSaved"); }, 1500));
         }
-        previewSetting(key, value);
+        if (res.response === "No change.") return;
+        if (row && row.is("[data-reload]")) settingsModal.find(".settingsReloadAlert").prop("hidden", false);
+        applySetting(key, value);
+        if (res.data && res.data.theme) applyTheme(res.data.theme);
       }, function() {
         showToast("Could not reach the server to save the setting.", "danger");
       });
@@ -1513,7 +1563,7 @@
         $(this).siblings(".settingRangeValue").text(label);
         // Waveform sliders preview while dragging
         var key = $(this).data("key");
-        if (waveformKeys[key]) previewSetting(key, v);
+        if (waveformKeys[key]) applySetting(key, v);
       })
       // Chips (array settings)
       .on("click", ".chipRemove", function() {

@@ -14,16 +14,20 @@
     /* ─────────────────────────── FUNCTION: themeSetup ───────────────────────── */
     // Works out the <html> attributes, inline CSS and auto-theme script for the
     // configured theme, accent and background. All values are validated here.
-    function themeSetup(): array {
+    // $values (key => value) overrides the loaded config, e.g. right after a save.
+    function themeSetup(?array $values = null): array {
+        $getConfig = function (string $key) use ($values) {
+            return ($values !== null && array_key_exists($key, $values)) ? $values[$key] : getConfig($key);
+        };
         $lightThemes = ["light", "arctic"];
-        $theme  = (string) getConfig("player_theme");
-        $accent = (string) getConfig("accent_color");
+        $theme  = (string) $getConfig("player_theme");
+        $accent = (string) $getConfig("accent_color");
         $isHex  = function ($v) { return is_string($v) && preg_match('/^#[0-9a-f]{6}$/i', $v); };
 
         if ($theme === "auto") {
             $base = "dark"; // corrected before first paint by the inline script
         } elseif ($theme === "custom") {
-            $base = getConfig("custom_base") === "light" ? "light" : "dark";
+            $base = $getConfig("custom_base") === "light" ? "light" : "dark";
         } else {
             $base = in_array($theme, $lightThemes, true) ? "light" : "dark";
         }
@@ -36,9 +40,9 @@
         $css = "";
 
         if ($theme === "custom") {
-            $bg      = getConfig("custom_background");
-            $surface = getConfig("custom_surface");
-            $text    = getConfig("custom_text");
+            $bg      = $getConfig("custom_background");
+            $surface = $getConfig("custom_surface");
+            $text    = $getConfig("custom_text");
             if ($isHex($bg) && $isHex($surface) && $isHex($text)) {
                 $css .= "html[data-app-theme=\"custom\"]{"
                       . "--tblr-body-bg:$bg;--tblr-bg-surface-secondary:$bg;"
@@ -51,7 +55,7 @@
         }
 
         if ($accent === "custom") {
-            $hex = getConfig("custom_accent");
+            $hex = $getConfig("custom_accent");
             if ($isHex($hex)) {
                 $rgb  = implode(",", array_map('hexdec', str_split(substr($hex, 1), 2)));
                 $css .= "html[data-accent=\"custom\"]{--tblr-success:$hex;--tblr-success-rgb:$rgb;}";
@@ -59,12 +63,12 @@
         }
 
         // Background image: http(s) URL or a relative path without anything that could break out of url("…").
-        $image = trim((string) getConfig("background_image"));
+        $image = trim((string) $getConfig("background_image"));
         if ($image !== "" && !preg_match('/["\'()\\\\<>\s;]/', $image)
             && (preg_match('#^https?://#i', $image) || !preg_match('#^[a-z][a-z0-9+.-]*:#i', $image))) {
             $attrs["data-has-bg"] = "1";
-            $dim  = max(0, min(1, (float) getConfig("background_dim")));
-            $blur = max(0, min(20, (float) getConfig("background_blur")));
+            $dim  = max(0, min(1, (float) $getConfig("background_dim")));
+            $blur = max(0, min(20, (float) $getConfig("background_blur")));
             $css .= "html[data-has-bg]{--app-bg-image:url(\"$image\");--app-bg-dim:$dim;--app-bg-blur:{$blur}px;}";
         }
 
@@ -80,7 +84,7 @@
                     . "a();if(m.addEventListener)m.addEventListener('change',a);})();</script>";
         }
 
-        return ["attributes" => $html, "css" => $css, "script" => $script];
+        return ["attributes" => $html, "attrs" => $attrs, "css" => $css, "script" => $script];
     }
 
     /* ───────────────────────────── FUNCTION: alert ──────────────────────────── */
@@ -226,7 +230,7 @@
 
     /* ─────────────────────────── FUNCTION: saveConfig ───────────────────────── */
     // Writes the full (merged) configuration to the active config file.
-    function saveConfig(array $config): void {
+    function saveConfig(array $config, array $data = []): void {
         $content  = "<?php\n\n";
         $content .= "/* ────────────────────────────────────────────────────────────────────────── */\n";
         $content .= "/*                                 Configuration                              */\n";
@@ -241,7 +245,7 @@
         if (function_exists('opcache_invalidate')) {
             @opcache_invalidate(CONFIG_FILE, true);
         }
-        apiResponse("success", "The configuration has been saved.");
+        apiResponse("success", "The configuration has been saved.", $data);
     }
 
     /* ────────────────────────── FUNCTION: cleanConfigValue ──────────────────── */
@@ -316,7 +320,9 @@
         }
 
         $config[$key]['value'] = $newValue;
-        saveConfig($config);
+        // The page applies theme changes live from this, without a reload.
+        $theme = themeSetup(array_map(function ($s) { return is_array($s) ? ($s['value'] ?? null) : null; }, $config));
+        saveConfig($config, ["value" => $newValue, "theme" => ["attrs" => $theme["attrs"], "css" => $theme["css"]]]);
     }
 
 

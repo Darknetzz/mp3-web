@@ -41,7 +41,7 @@ $theme = themeSetup();
 
     <link rel="stylesheet" href="style.css?v=<?= @filemtime(__DIR__ . '/style.css') ?>">
     <link rel="stylesheet" href="themes.css">
-    <?php if ($theme["css"] !== "") { echo "<style>" . $theme["css"] . "</style>"; } ?>
+    <style id="themeVars"><?= $theme["css"] ?></style>
     <?= $theme["script"] ?>
   </head>
 <?php
@@ -354,7 +354,7 @@ echo '
 <div class="card m-3 mainCard">
   <div class="card-header d-flex justify-content-between">
       <div>
-        <h2>'.getConfig("site_title").' <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
+        <h2><span class="siteTitle">'.getConfig("site_title").'</span> <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
       </div>
       <div class="d-flex align-items-center gap-2">
       <div class="btn-group quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>

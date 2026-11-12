@@ -288,6 +288,9 @@ function renderSettingControl(string $key, array $setting): string {
 }
 
 # Build the rows per category
+# Settings that change server-rendered markup or the song list: they need a page reload.
+$settingsNeedReload = ["env", "audio_path", "allowed_types", "include_file_extension", "use_legacy_player", "playlist_nav", "show_upload", "default_table_cols"];
+
 $categoryOf = [];
 foreach ($settingsCategories as $catKey => $cat) {
   foreach ($cat["keys"] as $settingKey) $categoryOf[$settingKey] = $catKey;
@@ -299,11 +302,12 @@ foreach (CONFIG as $key => $setting) {
   $desc   = $setting["description"] ?? "";
   $search = strtolower($name . " " . $desc . " " . $key);
   $when   = isset($settingsShowWhen[$key]) ? ' data-show-when="'.settingsEsc($settingsShowWhen[$key]).'"' : '';
+  $reload = in_array($key, $settingsNeedReload, true);
   $categoryRows[$categoryOf[$key] ?? "other"][$key] = '
-            <div class="settingRow" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.'>
+            <div class="settingRow" data-setting="'.settingsEsc($key).'" data-search="'.settingsEsc($search).'"'.$when.($reload ? ' data-reload="1"' : '').'>
               <div class="settingText">
                 <div class="settingName" title="'.settingsEsc($key).'">'.settingsEsc($name).' <span class="settingSaved">'.icon("circle-check", 0.9, 0).'</span></div>
-                <div class="settingDesc">'.settingsEsc($desc).'</div>
+                <div class="settingDesc">'.settingsEsc($desc).($reload ? ' <span class="settingReloadNote">Requires reload</span>' : '').'</div>
               </div>
               <div class="settingControl">'.renderSettingControl($key, $setting).'</div>
             </div>';
@@ -349,15 +353,16 @@ echo '
       <div class="modal-body settingsBody">
         <div class="settingsLayout">
           <nav class="settingsNav" aria-label="Settings sections">'.$navHtml.'</nav>
-          <div class="settingsContent">'.$sectionsHtml.'
+          <div class="settingsContent">
+            <div class="alert alert-warning settingsReloadAlert d-flex align-items-center gap-2" role="status" hidden>
+              '.icon("info", 1, 0).'
+              <span class="me-auto">Some changes need a page reload to apply.</span>
+              <button type="button" class="btn btn-sm btn-warning" onclick="window.location.reload()">Reload</button>
+            </div>'.$sectionsHtml.'
             <div class="settingsEmpty text-secondary" style="display:none;">No settings match your search.</div>
             <div class="settingsFile text-secondary small">Saved to <code>'.settingsEsc(CONFIG_FILE).'</code></div>
           </div>
         </div>
-      </div>
-      <div class="modal-footer settingsFooter" style="display:none;">
-        <span class="text-secondary me-auto">'.icon("info", 1, 0).' Some changes apply after a reload.</span>
-        <button type="button" class="btn btn-success reloadCfgBtn" onclick="window.location.reload()">Reload to apply</button>
       </div>
     </div>
   </div>
