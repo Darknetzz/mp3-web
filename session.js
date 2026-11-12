@@ -248,6 +248,37 @@
     form.find("[name=allow_all]").prop("checked", !!userPrefs.session_allow_all);
   }
 
+  /* ───────────────────────────── Local audio ──────────────────────────────── */
+  // Whether this device is really playing. `playing` follows the play button,
+  // which can be out of step with the <audio> element when autoplay is refused.
+  function localPlaying() {
+    return player.isRemote() ? !!playing : !player.audio().paused;
+  }
+
+  // Phones only let a page start audio from a tap. Joining plays after the
+  // server answers, which is too late, so play a silent clip during the tap
+  // itself: that unlocks the <audio> element for the session's playback.
+  // (player.load removes the clip's src attribute when the real song loads.)
+  var SILENT_WAV = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+  function unlockAudio() {
+    if (player.isRemote()) return;
+    var a = player.audio();
+    if (!a || !a.paused || $("#audioSource").attr("src")) return; // a song is loaded: leave it alone
+    var restore = function () {
+      if (a.getAttribute("src") !== SILENT_WAV) return; // the session's song took over
+      a.pause();
+      a.removeAttribute("src");
+      a.load();
+    };
+    try {
+      a.src = SILENT_WAV;
+      var p = a.play();
+      if (p && p.then) p.then(restore, restore); else restore();
+    } catch (e) {
+      restore();
+    }
+  }
+
   /* ─────────────────────────── Apply remote state ─────────────────────────── */
   function expectedPosition(st) {
     var pos = +st.position || 0;
@@ -298,8 +329,8 @@
       if (Math.abs(player.getTime() - expected) > DRIFT_SECS) {
         player.seek(expected);
       }
-      if (st.playing && !playing) player.play();
-      if (!st.playing && playing) player.pause();
+      if (st.playing && !localPlaying()) player.play();
+      if (!st.playing && localPlaying()) player.pause();
     } finally {
       applying = false;
     }
@@ -323,7 +354,7 @@
       applying = true;
       try { player.seek(expected); } finally { applying = false; }
     }
-    if (st.playing && !playing) {
+    if (st.playing && !localPlaying()) {
       applying = true;
       try { player.play(); } finally { applying = false; }
     }
@@ -465,11 +496,24 @@
       var status = $(".sessionStatus");
       if (status.find(".tapToListen").length) return;
       var text = status.html();
+      // The link goes first: the status line is cut off with an ellipsis on phones.
       status.html(
-        '<span class="sessionStatusText">' + text + '</span> ' +
-        '<a href="javascript:void(0);" class="tapToListen link-success fw-bold ms-2">▶ Tap to start listening</a>'
+        '<a href="javascript:void(0);" class="tapToListen link-success fw-bold me-2">▶ Tap to listen</a>' +
+        '<span class="sessionStatusText">' + text + '</span>'
       ).show();
+      showToast("Your browser blocked autoplay. Press Play to start listening to the session.", "warning");
     },
+  };
+  // Play pressed while the session plays but this device doesn't (autoplay was
+  // blocked): start listening here, inside the tap. True when handled.
+  api.listenHere = function () {
+    if (!isActive() || !view || !view.state || !view.state.playing || !view.state.song) return false;
+    if (pushTimer || pushInFlight) return false; // our own change is on its way; the view is stale
+    if (localPlaying()) return false;
+    var text = $(".sessionStatus .sessionStatusText").html();
+    if (text != null) $(".sessionStatus").html(text);
+    apply(view, true);
+    return true;
   };
   window.sessionSync = api;
   api.join = function (code) { join(code); }; // the Activity panel's "Listen along"
@@ -498,6 +542,7 @@
   }
 
   function join(code) {
+    unlockAudio(); // still inside the tap that asked to join
     request("POST", "joinSession", { sessionCode: code, remote: onHostSpeaker ? 1 : 0 }).then(function (res) {
       if (res.status !== "success") {
         showToast(res.response, "danger");

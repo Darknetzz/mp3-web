@@ -172,6 +172,7 @@
       this.lastTime = startTime;
       this.loadedAt = Date.now();
       $("#audioSource").attr("src", songUrl(name));
+      a.removeAttribute("src"); // session.js may have left its silent unlock clip here
       a.load();
       if (startTime > 0) {
         $(a).one("loadedmetadata.start", function() {
@@ -193,10 +194,15 @@
       return a.networkState === a.NETWORK_NO_SOURCE && a.readyState === 0 && Date.now() - this.loadedAt > 2000;
     },
     playLocal: function() {
+      var self = this;
       var p = this.audio().play();
       if (p && p.catch) p.catch(function(e) {
         console.log("Playback was blocked:", e);
-        if (e && e.name === "NotAllowedError" && window.sessionSync) sessionSync.playBlocked();
+        if (e && e.name === "NotAllowedError") {
+          // Some browsers fire "play" before refusing: don't leave the button on Pause.
+          if (self.audio().paused) setPlayingUI(false);
+          if (window.sessionSync) sessionSync.playBlocked();
+        }
       });
     },
     play: function() {
@@ -703,6 +709,9 @@
 
   /* ────────────────────────── FUNCTION: resumeSong ────────────────────────── */
   function resumeSong() {
+    // In a session that is playing, Play on a device that isn't (autoplay was
+    // blocked) starts listening here. It must not change the session.
+    if (window.sessionSync && sessionSync.listenHere()) return;
     if (!songName) return;
     if (sessionBlocked()) return;
     updateTitle(songName);
@@ -1291,13 +1300,13 @@
 
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
     $(audioElement).on('play', function() {
-      if (player.isRemote()) return;
+      if (player.isRemote() || audioElement.hasAttribute("src")) return; // src attr: session.js audio unlock
       setPlayingUI(true);
     });
 
     /* ────────────────────────────── NOTE: Pause ─────────────────────────────── */
     $(audioElement).on('pause', function() {
-      if (player.isRemote()) return;
+      if (player.isRemote() || audioElement.hasAttribute("src")) return;
       setPlayingUI(false);
       saveState();
     });
