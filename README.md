@@ -7,6 +7,8 @@ A lightweight, self-hosted music player for local audio files, written in PHP wi
 It's handy when you have a folder of local music you want to play from any browser, and especially when you want to
 cast it to Google/Nest speakers (Spotify won't cast local files).
 
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
+
 ## Screenshots
 
 Taken with a generated demo library.
