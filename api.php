@@ -359,7 +359,7 @@ do {
 
     if ($action === 'joinSession') {
         require_csrf_token();
-        joinSession($_POST['sessionCode'] ?? $_POST['code'] ?? '');
+        joinSession($_POST['sessionCode'] ?? $_POST['code'] ?? '', ($_POST['remote'] ?? '') === '1');
     }
 
     if ($action === 'leaveSession') {
@@ -388,6 +388,11 @@ do {
     if ($action === 'setUserPrefs') {
         require_csrf_token();
         setUserPrefs($_POST['prefs'] ?? null);
+    }
+
+    if ($action === 'sessionSpeaker') {
+        require_csrf_token();
+        sessionSpeaker($_POST['remote'] ?? false);
     }
 
     if ($action === 'sessionSettings') {

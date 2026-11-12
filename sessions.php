@@ -171,6 +171,8 @@ function sessionView(array $s, string $member): array {
             "host"   => $id === $s['host'],
             "me"     => $id === $member,
             "active" => $now - ($m['last_seen'] ?? 0) <= SESSION_ACTIVE_SECS,
+            // Listening on the host's speaker (this device stays silent).
+            "remote" => $id !== $s['host'] && !empty($m['remote']),
             "joined" => $m['joined'] ?? 0,
         ];
     }
@@ -339,7 +341,7 @@ function createSession(string $name = "", bool $public = false, bool $allowAll =
     apiResponse("success", "Session <code>" . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "</code> created.", sessionView($data, $member));
 }
 
-function joinSession($code): void {
+function joinSession($code, $remote = false): void {
     $code = strtolower(trim((string) $code));
     if (!sessionValidCode($code)) {
         apiResponse("error", "That session code is not valid. Codes are 8 characters (0-9, a-f).");
@@ -349,13 +351,14 @@ function joinSession($code): void {
     }
     $member = sessionMemberId();
     $displayName = sessionDisplayName();
-    [$data] = sessionWithLock($code, function ($s) use ($member, $displayName) {
+    [$data] = sessionWithLock($code, function ($s) use ($member, $displayName, $remote) {
         if ($s === null) return null;
         $now = time();
         if (!isset($s['members'][$member])) {
             $s['members'][$member] = ["joined" => $now, "last_seen" => $now];
         }
-        $s['members'][$member]['name'] = $displayName;
+        $s['members'][$member]['name']   = $displayName;
+        $s['members'][$member]['remote'] = (bool) $remote;
         return sessionHousekeep($s, $member);
     });
     if (!is_array($data)) {
@@ -482,6 +485,23 @@ function sessionSettings($allowAll): void {
         apiResponse("error", "Only the host can change session settings.", sessionView($data, $member));
     }
     $msg = $data['allow_all'] ? "Everyone can now control playback." : "Only the host can control playback now.";
+    apiResponse("success", $msg, sessionView($data, $member));
+}
+
+/** Where this member listens: on this device, or on the host's speaker only. */
+function sessionSpeaker($remote): void {
+    $code   = sessionCurrentCode();
+    $member = sessionMemberId();
+    $remote = ($remote === true || $remote === 'true' || $remote === '1');
+    [$data] = sessionWithLock($code, function ($s) use ($member, $remote) {
+        if ($s === null || !isset($s['members'][$member])) return null;
+        $s['members'][$member]['remote'] = $remote;
+        return sessionHousekeep($s, $member);
+    });
+    if (!is_array($data) || !isset($data['members'][$member])) {
+        apiResponse("error", "The session has ended.", ["in_session" => false]);
+    }
+    $msg = $remote ? "Listening on the host&rsquo;s speaker. This device stays silent." : "Playing on this device too.";
     apiResponse("success", $msg, sessionView($data, $member));
 }
 

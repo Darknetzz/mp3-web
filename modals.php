@@ -88,6 +88,16 @@ echo '
           <h4 class="card-header text-center">Join session</h4>
           <div class="card-body text-center">
             <p class="text-muted">Join with a code, or pick a public session below.</p>
+            <div class="mb-2">
+              <div class="text-muted small mb-1">Play the music on</div>
+              <div class="btn-group" role="group" aria-label="Where to play the session">
+                <input type="radio" class="btn-check" name="sessionSpeakerChoice" id="sessionSpeakerHere" value="here" autocomplete="off" checked>
+                <label class="btn btn-outline-primary" for="sessionSpeakerHere">'.icon("volume-2", 1.2, 0).' My speaker</label>
+                <input type="radio" class="btn-check" name="sessionSpeakerChoice" id="sessionSpeakerHost" value="host" autocomplete="off">
+                <label class="btn btn-outline-primary" for="sessionSpeakerHost">'.icon("volume-x", 1.2, 0).' Host&rsquo;s speaker only</label>
+              </div>
+              <div class="text-muted small mt-1">Host&rsquo;s speaker only: this device stays silent and works as a remote.</div>
+            </div>
             <a href="javascript:void(0);" class="btn btn-primary m-2 sessionBtn" data-target="#joinSessionForm">
                 '.icon("users", 2).'
             </a>
@@ -128,6 +138,12 @@ echo '
             <div class="mx-auto mb-3 text-start" style="max-width: 520px;">
               <div class="text-muted small mb-1">Members</div>
               <div class="list-group sessionMembers"></div>
+            </div>
+            <div class="sessionGuestOnly mb-3" style="display:none;">
+              <label class="form-check form-switch d-inline-flex align-items-center gap-2">
+                <input class="form-check-input m-0" type="checkbox" id="sessionPlayHere" checked>
+                <span>Play on my speaker too <small class="text-muted">(off: only on the host&rsquo;s speaker)</small></span>
+              </label>
             </div>
             <div class="sessionHostOnly mb-3" style="display:none;">
               <label class="form-check form-switch d-inline-flex align-items-center gap-2">

@@ -243,6 +243,12 @@
       if (window.audioGraph) window.audioGraph.setVolume(v);
       else this.audio().volume = v;
     },
+    // Silence the local <audio> while it keeps playing (session.js: listening
+    // on the host's speaker). The volume setting is left alone.
+    setMuted: function(m) {
+      if (window.audioGraph) window.audioGraph.setMuted(m);
+      else this.audio().muted = !!m;
+    },
     // The local volume (the element may sit at 1 while the audio graph applies it)
     localVolume: function() {
       return window.audioGraph ? window.audioGraph.volume() : this.audio().volume;
