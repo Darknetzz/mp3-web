@@ -41,6 +41,23 @@ function sessionCleanDisplayName($name): string {
     return mb_substr($name, 0, SESSION_DISPLAY_MAX);
 }
 
+/**
+ * A member's id as shown to others in this session. Lets the host pick a
+ * member (kick, make host) without exposing the real member token.
+ */
+function sessionMemberHandle(string $code, string $member): string {
+    return substr(hash_hmac('sha256', $member, $code), 0, 12);
+}
+
+/** The member with this handle, or null. */
+function sessionMemberByHandle(array $s, $handle): ?string {
+    if (!is_string($handle) || $handle === '') return null;
+    foreach ($s['members'] as $id => $m) {
+        if (hash_equals(sessionMemberHandle($s['code'], (string) $id), $handle)) return (string) $id;
+    }
+    return null;
+}
+
 function sessionValidCode($code): bool {
     return is_string($code) && preg_match('/^[a-f0-9]{8}$/', $code) === 1;
 }
@@ -167,12 +184,13 @@ function sessionView(array $s, string $member): array {
     $members = [];
     foreach ($s['members'] as $id => $m) {
         $members[] = [
+            "id"     => sessionMemberHandle($s['code'], (string) $id),
             "name"   => $m['name'] ?? "Guest",
             "host"   => $id === $s['host'],
             "me"     => $id === $member,
             "active" => $now - ($m['last_seen'] ?? 0) <= SESSION_ACTIVE_SECS,
-            // Listening on the host's speaker (this device stays silent).
-            "remote" => $id !== $s['host'] && !empty($m['remote']),
+            // This device stays silent (listening on another member's speaker).
+            "remote" => !empty($m['remote']),
             "joined" => $m['joined'] ?? 0,
         ];
     }
@@ -351,8 +369,13 @@ function joinSession($code, $remote = false): void {
     }
     $member = sessionMemberId();
     $displayName = sessionDisplayName();
-    [$data] = sessionWithLock($code, function ($s) use ($member, $displayName, $remote) {
+    $kicked = false;
+    [$data] = sessionWithLock($code, function ($s) use ($member, $displayName, $remote, &$kicked) {
         if ($s === null) return null;
+        if (isset($s['kicked'][$member])) {
+            $kicked = true;
+            return null;
+        }
         $now = time();
         if (!isset($s['members'][$member])) {
             $s['members'][$member] = ["joined" => $now, "last_seen" => $now];
@@ -361,6 +384,9 @@ function joinSession($code, $remote = false): void {
         $s['members'][$member]['remote'] = (bool) $remote;
         return sessionHousekeep($s, $member);
     });
+    if ($kicked) {
+        apiResponse("error", "The host removed you from this session.");
+    }
     if (!is_array($data)) {
         apiResponse("error", "Session not found. It may have ended.");
     }
@@ -422,9 +448,65 @@ function sessionState(): void {
     if (!is_array($data) || !isset($data['members'][$member])) {
         session_start();
         unset($_SESSION['session_code']);
+        if (is_array($data) && isset($data['kicked'][$member])) {
+            apiResponse("error", "The host removed you from the session.", ["in_session" => false, "kicked" => true]);
+        }
         apiResponse("error", "The session has ended.", ["in_session" => false]);
     }
     apiResponse("success", "ok", sessionView($data, $member));
+}
+
+/**
+ * Host only: remove a member ("kick", who can't rejoin this session) or make
+ * them the host ("promote", the current host stays as a member).
+ */
+function sessionMemberAction($action, $handle): void {
+    $code   = sessionCurrentCode();
+    $member = sessionMemberId();
+    $error  = null;
+    $name   = '';
+    [$data] = sessionWithLock($code, function ($s) use ($member, $action, $handle, &$error, &$name) {
+        if ($s === null || !isset($s['members'][$member])) return null;
+        $s = sessionHousekeep($s, $member);
+        if ($s === false) return false;
+        if ($s['host'] !== $member) {
+            $error = "Only the host can do that.";
+            return $s;
+        }
+        $target = sessionMemberByHandle($s, $handle);
+        if ($target === null) {
+            $error = "That member has already left.";
+            return $s;
+        }
+        if ($target === $member) {
+            $error = $action === 'kick' ? "You can't remove yourself. Leave the session instead." : "You're already the host.";
+            return $s;
+        }
+        $name = $s['members'][$target]['name'] ?? 'Guest';
+        if ($action === 'kick') {
+            unset($s['members'][$target]);
+            $s['kicked'] = (array) ($s['kicked'] ?? []);
+            $s['kicked'][$target] = time();
+        } elseif ($action === 'promote') {
+            if (time() - ($s['members'][$target]['last_seen'] ?? 0) > SESSION_ACTIVE_SECS) {
+                $error = "That member is away. Only someone who is listening can become host.";
+                return $s;
+            }
+            $s['host'] = $target;
+        } else {
+            $error = "Unknown member action.";
+        }
+        return $s;
+    });
+    if (!is_array($data) || !isset($data['members'][$member])) {
+        apiResponse("error", "The session has ended.", ["in_session" => false]);
+    }
+    if ($error !== null) {
+        apiResponse("error", $error, sessionView($data, $member));
+    }
+    $safe = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+    $msg  = $action === 'kick' ? "Removed <strong>$safe</strong> from the session." : "<strong>$safe</strong> is now the host.";
+    apiResponse("success", $msg, sessionView($data, $member));
 }
 
 function sessionUpdate($state, $ifVersion = null): void {
