@@ -295,7 +295,7 @@
     setPlayingUI(false);
 
     // Hand the volume slider back to the local player
-    var localVolume = player.audio().volume;
+    var localVolume = player.localVolume();
     $("#volumeSlider").val(localVolume);
     updateVolumeIcon(localVolume);
 

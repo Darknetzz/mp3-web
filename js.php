@@ -228,7 +228,12 @@
     },
     setVolume: function(v) {
       if (this.remote) return this.remote.setVolume(v);
-      this.audio().volume = v;
+      if (window.audioGraph) window.audioGraph.setVolume(v);
+      else this.audio().volume = v;
+    },
+    // The local volume (the element may sit at 1 while the audio graph applies it)
+    localVolume: function() {
+      return window.audioGraph ? window.audioGraph.volume() : this.audio().volume;
     },
     getTime: function() {
       if (this.remote) return this.remote.getTime();
@@ -873,7 +878,7 @@
   /* ───────────────────────── FUNCTION: changeVolume ───────────────────────── */
   function changeVolume(delta) {
     var slider = $("#volumeSlider");
-    var current = slider.length ? parseFloat(slider.val()) : player.audio().volume;
+    var current = slider.length ? parseFloat(slider.val()) : player.localVolume();
     var v = Math.round(Math.min(1, Math.max(0, current + delta)) * 100) / 100;
     if (slider.length) {
       slider.val(v).trigger("input");
@@ -1061,7 +1066,8 @@
     var initialVolume = (!isNaN(storedVolume) && storedVolume >= 0 && storedVolume <= 1) ? storedVolume : defaultVolume;
     console.log("Initial volume: " + initialVolume);
     $("#volumeSlider").val(initialVolume);
-    audioElement.volume = initialVolume;
+    if (window.audioGraph) window.audioGraph.setVolume(initialVolume);
+    else audioElement.volume = initialVolume;
     updateVolumeIcon(initialVolume);
 
     /* ───────────────────────── NOTE: Playbar size / phones ─────────────────── */
