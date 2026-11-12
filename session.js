@@ -86,6 +86,35 @@
   function isActive()   { return !!sessionCode; }
   function canControl() { return !view || !!view.can_control; }
 
+  /* ──────────────────────────────── Speaker ───────────────────────────────── */
+  // A guest can play the session on this device, or leave it on the host's
+  // speaker and use this device as a remote. The local player keeps playing in
+  // sync either way (so the progress bar, song end and lock-screen controls
+  // keep working), it is just muted. Remembered per browser.
+  var SPEAKER_KEY = "sessionSpeaker";
+  var onHostSpeaker = false;
+  try { onHostSpeaker = localStorage.getItem(SPEAKER_KEY) === "host"; } catch (e) {}
+  var silenced = false;
+
+  function setHostSpeaker(remote) {
+    onHostSpeaker = !!remote;
+    try { localStorage.setItem(SPEAKER_KEY, onHostSpeaker ? "host" : "here"); } catch (e) {}
+    $("input[name=sessionSpeakerChoice][value=" + (onHostSpeaker ? "host" : "here") + "]").prop("checked", true);
+    $("#sessionPlayHere").prop("checked", !onHostSpeaker);
+  }
+
+  // The host is the speaker, so it is never silenced (a guest who becomes host
+  // starts playing out loud).
+  function applySpeaker() {
+    var silent = isActive() && !!view && !view.is_host && onHostSpeaker;
+    if (silent === silenced) return;
+    if (silenced && !silent && isActive() && view && view.is_host) {
+      showToast("You're the host now, so the session plays on this device.", "info");
+    }
+    silenced = silent;
+    player.setMuted(silent);
+  }
+
   /* ─────────────────────────────── UI state ───────────────────────────────── */
   function renderUI() {
     var active = isActive() && view;
@@ -93,6 +122,7 @@
     $(".sessionActive").toggle(!!active);
     $("body").toggleClass("session-readonly", !!active && !view.can_control);
     if (window.queuePanel) queuePanel.refresh(); // queue editing follows control rights
+    applySpeaker();
 
     if (!active) {
       $(".sessionStatus").hide().empty();
@@ -112,12 +142,15 @@
       .toggleClass("bg-green text-green-fg", view.is_host)
       .toggleClass("bg-secondary text-secondary-fg", !view.is_host);
     $(".sessionHostOnly").toggle(!!view.is_host);
+    $(".sessionGuestOnly").toggle(!view.is_host);
+    $("#sessionPlayHere").prop("checked", !onHostSpeaker);
     $("#sessionAllowAll").prop("checked", !!view.allow_all);
     $(".sessionBadge").text(view.listening).show();
 
     renderMembers(view.members || []);
 
     var status = "Session: " + esc(view.name) + " · " + view.listening + " listening · " + role;
+    if (silenced) status += " · on the host&rsquo;s speaker";
     if (!$(".sessionStatus .tapToListen").length || !$(".sessionStatus").is(":visible")) {
       $(".sessionStatus").html(status).show();
     } else {
@@ -131,6 +164,7 @@
       html += '<div class="list-group-item d-flex align-items-center gap-2' + (m.active ? '' : ' text-muted') + '">' +
         '<span class="status-dot ' + (m.active ? 'status-dot-animated bg-green' : 'bg-secondary') + '"></span>' +
         '<span class="text-truncate flex-fill">' + esc(m.name) + (m.me ? ' <small class="text-muted">(you)</small>' : '') + '</span>' +
+        (m.remote ? '<small class="text-muted text-nowrap">on host&rsquo;s speaker</small>' : '') +
         (m.host ? '<span class="badge bg-green text-green-fg">Host</span>' : '') +
         (m.active ? '' : '<small>away</small>') +
         '</div>';
@@ -464,7 +498,7 @@
   }
 
   function join(code) {
-    request("POST", "joinSession", { sessionCode: code }).then(function (res) {
+    request("POST", "joinSession", { sessionCode: code, remote: onHostSpeaker ? 1 : 0 }).then(function (res) {
       if (res.status !== "success") {
         showToast(res.response, "danger");
         return;
@@ -542,6 +576,24 @@
 
     $(document).on("click", ".joinPublicBtn", function () {
       join($(this).data("code"));
+    });
+
+    setHostSpeaker(onHostSpeaker); // show the remembered choice
+    $("input[name=sessionSpeakerChoice]").on("change", function () {
+      setHostSpeaker($(this).val() === "host");
+    });
+    $("#sessionPlayHere").on("change", function () {
+      setHostSpeaker(!$(this).is(":checked"));
+      applySpeaker();
+      renderUI();
+      if (!isActive()) return;
+      request("POST", "sessionSpeaker", { remote: onHostSpeaker ? "true" : "false" }).then(function (res) {
+        showToast(res.response, res.status === "success" ? "success" : "danger");
+        if (res.data && res.data.code) {
+          view = res.data;
+          renderUI();
+        }
+      });
     });
 
     $(".leaveSessionBtn").on("click", function () {

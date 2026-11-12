@@ -23,6 +23,7 @@
   var volume = 1;
   var loudness = !!window.loudnessEqualization;
   var wanted = loudness;
+  var muted  = false;
   var readyCallbacks = [];
 
   function build() {
@@ -80,7 +81,7 @@
     var audio = document.querySelector("audio");
     var post = !!(ctx && loudness);
     if (audio) audio.volume = post ? 1 : volume;
-    if (volumeNode) volumeNode.gain.value = post ? volume : 1;
+    if (volumeNode) volumeNode.gain.value = muted ? 0 : (post ? volume : 1);
   }
 
   function onGesture() {
@@ -109,6 +110,13 @@
     loudness: function () { return loudness; },
     volume: function () { return volume; },
     setVolume: function (v) { volume = v; applyVolume(); },
+    // Silence this device without touching the volume (listening sessions).
+    setMuted: function (m) {
+      muted = !!m;
+      var audio = document.querySelector("audio");
+      if (audio) audio.muted = muted;
+      applyVolume();
+    },
     setLoudness: function (on) {
       loudness = !!on;
       if (ctx) { route(); return; }
