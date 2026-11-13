@@ -817,6 +817,12 @@ function moreFormatter(value, row) {
       if (row.length) selectSong(row.attr("data-uniqueid"));
       if (contextMenuForSelected()) { e.preventDefault(); e.stopPropagation(); }
     })
+    // Rows drag only with a mouse. On a touch screen a long-press would start
+    // the browser's native drag (Android), which cancels the press and its
+    // menu, so a touch press turns dragging off for that row.
+    .on("pointerdown", rowSelector, function (e) {
+      this.setAttribute("draggable", e.originalEvent.pointerType === "mouse" ? "true" : "false");
+    })
     .on("touchstart", rowSelector, function (e) {
       var touches = e.originalEvent.touches;
       cancelPress();

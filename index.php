@@ -366,11 +366,11 @@ if ($navSidebar) {
 }
 echo '
 <div class="card m-3 mainCard">
-  <div class="card-header d-flex justify-content-between">
-      <div>
+  <div class="card-header d-flex justify-content-between mainHeader">
+      <div class="mainTitle">
         <h2><span class="siteTitle">'.getConfig("site_title").'</span> <small class="text-muted m-2"><a href="'.ENV['URL'].'" target="_blank">'.ENV['VERSION'].'</a></small></h2>
       </div>
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2 mainHeaderButtons">
       <div class="btn-group quickButtons"'.(getConfig('show_quick_buttons') ? '' : ' style="display:none;"').'>
         <button type="button" class="btn btn-sm btn-pill btn-outline-success" onclick="playFirst()" title="Play the first song">'.icon('play', filled: true).'<span class="d-none d-md-inline">Play first</span></button>
         <button type="button" class="btn btn-sm btn-pill btn-outline-success" onclick="randomSong(true)" title="Play a random song">'.icon('dice-'.mt_rand(1,6)).'<span class="d-none d-md-inline">Random</span></button>
