@@ -53,6 +53,10 @@
         watchedMedia = null;
         if (media.idleReason === chrome.cast.media.IdleReason.FINISHED) {
           trackFinished("idleReason FINISHED");
+        } else if (media.idleReason === chrome.cast.media.IdleReason.ERROR && !loadingMedia && !userStopped) {
+          // The speaker gave up mid-song, e.g. on a damaged spot in the file
+          castLog("speaker stopped with an error " + flags());
+          window.skipBadSpot(lastRemoteTime, "the speaker");
         }
       }
     });

@@ -120,6 +120,32 @@
     nextSong();
   }
 
+  // A damaged spot in a file (corrupt MP3 frames) makes the browser, and a Cast
+  // speaker, stop with a decode error. Pressing Play again only reached the
+  // same spot and stopped after a split second. Skip a little past it and
+  // carry on; when that keeps failing, move on to the next song.
+  var badSpot = { song: null, at: 0, tries: 0 };
+  function skipBadSpot(at, where) {
+    if (!songName) return;
+    at = +at || 0;
+    if (badSpot.song !== songName || Math.abs(at - badSpot.at) > 15) {
+      badSpot = { song: songName, at: at, tries: 0 }; // a new song, or another spot
+    }
+    badSpot.tries++;
+    var skipTo = badSpot.at + badSpot.tries; // 1 s past it, then 2 s, 3 s…
+    var d = player.getDuration() || duration || 0;
+    console.warn("Player: decode error in " + songName + " at " + at.toFixed(1) + "s on " + where +
+      ", try " + badSpot.tries + ": skipping to " + skipTo.toFixed(1) + "s");
+    if (badSpot.tries > 6 || (d && skipTo >= d - 1)) {
+      showToast("This song is damaged and can't be played past " + formatTime(badSpot.at) + ".", "warning");
+      onSongEnded();
+      return;
+    }
+    if (badSpot.tries === 1) showToast("Skipped a damaged part of this song at " + formatTime(at) + ".", "warning");
+    player.load(songName, { startTime: skipTo, autoplay: true });
+  }
+  window.skipBadSpot = skipBadSpot;
+
   /* ───────────────────────── Table sorters (bootstrap-table) ──────────────── */
   function durationSorter(a, b) {
     var secs = function(v) {
@@ -1310,6 +1336,18 @@
     $(audioElement).on('ended', function() {
       if (player.isRemote()) return;
       onSongEnded();
+    });
+
+    /* ─────────────────────────────── NOTE: Error ────────────────────────────── */
+    // A decode error while playing: a damaged spot in the file (see skipBadSpot).
+    // It fires before the element's "pause", so `playing` still says whether
+    // the song was playing.
+    $(audioElement).on('error', function() {
+      var err = audioElement.error;
+      if (player.isRemote() || audioElement.hasAttribute("src")) return;
+      if (!err || err.code !== err.MEDIA_ERR_DECODE || !playing) return;
+      var at = audioElement.currentTime || player.lastTime || 0;
+      setTimeout(function() { skipBadSpot(at, "this device"); }, 0);
     });
 
     /* ─────────────────────────────── NOTE: Play ─────────────────────────────── */
