@@ -531,6 +531,28 @@
         apiResponse("success", "OK", $songs);
     }
 
+    /* ──────────────────────── FUNCTION: uploadMaxBytes ──────────────────────── */
+    // The largest upload PHP will accept: the smaller of upload_max_filesize
+    // and post_max_size (0 means "no limit" for either).
+    function uploadMaxBytes(): int {
+        $toBytes = function (string $v): int {
+            $v = trim($v);
+            if ($v === "") return 0;
+            $n = (float) $v;
+            switch (strtolower(substr($v, -1))) {
+                case "g": $n *= 1024;
+                case "m": $n *= 1024;
+                case "k": $n *= 1024;
+            }
+            return (int) $n;
+        };
+        $limits = array_filter([
+            $toBytes((string) ini_get("upload_max_filesize")),
+            $toBytes((string) ini_get("post_max_size")),
+        ]);
+        return $limits ? min($limits) : 0;
+    }
+
     /* ───────────────────────────── FUNCTION: upload ─────────────────────────── */
     function uploadFile(array $file, bool $returnResult = false): array {
 

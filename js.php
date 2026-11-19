@@ -1066,7 +1066,9 @@
     $("#musicDropzone").dropzone({
       url: apiURL,
       paramName: "files",
-      maxFilesize: 10,
+      // Follow the server's PHP limits (MiB); a little under post_max_size
+      // leaves room for the rest of the form. null = no client-side cap.
+      maxFilesize: <?= json_encode(uploadMaxBytes() ? floor(uploadMaxBytes() / 1048576 * 0.98) : null) ?>,
       acceptedFiles: ".mp3",
       uploadMultiple: true,
       parallelUploads: 1,
